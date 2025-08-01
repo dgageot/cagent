@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -18,7 +19,18 @@ import (
 
 func main() {
 	ctx := context.Background()
+
+	if err := run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context) error {
 	logger := slog.Default()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	llm, err := openai.NewClient(
 		ctx,
@@ -29,7 +41,7 @@ func main() {
 		environment.NewDefaultProvider(logger),
 		logger)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	child := agent.New(
@@ -45,13 +57,14 @@ func main() {
 		agent.WithSubAgents(child),
 		agent.WithToolSets(builtin.NewTransferTaskTool()),
 	)
+
 	rt := runtime.New(logger, team.New(team.WithAgents(root, child)))
-
-	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
-
+	sess := session.New(cwd, logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+
 	fmt.Println(messages[len(messages)-1].Message.Content)
+	return nil
 }

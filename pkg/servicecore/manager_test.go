@@ -13,20 +13,22 @@ import (
 )
 
 func TestManager_ClientLifecycle(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "manager-test-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create isolated store for testing
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(agentsDir, store, logger)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	executor := NewExecutor(workingDir, logger)
+
+	manager, err := NewManager(resolver, executor, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("CreateClient", func(t *testing.T) {
@@ -56,10 +58,9 @@ func TestManager_ClientLifecycle(t *testing.T) {
 }
 
 func TestManager_AgentOperations(t *testing.T) {
-	// Create a temporary directory with test agent
-	tempDir, err := os.MkdirTemp("", "manager-agent-test-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 
 	// Create a test agent file
 	testAgentContent := `
@@ -75,20 +76,22 @@ models:
     provider: test
     model: test
 `
-	agentFile := tempDir + "/test-agent.yaml"
-	err = os.WriteFile(agentFile, []byte(testAgentContent), 0644)
+	agentFile := agentsDir + "/test-agent.yaml"
+	err := os.WriteFile(agentFile, []byte(testAgentContent), 0644)
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create isolated store for testing
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(agentsDir, store, logger)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	executor := NewExecutor(workingDir, logger)
+
+	manager, err := NewManager(resolver, executor, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("ResolveAgent", func(t *testing.T) {
@@ -136,20 +139,22 @@ models:
 }
 
 func TestManager_SessionOperations(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "manager-session-test-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create isolated store for testing
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(agentsDir, store, logger)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 2, logger) // Max 2 sessions for testing
+	executor := NewExecutor(workingDir, logger)
+
+	manager, err := NewManager(resolver, executor, time.Hour, 2, logger) // Max 2 sessions for testing
 	require.NoError(t, err)
 
 	// Create a client
@@ -206,20 +211,22 @@ func TestManager_SessionOperations(t *testing.T) {
 }
 
 func TestManager_SessionLimits(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "manager-limits-test-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create isolated store for testing
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(agentsDir, store, logger)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 1, logger) // Max 1 session
+	executor := NewExecutor(workingDir, logger)
+
+	manager, err := NewManager(resolver, executor, time.Hour, 1, logger) // Max 1 session
 	require.NoError(t, err)
 
 	// Create a client
@@ -227,7 +234,7 @@ func TestManager_SessionLimits(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a test agent file (won't actually load due to missing model config)
-	testAgent := tempDir + "/test.yaml"
+	testAgent := agentsDir + "/test.yaml"
 	err = os.WriteFile(testAgent, []byte("test"), 0644)
 	require.NoError(t, err)
 
@@ -249,20 +256,22 @@ func TestManager_SessionLimits(t *testing.T) {
 }
 
 func TestManager_ConcurrentAccess(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "manager-concurrent-test-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create isolated store for testing
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(agentsDir, store, logger)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	executor := NewExecutor(workingDir, logger)
+
+	manager, err := NewManager(resolver, executor, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("ConcurrentClientCreation", func(t *testing.T) {

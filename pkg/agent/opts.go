@@ -61,6 +61,18 @@ func WithAddDate(addDate bool) Opt {
 	}
 }
 
+func WithAddEnvironmentInfo(addEnvironmentInfo bool) Opt {
+	return func(a *Agent) {
+		a.addEnvironmentInfo = addEnvironmentInfo
+	}
+}
+
+func WithAddPromptFile(addPromptFile string) Opt {
+	return func(a *Agent) {
+		a.addPromptFile = addPromptFile
+	}
+}
+
 func WithMemoryManager(mm memorymanager.Manager) Opt {
 	return func(a *Agent) {
 		a.memoryManager = mm

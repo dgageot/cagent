@@ -630,6 +630,10 @@ func NewTUICmd() *cobra.Command {
 func runTUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
@@ -655,7 +659,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 
 	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
 
-	m, err := newModel(rt, session.New(logger))
+	m, err := newModel(rt, session.New(cwd, logger))
 	if err != nil {
 		return err
 	}

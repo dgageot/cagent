@@ -42,20 +42,8 @@ type Manager struct {
 	logger      *slog.Logger
 }
 
-// NewManager creates a new ServiceManager instance
-func NewManager(agentsDir string, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
-	resolver, err := NewResolver(agentsDir, logger)
-	if err != nil {
-		return nil, fmt.Errorf("creating resolver: %w", err)
-	}
-
-	return NewManagerWithResolver(resolver, timeout, maxSessions, logger)
-}
-
-// NewManagerWithResolver creates a new ServiceManager instance with a custom resolver (for testing)
-func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
-	executor := NewExecutor(logger)
-
+// NewManager creates a new ServiceManager
+func NewManager(resolver *Resolver, executor *Executor, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
 	// Initialize SQLite store (for future session persistence)
 	// For now, we'll use nil store since we're managing sessions in memory
 	var store Store

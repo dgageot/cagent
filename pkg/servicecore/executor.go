@@ -47,13 +47,15 @@ import (
 
 // Executor handles runtime creation and stream execution
 type Executor struct {
-	logger *slog.Logger
+	workingDir string
+	logger     *slog.Logger
 }
 
 // NewExecutor creates a new runtime executor
-func NewExecutor(logger *slog.Logger) *Executor {
+func NewExecutor(workingDir string, logger *slog.Logger) *Executor {
 	return &Executor{
-		logger: logger,
+		workingDir: workingDir,
+		logger:     logger,
 	}
 }
 
@@ -79,7 +81,7 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 	rt := runtime.New(e.logger, agents, runtime.WithCurrentAgent(agentName))
 
 	// Create session
-	sess := session.New(e.logger)
+	sess := session.New(e.workingDir, e.logger)
 
 	e.logger.Debug("Runtime created successfully", "agent_name", agentName, "session_id", sess.ID)
 	return rt, sess, nil

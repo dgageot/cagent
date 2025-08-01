@@ -97,7 +97,7 @@ func TestGetMessages(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session with many messages
-	s := New(slog.Default())
+	s := New(t.TempDir(), slog.Default())
 
 	// Add more than maxMessages to the session
 	for i := 0; i < maxMessages+10; i++ {
@@ -119,7 +119,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session
-	s := New(slog.Default())
+	s := New(t.TempDir(), slog.Default())
 
 	// Add a sequence of messages with tool calls
 	s.Messages = append(s.Messages, NewAgentMessage(testAgent, &chat.Message{

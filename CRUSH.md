@@ -1,37 +1,41 @@
-# CRUSH.md - Development Guide for cagent
+# CRUSH.md - Development Guidelines for cagent
 
 ## Build & Test Commands
 - `task build` - Build application binary (includes web frontend)
 - `task build-web` - Build React frontend only
 - `task test` - Run all Go tests (requires web build first)
 - `go test ./pkg/servicecore` - Run tests for specific package
-- `go test -run TestStoreBasicOperations ./pkg/content` - Run single test
-- `task lint` - Run golangci-lint with gocritic, revive rules
-- `task link` - Create symlink to ~/bin for easy access
+- `go test -run TestSpecificFunction ./pkg/agent` - Run single test
+- `task lint` - Run golangci-lint with project configuration
+- `task link` - Create symlink to ~/bin for easy CLI access
 
 ## Code Style Guidelines
 
-### Imports & Formatting
-- Use `goimports` for import organization (standard, third-party, local)
-- Group imports: stdlib, external, internal (`github.com/docker/cagent/pkg/...`)
-- Follow golangci-lint rules: gocritic, revive with exported comments required
-- Get rid of unwanted trailing spaces in yaml files
+### Package Structure & Imports
+- Follow standard Go project layout: `pkg/` for libraries, `cmd/` for executables
+- Group imports: stdlib, third-party, local packages (separated by blank lines)
+- Use consistent import aliases as defined in `.golangci.yml` importas settings
+- Package comments required for all public packages (see `pkg/servicecore/types.go`)
 
-### Types & Naming
-- Use descriptive struct names: `Agent`, `ServiceManager`, `Toolset`
-- Private fields use camelCase: `toolsetsStarted`, `memoryManager`
-- Public methods use PascalCase: `Name()`, `Instruction()`
-- Interface names end with -er when possible: `Provider`, `Manager`
+### Naming Conventions
+- Use camelCase for variables/functions, PascalCase for exported types
+- Interface names: end with -er suffix (e.g., `ServiceManager`, `Provider`)
+- Constants: ALL_CAPS with underscores (e.g., `DEFAULT_CLIENT_ID`)
+- File names: lowercase with underscores (e.g., `service_core.go`)
+
+### Types & Structs
+- Define interfaces in separate files when possible
+- Use struct embedding for composition over inheritance
+- Add struct tags for JSON/YAML serialization consistently
+- Document all exported types and methods
 
 ### Error Handling
-- Wrap errors with context: `fmt.Errorf("creating resolver: %w", err)`
-- Use structured logging with slog: `logger.Error("message", "key", value)`
-- Validate inputs early with descriptive errors
-- Use atomic operations for concurrent access: `atomic.Bool`
+- Return errors as last parameter: `func Do() (result, error)`
+- Use `fmt.Errorf` with `%w` verb for error wrapping
+- Check errors immediately after function calls
+- Use context.Context for cancellation and timeouts
 
-### Architecture Patterns
-- Multi-tenant design: all operations require clientID scoping
-- Use dependency injection via functional options: `New(name, prompt, ...Opt)`
-- Implement proper interfaces: `ServiceManager`, `Provider`, `ToolSet`
-- Thread-safe operations with proper mutex usage: `sync.RWMutex`
-- Comprehensive package documentation explaining purpose and security considerations
+### Multi-tenant Architecture
+- All operations must include client ID for isolation (see `pkg/servicecore/`)
+- Use `DEFAULT_CLIENT_ID` only for backward compatibility
+- Validate client access in all service layer operations

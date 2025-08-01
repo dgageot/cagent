@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -37,7 +38,18 @@ func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallRe
 
 func main() {
 	ctx := context.Background()
+
+	if err := run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context) error {
 	logger := slog.Default()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	llm, err := openai.NewClient(
 		ctx,
@@ -49,7 +61,7 @@ func main() {
 		logger,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	toolAddNumbers := tools.Tool{
@@ -77,17 +89,15 @@ func main() {
 		agent.WithModel(llm),
 		agent.WithTools(toolAddNumbers),
 	)
-
 	calculatorTeam := team.New(team.WithAgents(calculator))
 
 	rt := runtime.New(logger, calculatorTeam)
-
-	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
-
+	sess := session.New(cwd, logger, session.WithUserMessage("", "What is 1 + 2?"))
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	fmt.Println(messages[len(messages)-1].Message.Content)
+	return nil
 }

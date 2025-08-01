@@ -45,6 +45,10 @@ func NewRunCmd() *cobra.Command {
 func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	logLevel := slog.LevelInfo
 	if debugMode {
@@ -89,8 +93,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
-
-	sess := session.New(logger)
+	sess := session.New(cwd, logger)
 
 	blue := color.New(color.FgBlue).SprintfFunc()
 	yellow := color.New(color.FgYellow).SprintfFunc()

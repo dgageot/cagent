@@ -72,12 +72,14 @@ func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Model       string    `json:"model,omitempty" yaml:"model,omitempty"`
-	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
-	Toolsets    []Toolset `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`
-	Instruction string    `json:"instruction,omitempty" yaml:"instruction,omitempty"`
-	SubAgents   []string  `json:"sub_agents,omitempty" yaml:"sub_agents,omitempty"`
-	AddDate     bool      `json:"add_date,omitempty" yaml:"add_date,omitempty"`
+	Model              string    `json:"model,omitempty" yaml:"model,omitempty"`
+	Description        string    `json:"description,omitempty" yaml:"description,omitempty"`
+	Toolsets           []Toolset `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`
+	Instruction        string    `json:"instruction,omitempty" yaml:"instruction,omitempty"`
+	SubAgents          []string  `json:"sub_agents,omitempty" yaml:"sub_agents,omitempty"`
+	AddPromptFile      string    `json:"add_prompt_file,omitempty" yaml:"add_prompt_file,omitempty"`
+	AddDate            bool      `json:"add_date,omitempty" yaml:"add_date,omitempty"`
+	AddEnvironmentInfo bool      `json:"add_environment_info,omitempty" yaml:"add_environment_info,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model

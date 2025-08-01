@@ -57,19 +57,27 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 		logger.Info("Debug mode enabled")
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current working directory: %w", err)
+	}
+
 	// Default agents directory to current working directory if not specified
 	resolvedAgentsDir := agentsDir
 	if resolvedAgentsDir == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("getting current working directory: %w", err)
-		}
 		resolvedAgentsDir = cwd
 		logger.Info("Using current directory as agents root", "path", resolvedAgentsDir)
 	}
 
 	// Create servicecore manager
-	serviceCore, err := servicecore.NewManager(resolvedAgentsDir, sessionTimeout, maxSessions, logger)
+	resolver, err := servicecore.NewResolver(resolvedAgentsDir, logger)
+	if err != nil {
+		return fmt.Errorf("creating resolver: %w", err)
+	}
+
+	executor := servicecore.NewExecutor(cwd, logger)
+
+	serviceCore, err := servicecore.NewManager(resolver, executor, sessionTimeout, maxSessions, logger)
 	if err != nil {
 		return fmt.Errorf("creating servicecore manager: %w", err)
 	}

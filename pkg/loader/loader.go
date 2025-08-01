@@ -50,6 +50,8 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
+			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
+			agent.WithAddPromptFile(agentConfig.AddPromptFile),
 		}
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.Gateway))
 		if err != nil {

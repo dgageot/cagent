@@ -45,6 +45,10 @@ func NewApiCmd() *cobra.Command {
 func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	logLevel := slog.LevelInfo
 	if debugMode {
@@ -111,6 +115,6 @@ func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) err
 		opts = append(opts, server.WithAutoRunTools(true))
 	}
 
-	s := server.New(logger, sessionStore, runConfig, teams, opts...)
+	s := server.New(cwd, sessionStore, runConfig, teams, logger, opts...)
 	return s.Serve(ctx, ln)
 }

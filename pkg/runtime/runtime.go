@@ -425,7 +425,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
 	}
 
-	s := session.New(r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
+	s := session.New(sess.GetWorkingDir(), r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {

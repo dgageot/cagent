@@ -1,7 +1,6 @@
 // server_test.go provides unit tests for the MCP server implementation
 // This file tests the server creation, tool registration, and basic functionality
 // without requiring a full MCP client integration.
-//
 package mcpserver
 
 import (
@@ -10,20 +9,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/servicecore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewMCPServer(t *testing.T) {
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	// Create a mock servicecore manager
-	tempDir, err := os.MkdirTemp("", "mcpserver-test-")
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
 
-	serviceCore, err := servicecore.NewManager(tempDir, time.Hour, 100, logger)
+	resolver, err := servicecore.NewResolverWithStore(agentsDir, store, logger)
+	require.NoError(t, err)
+
+	executor := servicecore.NewExecutor(workingDir, logger)
+
+	serviceCore, err := servicecore.NewManager(resolver, executor, time.Hour, 100, logger)
 	require.NoError(t, err)
 
 	t.Run("ServerCreation", func(t *testing.T) {
@@ -50,12 +57,10 @@ func TestMCPServerIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	workingDir := t.TempDir()
+	storeDir := t.TempDir()
+	agentsDir := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	// Create a temporary directory for test agents
-	tempDir, err := os.MkdirTemp("", "mcpserver-integration-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
 
 	// Create a test agent file
 	testAgent := `
@@ -71,11 +76,20 @@ models:
     provider: openai
     model: gpt-4
 `
-	agentFile := tempDir + "/test-agent.yaml"
-	err = os.WriteFile(agentFile, []byte(testAgent), 0644)
+	agentFile := agentsDir + "/test-agent.yaml"
+	err := os.WriteFile(agentFile, []byte(testAgent), 0644)
 	require.NoError(t, err)
 
-	serviceCore, err := servicecore.NewManager(tempDir, time.Hour, 100, logger)
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(storeDir))
+	require.NoError(t, err)
+
+	resolver, err := servicecore.NewResolverWithStore(agentsDir, store, logger)
+	require.NoError(t, err)
+
+	executor := servicecore.NewExecutor(workingDir, logger)
+
+	serviceCore, err := servicecore.NewManager(resolver, executor, time.Hour, 100, logger)
 	require.NoError(t, err)
 
 	t.Run("ServiceCoreIntegration", func(t *testing.T) {

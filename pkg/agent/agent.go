@@ -13,17 +13,19 @@ import (
 
 // Agent represents an AI agent
 type Agent struct {
-	name            string
-	description     string
-	instruction     string
-	toolsets        []tools.ToolSet
-	toolsetsStarted atomic.Bool
-	models          []provider.Provider
-	subAgents       []*Agent
-	parents         []*Agent
-	addDate         bool
-	toolwrapper     toolwrapper
-	memoryManager   memorymanager.Manager
+	name               string
+	description        string
+	instruction        string
+	toolsets           []tools.ToolSet
+	toolsetsStarted    atomic.Bool
+	models             []provider.Provider
+	subAgents          []*Agent
+	parents            []*Agent
+	toolwrapper        toolwrapper
+	memoryManager      memorymanager.Manager
+	addPromptFile      string
+	addDate            bool
+	addEnvironmentInfo bool
 }
 
 // New creates a new agent
@@ -51,6 +53,14 @@ func (a *Agent) Instruction() string {
 
 func (a *Agent) AddDate() bool {
 	return a.addDate
+}
+
+func (a *Agent) AddEnvironmentInfo() bool {
+	return a.addEnvironmentInfo
+}
+
+func (a *Agent) AddPromptFile() string {
+	return a.addPromptFile
 }
 
 // Description returns the agent's description

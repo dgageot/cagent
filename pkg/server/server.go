@@ -34,6 +34,7 @@ type Server struct {
 	logger       *slog.Logger
 	runtimes     map[string]*runtime.Runtime
 	sessionStore session.Store
+	workingDir   string
 	agentsDir    string
 	runConfig    latest.RuntimeConfig
 	teams        map[string]*team.Team
@@ -61,7 +62,7 @@ func WithAutoRunTools(autoRunTools bool) Opt {
 	}
 }
 
-func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) *Server {
+func New(workingDir string, sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[string]*team.Team, logger *slog.Logger, opts ...Opt) *Server {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	s := &Server{
@@ -71,6 +72,7 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 		sessionStore: sessionStore,
 		runConfig:    runConfig,
 		teams:        teams,
+		workingDir:   workingDir,
 	}
 
 	for _, opt := range opts {
@@ -241,7 +243,7 @@ func (s *Server) getSessions(c echo.Context) error {
 }
 
 func (s *Server) createSession(c echo.Context) error {
-	sess := session.New(s.logger)
+	sess := session.New(s.workingDir, s.logger)
 
 	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
 		s.logger.Error("Failed to persist session", "session_id", sess.ID, "error", err)

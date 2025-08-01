@@ -29,6 +29,9 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	// WorkingDir is the directory where the session operates
+	WorkingDir string `json:"working_dir"`
+
 	// Logger for debugging and logging session operations
 	logger *slog.Logger
 }
@@ -85,14 +88,15 @@ func WithSystemMessage(content string) Opt {
 }
 
 // New creates a new agent session
-func New(logger *slog.Logger, opts ...Opt) *Session {
+func New(workingDir string, logger *slog.Logger, opts ...Opt) *Session {
 	sessionID := uuid.New().String()
 	logger.Debug("Creating new session", "session_id", sessionID)
 
 	s := &Session{
-		ID:        sessionID,
-		CreatedAt: time.Now(),
-		logger:    logger,
+		ID:         sessionID,
+		CreatedAt:  time.Now(),
+		WorkingDir: workingDir,
+		logger:     logger,
 	}
 
 	for _, opt := range opts {
@@ -100,6 +104,10 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 	}
 
 	return s
+}
+
+func (s *Session) GetWorkingDir() string {
+	return s.WorkingDir
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
@@ -123,14 +131,25 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	date := ""
+	content := a.Instruction()
+
 	if a.AddDate() {
-		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
+		content += "\n\n" + "Today's date: " + time.Now().Format("2006-01-02")
+	}
+
+	if a.AddEnvironmentInfo() {
+		content += "\n\n" + getEnvironmentInfo(s.GetWorkingDir())
+	}
+
+	if promptContent, err := AddPromptFileContent(s.GetWorkingDir(), a.AddPromptFile()); err != nil {
+		s.logger.Error("Failed to read prompt file", "error", err)
+	} else {
+		content += promptContent
 	}
 
 	messages = append(messages, chat.Message{
 		Role:    chat.MessageRoleSystem,
-		Content: a.Instruction() + "\n\n" + date,
+		Content: content,
 	})
 
 	for _, tool := range a.ToolSets() {
