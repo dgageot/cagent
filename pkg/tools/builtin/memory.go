@@ -64,10 +64,6 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Get Memories",
 				},
-				Parameters: tools.FunctionParameters{
-					Type:       "object",
-					Properties: map[string]any{},
-				},
 			},
 			Handler: t.handleGetMemories,
 		},

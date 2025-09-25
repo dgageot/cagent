@@ -199,11 +199,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "List Allowed Directories",
 				},
-				Parameters: tools.FunctionParameters{
-					Type:       "object",
-					Properties: map[string]any{},
-				},
-			},
+=			},
 			Handler: t.handleListAllowedDirectories,
 		},
 		{
