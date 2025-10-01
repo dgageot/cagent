@@ -124,6 +124,10 @@ func New(agents *team.Team, opts ...Opt) (Runtime, error) {
 		opt(r)
 	}
 
+	if r.CurrentAgent() == nil {
+		return nil, fmt.Errorf("root agent not found")
+	}
+
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
 	return r, nil
