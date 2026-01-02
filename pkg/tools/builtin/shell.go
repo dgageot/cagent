@@ -131,6 +131,17 @@ func statusToString(status int32) string {
 	return "unknown"
 }
 
+// BackgroundJobInfo represents structured information about a background job.
+type BackgroundJobInfo struct {
+	ID       string `json:"id" jsonschema:"The unique job ID"`
+	Command  string `json:"command" jsonschema:"The command being executed"`
+	Cwd      string `json:"cwd" jsonschema:"The working directory"`
+	Status   string `json:"status" jsonschema:"Job status: running, completed, stopped, or failed"`
+	Runtime  string `json:"runtime" jsonschema:"How long the job has been running"`
+	ExitCode *int   `json:"exitCode,omitempty" jsonschema:"Exit code if job has finished"`
+	Output   string `json:"output,omitempty" jsonschema:"Job output (only in view_background_job)"`
+}
+
 func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tools.ToolCallResult, error) {
 	// Determine effective timeout
 	effectiveTimeout := h.timeout
@@ -272,34 +283,54 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 }
 
 func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
-	var output strings.Builder
-	output.WriteString("Background Jobs:\n\n")
+	var jobs []BackgroundJobInfo
 
-	jobCount := 0
-	h.jobs.Range(func(jobID string, job *backgroundJob) bool {
-		jobCount++
+	h.jobs.Range(func(_ string, job *backgroundJob) bool {
 		status := job.status.Load()
 		statusStr := statusToString(status)
-
 		elapsed := time.Since(job.startTime).Round(time.Second)
-		fmt.Fprintf(&output, "ID: %s\n", jobID)
-		fmt.Fprintf(&output, "  Command: %s\n", job.cmd)
-		fmt.Fprintf(&output, "  Status: %s\n", statusStr)
-		fmt.Fprintf(&output, "  Runtime: %s\n", elapsed)
+
+		info := BackgroundJobInfo{
+			ID:      job.id,
+			Command: job.cmd,
+			Cwd:     job.cwd,
+			Status:  statusStr,
+			Runtime: elapsed.String(),
+		}
+
 		if status != statusRunning {
 			job.outputMu.RLock()
-			fmt.Fprintf(&output, "  Exit Code: %d\n", job.exitCode)
+			exitCode := job.exitCode
 			job.outputMu.RUnlock()
+			info.ExitCode = &exitCode
 		}
-		output.WriteString("\n")
+
+		jobs = append(jobs, info)
 		return true
 	})
 
-	if jobCount == 0 {
+	var output strings.Builder
+	output.WriteString("Background Jobs:\n\n")
+
+	if len(jobs) == 0 {
 		output.WriteString("No background jobs found.\n")
+	} else {
+		for _, info := range jobs {
+			fmt.Fprintf(&output, "ID: %s\n", info.ID)
+			fmt.Fprintf(&output, "  Command: %s\n", info.Command)
+			fmt.Fprintf(&output, "  Status: %s\n", info.Status)
+			fmt.Fprintf(&output, "  Runtime: %s\n", info.Runtime)
+			if info.ExitCode != nil {
+				fmt.Fprintf(&output, "  Exit Code: %d\n", *info.ExitCode)
+			}
+			output.WriteString("\n")
+		}
 	}
 
-	return tools.ResultSuccess(output.String()), nil
+	return &tools.ToolCallResult{
+		Output: output.String(),
+		Meta:   jobs,
+	}, nil
 }
 
 func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroundJobArgs) (*tools.ToolCallResult, error) {
@@ -310,19 +341,33 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroun
 
 	status := job.status.Load()
 	statusStr := statusToString(status)
+	elapsed := time.Since(job.startTime).Round(time.Second)
 
 	job.outputMu.RLock()
 	output := job.output.String()
 	exitCode := job.exitCode
 	job.outputMu.RUnlock()
 
-	var result strings.Builder
-	fmt.Fprintf(&result, "Job ID: %s\n", job.id)
-	fmt.Fprintf(&result, "Command: %s\n", job.cmd)
-	fmt.Fprintf(&result, "Status: %s\n", statusStr)
-	fmt.Fprintf(&result, "Runtime: %s\n", time.Since(job.startTime).Round(time.Second))
+	info := BackgroundJobInfo{
+		ID:      job.id,
+		Command: job.cmd,
+		Cwd:     job.cwd,
+		Status:  statusStr,
+		Runtime: elapsed.String(),
+		Output:  output,
+	}
+
 	if status != statusRunning {
-		fmt.Fprintf(&result, "Exit Code: %d\n", exitCode)
+		info.ExitCode = &exitCode
+	}
+
+	var result strings.Builder
+	fmt.Fprintf(&result, "Job ID: %s\n", info.ID)
+	fmt.Fprintf(&result, "Command: %s\n", info.Command)
+	fmt.Fprintf(&result, "Status: %s\n", info.Status)
+	fmt.Fprintf(&result, "Runtime: %s\n", info.Runtime)
+	if info.ExitCode != nil {
+		fmt.Fprintf(&result, "Exit Code: %d\n", *info.ExitCode)
 	}
 	result.WriteString("\n--- Output ---\n")
 	if output == "" {
@@ -334,7 +379,10 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroun
 		}
 	}
 
-	return tools.ResultSuccess(result.String()), nil
+	return &tools.ToolCallResult{
+		Output: result.String(),
+		Meta:   info,
+	}, nil
 }
 
 func (h *shellHandler) StopBackgroundJob(_ context.Context, params StopBackgroundJobArgs) (*tools.ToolCallResult, error) {
@@ -590,23 +638,25 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameListBackgroundJobs,
-			Category:     "shell",
-			Description:  `Lists all background jobs with their status, runtime, and other information.`,
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.ListBackgroundJobs),
+			Name:                 ToolNameListBackgroundJobs,
+			Category:             "shell",
+			Description:          `Lists all background jobs with their status, runtime, and other information.`,
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]BackgroundJobInfo](),
+			Handler:              NewHandler(t.handler.ListBackgroundJobs),
 			Annotations: tools.ToolAnnotations{
 				Title:        "List Background Jobs",
 				ReadOnlyHint: true,
 			},
 		},
 		{
-			Name:         ToolNameViewBackgroundJob,
-			Category:     "shell",
-			Description:  `Views the output and status of a specific background job by job ID.`,
-			Parameters:   tools.MustSchemaFor[ViewBackgroundJobArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.ViewBackgroundJob),
+			Name:                 ToolNameViewBackgroundJob,
+			Category:             "shell",
+			Description:          `Views the output and status of a specific background job by job ID.`,
+			Parameters:           tools.MustSchemaFor[ViewBackgroundJobArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[BackgroundJobInfo](),
+			Handler:              NewHandler(t.handler.ViewBackgroundJob),
 			Annotations: tools.ToolAnnotations{
 				Title:        "View Background Job Output",
 				ReadOnlyHint: true,

@@ -57,12 +57,13 @@ Do not talk about using the tool, just use it.
 func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
-			Name:         ToolNameAddMemory,
-			Category:     "memory",
-			Description:  "Add a new memory to the database",
-			Parameters:   tools.MustSchemaFor[AddMemoryArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleAddMemory),
+			Name:                 ToolNameAddMemory,
+			Category:             "memory",
+			Description:          "Add a new memory to the database",
+			Parameters:           tools.MustSchemaFor[AddMemoryArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]database.UserMemory](),
+			Handler:              NewHandler(t.handleAddMemory),
 			Annotations: tools.ToolAnnotations{
 				Title: "Add Memory",
 			},
@@ -79,12 +80,13 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameDeleteMemory,
-			Category:     "memory",
-			Description:  "Delete a specific memory by ID",
-			Parameters:   tools.MustSchemaFor[DeleteMemoryArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleDeleteMemory),
+			Name:                 ToolNameDeleteMemory,
+			Category:             "memory",
+			Description:          "Delete a specific memory by ID",
+			Parameters:           tools.MustSchemaFor[DeleteMemoryArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]database.UserMemory](),
+			Handler:              NewHandler(t.handleDeleteMemory),
 			Annotations: tools.ToolAnnotations{
 				Title: "Delete Memory",
 			},
@@ -103,7 +105,15 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, args AddMemoryArgs) (*
 		return nil, fmt.Errorf("failed to add memory: %w", err)
 	}
 
-	return tools.ResultSuccess(fmt.Sprintf("Memory added successfully with ID: %s", memory.ID)), nil
+	memories, err := t.db.GetMemories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memories: %w", err)
+	}
+
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Memory added successfully with ID: %s", memory.ID),
+		Meta:   memories,
+	}, nil
 }
 
 func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
@@ -117,7 +127,10 @@ func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*
 		return nil, fmt.Errorf("failed to marshal memories: %w", err)
 	}
 
-	return tools.ResultSuccess(string(result)), nil
+	return &tools.ToolCallResult{
+		Output: string(result),
+		Meta:   memories,
+	}, nil
 }
 
 func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryArgs) (*tools.ToolCallResult, error) {
@@ -129,5 +142,13 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryAr
 		return nil, fmt.Errorf("failed to delete memory: %w", err)
 	}
 
-	return tools.ResultSuccess(fmt.Sprintf("Memory with ID %s deleted successfully", args.ID)), nil
+	memories, err := t.db.GetMemories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memories: %w", err)
+	}
+
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Memory with ID %s deleted successfully", args.ID),
+		Meta:   memories,
+	}, nil
 }

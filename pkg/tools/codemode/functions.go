@@ -21,7 +21,13 @@ func toComment(tool *tools.Tool) string {
 	var comment strings.Builder
 
 	inputSchema, _ := json.MarshalIndent(tool.Parameters, " * ", "  ")
-	outputSchema, _ := json.MarshalIndent(tool.OutputSchema, " * ", "  ")
+
+	// Prefer CodeModeOutputSchema over OutputSchema for richer documentation
+	outputSchemaValue := tool.OutputSchema
+	if tool.CodeModeOutputSchema != nil {
+		outputSchemaValue = tool.CodeModeOutputSchema
+	}
+	outputSchema, _ := json.MarshalIndent(outputSchemaValue, " * ", "  ")
 
 	comment.WriteString("\n/**\n")
 	for line := range strings.SplitSeq(tool.Description, "\n") {

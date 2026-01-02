@@ -63,11 +63,18 @@ func TestMemoryTool_HandleAddMemory(t *testing.T) {
 		return memory.Memory == "test memory"
 	})).Return(nil)
 
+	// Now handleAddMemory also calls GetMemories to return all memories in Meta
+	memories := []database.UserMemory{
+		{ID: "1", Memory: "test memory"},
+	}
+	manager.On("GetMemories", mock.Anything).Return(memories, nil)
+
 	result, err := tool.handleAddMemory(t.Context(), AddMemoryArgs{
 		Memory: "test memory",
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Memory added successfully")
+	assert.NotNil(t, result.Meta)
 	manager.AssertExpectations(t)
 }
 
@@ -109,12 +116,17 @@ func TestMemoryTool_HandleDeleteMemory(t *testing.T) {
 		return memory.ID == "1"
 	})).Return(nil)
 
+	// Now handleDeleteMemory also calls GetMemories to return remaining memories in Meta
+	remainingMemories := []database.UserMemory{}
+	manager.On("GetMemories", mock.Anything).Return(remainingMemories, nil)
+
 	result, err := tool.handleDeleteMemory(t.Context(), DeleteMemoryArgs{
 		ID: "1",
 	})
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Memory with ID 1 deleted successfully")
+	assert.NotNil(t, result.Meta)
 	manager.AssertExpectations(t)
 }
 

@@ -66,10 +66,17 @@ func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*too
 	if len(params.URLs) == 1 {
 		result := results[0]
 		if result.Error != "" {
-			return tools.ResultError(fmt.Sprintf("Error fetching %s: %s", result.URL, result.Error)), nil
+			return &tools.ToolCallResult{
+				Output:  fmt.Sprintf("Error fetching %s: %s", result.URL, result.Error),
+				IsError: true,
+				Meta:    results,
+			}, nil
 		}
-		return tools.ResultSuccess(fmt.Sprintf("Successfully fetched %s (Status: %d, Length: %d bytes):\n\n%s",
-			result.URL, result.StatusCode, result.ContentLength, result.Body)), nil
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Successfully fetched %s (Status: %d, Length: %d bytes):\n\n%s",
+				result.URL, result.StatusCode, result.ContentLength, result.Body),
+			Meta: results,
+		}, nil
 	}
 
 	// Multiple URLs - return structured results
@@ -78,7 +85,10 @@ func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*too
 		return nil, fmt.Errorf("failed to marshal results: %w", err)
 	}
 
-	return tools.ResultSuccess(string(output)), nil
+	return &tools.ToolCallResult{
+		Output: string(output),
+		Meta:   results,
+	}, nil
 }
 
 type FetchResult struct {
@@ -331,8 +341,9 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 				},
 				"required": []string{"urls", "format"},
 			},
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.CallTool),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]FetchResult](),
+			Handler:              NewHandler(t.handler.CallTool),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Fetch URLs",

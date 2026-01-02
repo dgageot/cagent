@@ -221,11 +221,12 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameListAllowedDirectories,
-			Category:     "filesystem",
-			Description:  "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleListAllowedDirectories),
+			Name:                 ToolNameListAllowedDirectories,
+			Category:             "filesystem",
+			Description:          "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]string](),
+			Handler:              NewHandler(t.handleListAllowedDirectories),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Allowed Directories",
@@ -243,24 +244,26 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameListDirectory,
-			Category:     "filesystem",
-			Description:  "Get a detailed listing of all files and directories in a specified path.",
-			Parameters:   tools.MustSchemaFor[ListDirectoryArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleListDirectory),
+			Name:                 ToolNameListDirectory,
+			Category:             "filesystem",
+			Description:          "Get a detailed listing of all files and directories in a specified path.",
+			Parameters:           tools.MustSchemaFor[ListDirectoryArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[ListDirectoryMeta](),
+			Handler:              NewHandler(t.handleListDirectory),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Directory",
 			},
 		},
 		{
-			Name:         ToolNameReadFile,
-			Category:     "filesystem",
-			Description:  "Read the complete contents of a file from the file system.",
-			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleReadFile),
+			Name:                 ToolNameReadFile,
+			Category:             "filesystem",
+			Description:          "Read the complete contents of a file from the file system.",
+			Parameters:           tools.MustSchemaFor[ReadFileArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[ReadFileMeta](),
+			Handler:              NewHandler(t.handleReadFile),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read",
@@ -272,8 +275,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description: "Read the contents of multiple files simultaneously.",
 			Parameters:  tools.MustSchemaFor[ReadMultipleFilesArgs](),
 			// TODO(dga): depends on the json param
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleReadMultipleFiles),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[ReadMultipleFilesMeta](),
+			Handler:              NewHandler(t.handleReadMultipleFiles),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read Multiple Files",
@@ -489,13 +493,16 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) 
 	return tools.ResultSuccess(fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))), nil
 }
 
-func (t *FilesystemTool) handleListAllowedDirectories(context.Context, map[string]any) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleListAllowedDirectories(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
 	result, err := json.Marshal(t.allowedDirectories)
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error formatting directories: %s", err)), nil
 	}
 
-	return tools.ResultSuccess(string(result)), nil
+	return &tools.ToolCallResult{
+		Output: string(result),
+		Meta:   t.allowedDirectories,
+	}, nil
 }
 
 func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, args AddAllowedDirectoryArgs) (*tools.ToolCallResult, error) {
@@ -613,6 +620,7 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 			Output:  errMsg,
 			IsError: true,
 			Meta: ReadFileMeta{
+				Path:  args.Path,
 				Error: errMsg,
 			},
 		}, nil
@@ -621,6 +629,8 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 	return &tools.ToolCallResult{
 		Output: string(content),
 		Meta: ReadFileMeta{
+			Path:      args.Path,
+			Content:   string(content),
 			LineCount: strings.Count(string(content), "\n") + 1,
 		},
 	}, nil

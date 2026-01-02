@@ -3,11 +3,16 @@ package codemode
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/memory/database"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 )
@@ -185,6 +190,157 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 	require.Equal(t, "ECHO", scriptResult.Value)
 	require.Empty(t, scriptResult.StdErr)
 	require.Empty(t, scriptResult.StdOut)
+}
+
+func TestCodeModeTool_StructuredOutputForFilesystem(t *testing.T) {
+	// Create a temp directory with some files
+	tmpDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("content1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("content2"), 0o644))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "subdir"), 0o755))
+
+	// Create filesystem tool and wrap in code mode
+	fs := builtin.NewFilesystemTool([]string{tmpDir})
+	tool := Wrap(fs)
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	// Find the code mode tool (run_tools_with_javascript)
+	var codeModeHandler tools.ToolHandler
+	for _, t := range allTools {
+		if t.Name == "run_tools_with_javascript" {
+			codeModeHandler = t.Handler
+			break
+		}
+	}
+	require.NotNil(t, codeModeHandler)
+
+	// Test list_directory returns structured JSON in Code Mode
+	result, err := codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: fmt.Sprintf(`{"script":"return list_directory({'path': '%s'});"}`, tmpDir),
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// The value should be JSON that we can parse
+	var listDirResult builtin.ListDirectoryMeta
+	err = json.Unmarshal([]byte(scriptResult.Value), &listDirResult)
+	require.NoError(t, err, "list_directory should return structured JSON in Code Mode")
+
+	assert.ElementsMatch(t, []string{"file1.txt", "file2.txt"}, listDirResult.Files)
+	assert.ElementsMatch(t, []string{"subdir"}, listDirResult.Dirs)
+}
+
+func TestCodeModeTool_StructuredOutputForReadFile(t *testing.T) {
+	// Create a temp file
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.txt")
+	require.NoError(t, os.WriteFile(filePath, []byte("line1\nline2\nline3"), 0o644))
+
+	// Create filesystem tool and wrap in code mode
+	fs := builtin.NewFilesystemTool([]string{tmpDir})
+	tool := Wrap(fs)
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	// Find the code mode tool (run_tools_with_javascript)
+	var codeModeHandler tools.ToolHandler
+	for _, tt := range allTools {
+		if tt.Name == "run_tools_with_javascript" {
+			codeModeHandler = tt.Handler
+			break
+		}
+	}
+	require.NotNil(t, codeModeHandler)
+
+	// Test read_file returns structured JSON in Code Mode
+	result, err := codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: fmt.Sprintf(`{"script":"return read_file({'path': '%s'});"}`, filePath),
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// The value should be JSON that we can parse
+	var readFileResult builtin.ReadFileMeta
+	err = json.Unmarshal([]byte(scriptResult.Value), &readFileResult)
+	require.NoError(t, err, "read_file should return structured JSON in Code Mode")
+
+	assert.Equal(t, filePath, readFileResult.Path)
+	assert.Equal(t, "line1\nline2\nline3", readFileResult.Content)
+	assert.Equal(t, 3, readFileResult.LineCount)
+}
+
+func TestCodeModeTool_StructuredOutputForTodo(t *testing.T) {
+	// Create todo tool and wrap in code mode
+	todoTool := builtin.NewTodoTool()
+	tool := Wrap(todoTool)
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	// Find the code mode tool (run_tools_with_javascript)
+	var codeModeHandler tools.ToolHandler
+	for _, t := range allTools {
+		if t.Name == "run_tools_with_javascript" {
+			codeModeHandler = t.Handler
+			break
+		}
+	}
+	require.NotNil(t, codeModeHandler)
+
+	// Create a todo and verify structured output
+	result, err := codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return create_todo({'description': 'Test task'});"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// The value should be JSON array of todos
+	var todos []builtin.Todo
+	err = json.Unmarshal([]byte(scriptResult.Value), &todos)
+	require.NoError(t, err, "create_todo should return structured JSON in Code Mode")
+
+	require.Len(t, todos, 1)
+	assert.Equal(t, "todo_1", todos[0].ID)
+	assert.Equal(t, "Test task", todos[0].Description)
+	assert.Equal(t, "pending", todos[0].Status)
+
+	// List todos and verify structured output
+	result, err = codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return list_todos();"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	err = json.Unmarshal([]byte(scriptResult.Value), &todos)
+	require.NoError(t, err, "list_todos should return structured JSON in Code Mode")
+
+	require.Len(t, todos, 1)
+	assert.Equal(t, "Test task", todos[0].Description)
 }
 
 type testToolSet struct {
@@ -368,4 +524,142 @@ func TestCodeModeTool_FailureIncludesToolArguments(t *testing.T) {
 	assert.Equal(t, "tool_with_args", scriptResult.ToolCalls[0].Name)
 	assert.Equal(t, map[string]any{"value": "test123"}, scriptResult.ToolCalls[0].Arguments)
 	assert.Equal(t, "result", scriptResult.ToolCalls[0].Result)
+}
+
+func TestCodeModeTool_StructuredOutputForMemory(t *testing.T) {
+	// Create a mock memory database
+	mockDB := &mockMemoryDB{
+		memories: make(map[string]mockMemory),
+	}
+
+	// Create memory tool and wrap in code mode
+	memoryTool := builtin.NewMemoryTool(mockDB)
+	tool := Wrap(memoryTool)
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	// Find the code mode tool
+	var codeModeHandler tools.ToolHandler
+	for _, tt := range allTools {
+		if tt.Name == "run_tools_with_javascript" {
+			codeModeHandler = tt.Handler
+			break
+		}
+	}
+	require.NotNil(t, codeModeHandler)
+
+	// Add a memory and verify structured output
+	result, err := codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return add_memory({'memory': 'Test memory'});"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// The value should be JSON array of memories
+	var memories []mockMemory
+	err = json.Unmarshal([]byte(scriptResult.Value), &memories)
+	require.NoError(t, err, "add_memory should return structured JSON in Code Mode")
+
+	require.Len(t, memories, 1)
+	assert.Equal(t, "Test memory", memories[0].Memory)
+
+	// Get memories and verify structured output
+	result, err = codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return get_memories();"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	err = json.Unmarshal([]byte(scriptResult.Value), &memories)
+	require.NoError(t, err, "get_memories should return structured JSON in Code Mode")
+
+	require.Len(t, memories, 1)
+	assert.Equal(t, "Test memory", memories[0].Memory)
+}
+
+func TestCodeModeTool_StructuredOutputForBackgroundJobs(t *testing.T) {
+	// Create shell tool and wrap in code mode
+	shellTool := builtin.NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: t.TempDir()}})
+	tool := Wrap(shellTool)
+	defer func() { _ = shellTool.Stop(t.Context()) }()
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	// Find the code mode tool
+	var codeModeHandler tools.ToolHandler
+	for _, tt := range allTools {
+		if tt.Name == "run_tools_with_javascript" {
+			codeModeHandler = tt.Handler
+			break
+		}
+	}
+	require.NotNil(t, codeModeHandler)
+
+	// List background jobs (empty) and verify structured output
+	result, err := codeModeHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return list_background_jobs();"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// The value should be JSON array of jobs (empty)
+	var jobs []builtin.BackgroundJobInfo
+	err = json.Unmarshal([]byte(scriptResult.Value), &jobs)
+	require.NoError(t, err, "list_background_jobs should return structured JSON in Code Mode")
+	assert.Empty(t, jobs)
+}
+
+// Mock memory database for testing
+type mockMemory struct {
+	ID        string `json:"id"`
+	CreatedAt string `json:"created_at"`
+	Memory    string `json:"memory"`
+}
+
+type mockMemoryDB struct {
+	memories map[string]mockMemory
+}
+
+func (m *mockMemoryDB) AddMemory(_ context.Context, memory database.UserMemory) error {
+	m.memories[memory.ID] = mockMemory{
+		ID:        memory.ID,
+		CreatedAt: memory.CreatedAt,
+		Memory:    memory.Memory,
+	}
+	return nil
+}
+
+func (m *mockMemoryDB) GetMemories(_ context.Context) ([]database.UserMemory, error) {
+	var result []database.UserMemory
+	for _, mem := range m.memories {
+		result = append(result, database.UserMemory{
+			ID:        mem.ID,
+			CreatedAt: mem.CreatedAt,
+			Memory:    mem.Memory,
+		})
+	}
+	return result, nil
+}
+
+func (m *mockMemoryDB) DeleteMemory(_ context.Context, memory database.UserMemory) error {
+	delete(m.memories, memory.ID)
+	return nil
 }

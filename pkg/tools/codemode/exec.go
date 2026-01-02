@@ -134,12 +134,20 @@ func callTool(ctx context.Context, tool tools.Tool, tracker *toolCallTracker) fu
 			return "", err
 		}
 
+		// In Code Mode, prefer structured Meta data over plain Output
+		output := result.Output
+		if result.Meta != nil {
+			if jsonOutput, err := json.Marshal(result.Meta); err == nil {
+				output = string(jsonOutput)
+			}
+		}
+
 		tracker.record(ToolCallInfo{
 			Name:      tool.Name,
 			Arguments: nonNilArgs,
-			Result:    result.Output,
+			Result:    output,
 		})
 
-		return result.Output, nil
+		return output, nil
 	}
 }

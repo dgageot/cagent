@@ -102,3 +102,29 @@ func TestDeferredToolset_AddTool(t *testing.T) {
 		assert.Contains(t, result.Output, "not found")
 	})
 }
+
+func TestDeferredToolset_SearchTool_Meta(t *testing.T) {
+	ctx := t.Context()
+	mockTools := &mockToolSet{
+		toolList: []tools.Tool{
+			{Name: "create_file", Description: "Creates a new file"},
+			{Name: "read_file", Description: "Reads file content"},
+			{Name: "delete_file", Description: "Deletes a file"},
+		},
+	}
+
+	dt := NewDeferredToolset()
+	dt.AddSource(mockTools, true, nil)
+	err := dt.Start(ctx)
+	require.NoError(t, err)
+
+	// Search should return Meta with structured data
+	result, err := dt.handleSearchTool(ctx, SearchToolArgs{Query: "file"})
+	require.NoError(t, err)
+
+	// Meta should be set with the structured result
+	assert.NotNil(t, result.Meta)
+	metaResults, ok := result.Meta.([]SearchToolResult)
+	require.True(t, ok, "Meta should be []SearchToolResult")
+	assert.Len(t, metaResults, 3)
+}

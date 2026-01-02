@@ -138,64 +138,69 @@ func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*too
 }
 
 func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
+	allTodos := h.todos.All()
+
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
-	h.todos.Range(func(_ int, todo Todo) bool {
+	for _, todo := range allTodos {
 		fmt.Fprintf(&output, "- [%s] %s (Status: %s)\n", todo.ID, todo.Description, todo.Status)
-		return true
-	})
+	}
 
 	return &tools.ToolCallResult{
 		Output: output.String(),
-		Meta:   h.todos.All(),
+		Meta:   allTodos,
 	}, nil
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
-			Name:         ToolNameCreateTodo,
-			Category:     "todo",
-			Description:  "Create a new todo item with a description",
-			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.createTodo),
+			Name:                 ToolNameCreateTodo,
+			Category:             "todo",
+			Description:          "Create a new todo item with a description",
+			Parameters:           tools.MustSchemaFor[CreateTodoArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]Todo](),
+			Handler:              NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
 			},
 		},
 		{
-			Name:         ToolNameCreateTodos,
-			Category:     "todo",
-			Description:  "Create a list of new todo items with descriptions",
-			Parameters:   tools.MustSchemaFor[CreateTodosArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.createTodos),
+			Name:                 ToolNameCreateTodos,
+			Category:             "todo",
+			Description:          "Create a list of new todo items with descriptions",
+			Parameters:           tools.MustSchemaFor[CreateTodosArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]Todo](),
+			Handler:              NewHandler(t.handler.createTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODOs",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
 			},
 		},
 		{
-			Name:         ToolNameUpdateTodo,
-			Category:     "todo",
-			Description:  "Update the status of a todo item",
-			Parameters:   tools.MustSchemaFor[UpdateTodoArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.updateTodo),
+			Name:                 ToolNameUpdateTodo,
+			Category:             "todo",
+			Description:          "Update the status of a todo item",
+			Parameters:           tools.MustSchemaFor[UpdateTodoArgs](),
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]Todo](),
+			Handler:              NewHandler(t.handler.updateTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Update TODO",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
 			},
 		},
 		{
-			Name:         ToolNameListTodos,
-			Category:     "todo",
-			Description:  "List all current todos with their status",
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.listTodos),
+			Name:                 ToolNameListTodos,
+			Category:             "todo",
+			Description:          "List all current todos with their status",
+			OutputSchema:         tools.MustSchemaFor[string](),
+			CodeModeOutputSchema: tools.MustSchemaFor[[]Todo](),
+			Handler:              NewHandler(t.handler.listTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "List TODOs",
 				ReadOnlyHint: true,

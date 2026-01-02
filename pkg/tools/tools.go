@@ -51,6 +51,12 @@ type Tool struct {
 	Annotations  ToolAnnotations `json:"annotations"`
 	OutputSchema any             `json:"outputSchema"`
 	Handler      ToolHandler     `json:"-"`
+
+	// CodeModeOutputSchema is an optional richer JSON schema for the tool's output.
+	// When set, Code Mode will use this schema instead of OutputSchema when generating
+	// JavaScript documentation. This allows tools to provide a simple string schema
+	// for normal LLM interactions while offering a structured schema for Code Mode.
+	CodeModeOutputSchema any `json:"-"`
 }
 
 type ToolAnnotations mcp.ToolAnnotations
