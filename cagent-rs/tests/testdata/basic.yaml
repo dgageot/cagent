@@ -1,0 +1,7 @@
+version: "3"
+
+agents:
+  root:
+    model: mock/test
+    description: "A test agent"
+    instruction: "You are a helpful assistant."

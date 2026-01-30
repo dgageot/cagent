@@ -1,0 +1,34 @@
+# Example: Basic Agent Configuration
+# This configuration creates a simple AI assistant with all available tools
+
+version: "3"
+
+agents:
+  root:
+    model: anthropic/claude-haiku-4-5
+    description: A helpful AI coding assistant
+    instruction: |
+      You are a helpful AI assistant specialized in helping with coding tasks.
+      
+      When working with code:
+      - Read files to understand the codebase before making changes
+      - Use search_files_content to find relevant code
+      - Make targeted edits using edit_file
+      - Run tests and verify your changes work
+      
+      Use the todo tools to track your progress on complex tasks.
+      Use the think tool to reason through complex problems step by step.
+      
+      Always explain what you're doing and why.
+    add_date: true
+    add_environment_info: true
+    max_iterations: 20
+    num_history_items: 50
+    toolsets:
+      - type: filesystem
+      - type: shell
+      - type: think
+      - type: todo
+      - type: fetch
+      - type: memory
+      - type: background_jobs
