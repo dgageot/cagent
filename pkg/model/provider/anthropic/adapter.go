@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,19 +18,16 @@ import (
 
 // streamAdapter adapts the Anthropic stream to our interface
 type streamAdapter struct {
-	stream     *ssestream.Stream[anthropic.MessageStreamEventUnion]
-	trackUsage bool
-	toolCall   bool
-	toolID     string
-	// For single retry on context length error
-	retryFn            func() *streamAdapter
-	retried            bool
+	retryableStream[anthropic.MessageStreamEventUnion]
+	trackUsage         bool
+	toolCall           bool
+	toolID             string
 	getResponseTrailer func() http.Header
 }
 
 func (c *Client) newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion], trackUsage bool) *streamAdapter {
 	return &streamAdapter{
-		stream:             stream,
+		retryableStream:    retryableStream[anthropic.MessageStreamEventUnion]{stream: stream},
 		trackUsage:         trackUsage,
 		getResponseTrailer: c.getResponseTrailer,
 	}
@@ -72,21 +68,9 @@ func isContextLengthError(err error) bool {
 
 // Recv gets the next completion chunk
 func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
-	if !a.stream.Next() {
-		err := a.stream.Err()
-		// Single retry on context length error
-		if err != nil && !a.retried && a.retryFn != nil && isContextLengthError(err) {
-			a.retried = true
-			if retry := a.retryFn(); retry != nil {
-				a.stream.Close()
-				a.stream = retry.stream
-				return a.Recv()
-			}
-		}
-		if err != nil {
-			return chat.MessageStreamResponse{}, err
-		}
-		return chat.MessageStreamResponse{}, io.EOF
+	ok, err := a.next()
+	if !ok {
+		return chat.MessageStreamResponse{}, err
 	}
 
 	event := a.stream.Current()
@@ -192,7 +176,5 @@ func parseHeaderInt64(headerValue string) int64 {
 
 // Close closes the stream
 func (a *streamAdapter) Close() {
-	if a.stream != nil {
-		a.stream.Close()
-	}
+	a.stream.Close()
 }

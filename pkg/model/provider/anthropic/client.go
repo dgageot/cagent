@@ -15,6 +15,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
+	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
@@ -349,7 +350,7 @@ func (c *Client) CreateChatCompletionStream(
 	ad := c.newStreamAdapter(stream, trackUsage)
 
 	// Set up single retry for context length errors
-	ad.retryFn = func() *streamAdapter {
+	ad.retryFn = func() *ssestream.Stream[anthropic.MessageStreamEventUnion] {
 		used, err := countAnthropicTokens(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools)
 		if err != nil {
 			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
@@ -363,7 +364,7 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Warn("Retrying with clamped max_tokens after context length error", "original max_tokens", maxTokens, "clamped max_tokens", newMaxTokens, "used tokens", used)
 		retryParams := params
 		retryParams.MaxTokens = newMaxTokens
-		return c.newStreamAdapter(client.Messages.NewStreaming(ctx, retryParams, betaHeader), trackUsage)
+		return client.Messages.NewStreaming(ctx, retryParams, betaHeader)
 	}
 
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
