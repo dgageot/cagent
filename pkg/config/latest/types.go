@@ -556,6 +556,11 @@ type Toolset struct {
 	Instruction string   `json:"instruction,omitempty"`
 	Toon        string   `json:"toon,omitempty"`
 
+	// Model overrides the LLM used for the turn that processes tool results
+	// from this toolset, enabling per-toolset model routing. Value can be a
+	// model name from the models section or "provider/model" (e.g. "openai/gpt-4o-mini").
+	Model string `json:"model,omitempty"`
+
 	Defer DeferConfig `json:"defer" yaml:"defer,omitempty"`
 
 	// For the `mcp` tool

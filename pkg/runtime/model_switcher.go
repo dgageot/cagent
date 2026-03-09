@@ -117,23 +117,45 @@ func (r *LocalRuntime) SetAgentModel(ctx context.Context, agentName, modelRef st
 		return nil
 	}
 
-	// Try parsing as inline spec (provider/model)
+	// Try single inline spec (provider/model)
+	prov, err := r.resolveModelRef(ctx, modelRef)
+	if err != nil {
+		return fmt.Errorf("failed to resolve model %q: %w", modelRef, err)
+	}
+	a.SetModelOverride(prov)
+	slog.Info("Set agent model override (inline)", "agent", agentName, "model", prov.ID())
+	return nil
+}
+
+// resolveModelRef resolves a model reference to a single provider.
+// The reference can be a named model from the config or an inline
+// "provider/model" spec (e.g. "openai/gpt-4o-mini").
+func (r *LocalRuntime) resolveModelRef(ctx context.Context, modelRef string) (provider.Provider, error) {
+	if r.modelSwitcherCfg == nil {
+		return nil, fmt.Errorf("model switching not configured for this runtime")
+	}
+
+	// Try named model from config first.
+	if modelCfg, exists := r.modelSwitcherCfg.Models[modelRef]; exists {
+		if isAlloyModelConfig(modelCfg) {
+			return nil, fmt.Errorf("model reference %q is an alloy (multi-model) config and cannot be used as a single model override", modelRef)
+		}
+		modelCfg.Name = modelRef
+		return r.createProviderFromConfig(ctx, &modelCfg)
+	}
+
+	// Try inline "provider/model" format.
 	providerName, modelName, ok := strings.Cut(modelRef, "/")
-	if !ok {
-		return fmt.Errorf("invalid model reference %q: expected a model name from config or 'provider/model' format", modelRef)
+	if !ok || providerName == "" || modelName == "" {
+		return nil, fmt.Errorf("invalid model reference %q: expected a model name from config or 'provider/model' format", modelRef)
 	}
 
 	inlineCfg := &latest.ModelConfig{
 		Provider: providerName,
 		Model:    modelName,
 	}
-	prov, err := r.createProviderFromConfig(ctx, inlineCfg)
-	if err != nil {
-		return fmt.Errorf("failed to create inline model: %w", err)
-	}
-	a.SetModelOverride(prov)
-	slog.Info("Set agent model override (inline)", "agent", agentName, "model", prov.ID())
-	return nil
+
+	return r.createProviderFromConfig(ctx, inlineCfg)
 }
 
 // isAlloyModelConfig checks if a model config is an alloy model (multiple models).

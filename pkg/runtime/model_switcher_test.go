@@ -383,3 +383,58 @@ func TestBuildCatalogChoicesWithDuplicates(t *testing.T) {
 		assert.NotEqual(t, "openai/gpt-4o", c.Ref, "should not include duplicates from config")
 	}
 }
+
+func TestResolveModelRef_RejectsAlloyConfig(t *testing.T) {
+	t.Parallel()
+
+	r := &LocalRuntime{
+		modelSwitcherCfg: &ModelSwitcherConfig{
+			Models: map[string]latest.ModelConfig{
+				// Alloy config: no provider, comma-separated models
+				"alloy_model": {Model: "openai/gpt-4o,anthropic/claude-sonnet-4-0"},
+			},
+		},
+	}
+
+	_, err := r.resolveModelRef(t.Context(), "alloy_model")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "alloy")
+}
+
+func TestResolveModelRef_NilConfig(t *testing.T) {
+	t.Parallel()
+
+	r := &LocalRuntime{}
+
+	_, err := r.resolveModelRef(t.Context(), "openai/gpt-4o")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not configured")
+}
+
+func TestResolveModelRef_InvalidFormat(t *testing.T) {
+	t.Parallel()
+
+	r := &LocalRuntime{
+		modelSwitcherCfg: &ModelSwitcherConfig{
+			Models: map[string]latest.ModelConfig{},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		modelRef string
+	}{
+		{"no slash", "invalid"},
+		{"empty provider", "/model"},
+		{"empty model", "provider/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := r.resolveModelRef(t.Context(), tt.modelRef)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid model reference")
+		})
+	}
+}

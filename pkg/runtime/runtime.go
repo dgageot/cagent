@@ -1043,8 +1043,20 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
 		runtimeMaxIterations := sess.MaxIterations
 
+		// toolModelOverride holds the per-toolset model from the most recent
+		// tool calls. It applies for one LLM turn, then resets.
+		var toolModelOverride string
+		var prevAgentName string
+
 		for {
 			a = r.resolveSessionAgent(sess)
+
+			// Clear per-tool model override on agent switch so it doesn't
+			// leak from one agent's toolset into another agent's turn.
+			if a.Name() != prevAgentName {
+				toolModelOverride = ""
+				prevAgentName = a.Name()
+			}
 
 			r.emitAgentWarnings(a, events)
 			r.configureToolsetHandlers(a, events)
@@ -1118,6 +1130,21 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			))
 
 			model := a.Model()
+			defaultModelID := r.getEffectiveModelID(a)
+
+			// Per-tool model routing: use a cheaper model for this turn
+			// if the previous tool calls specified one, then reset.
+			if toolModelOverride != "" {
+				if overrideModel, err := r.resolveModelRef(ctx, toolModelOverride); err != nil {
+					slog.Warn("Failed to resolve per-tool model override; using agent default",
+						"model_override", toolModelOverride, "error", err)
+				} else {
+					slog.Info("Using per-tool model override for this turn",
+						"agent", a.Name(), "override", overrideModel.ID(), "primary", model.ID())
+					model = overrideModel
+				}
+				toolModelOverride = ""
+			}
 
 			// Apply thinking setting based on session state.
 			// When thinking is disabled: clone with thinking=false to clear any thinking config.
@@ -1135,6 +1162,12 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			}
 
 			modelID := model.ID()
+
+			// Notify sidebar when this turn uses a different model (per-tool override).
+			if modelID != defaultModelID {
+				events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
+			}
+
 			slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
 			slog.Debug("Getting model definition", "model_id", modelID)
 			m, err := r.modelsStore.GetModel(ctx, modelID)
@@ -1209,10 +1242,16 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				return
 			}
 
-			// Update model info if we used a fallback
+			// Update sidebar model info to reflect what was actually used this turn.
+			// Fallback models are sticky (cooldown system persists them), so we only
+			// emit once. Per-tool model overrides are temporary (one turn), so we
+			// emit the override and then revert to the agent's default.
 			if usedModel != nil && usedModel.ID() != model.ID() {
 				slog.Info("Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())
 				events <- AgentInfo(a.Name(), usedModel.ID(), a.Description(), a.WelcomeMessage())
+			} else if model.ID() != defaultModelID {
+				// Per-tool override was active: revert sidebar to the agent's default model.
+				events <- AgentInfo(a.Name(), defaultModelID, a.Description(), a.WelcomeMessage())
 			}
 			streamSpan.SetAttributes(
 				attribute.Int("tool.calls", len(res.Calls)),
@@ -1293,6 +1332,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			messageCountBeforeTools := len(sess.GetAllMessages())
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
+
+			// Record per-toolset model override for the next LLM turn.
+			toolModelOverride = resolveToolCallModelOverride(res.Calls, agentTools)
 
 			if res.Stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())

@@ -812,6 +812,10 @@
           "type": "string",
           "description": "A comma-delimited list of regular expressions of tools to toonify"
         },
+        "model": {
+          "type": "string",
+          "description": "Model to use for the LLM turn that processes tool results from this toolset. Enables per-tool model routing: cheaper/faster models handle simple tool results (e.g. knowledge-base lookups, file reads) while the agent's primary model handles complex reasoning. Value can be a model name from the models section or an inline provider/model format (e.g. 'openai/gpt-4o-mini')."
+        },
         "ref": {
           "type": "string",
           "description": "Reference to a Docker MCP tool (e.g., 'docker:context7') or a named MCP definition from the top-level 'mcps' section"

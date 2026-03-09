@@ -95,6 +95,9 @@ type Tool struct {
 	OutputSchema            any             `json:"outputSchema"`
 	Handler                 ToolHandler     `json:"-"`
 	AddDescriptionParameter bool            `json:"-"`
+	// ModelOverride is the per-toolset model for the LLM turn that processes
+	// this tool's results. Set automatically from the toolset "model" field.
+	ModelOverride string `json:"-"`
 }
 
 type ToolAnnotations mcp.ToolAnnotations

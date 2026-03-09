@@ -448,6 +448,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		wrapped := WithToolsFilter(tool, toolset.Tools...)
 		wrapped = WithInstructions(wrapped, toolset.Instruction)
 		wrapped = WithToon(wrapped, toolset.Toon)
+		wrapped = WithModelOverride(wrapped, toolset.Model)
 
 		// Handle deferred tools
 		if !toolset.Defer.IsEmpty() {
