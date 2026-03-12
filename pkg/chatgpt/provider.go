@@ -12,6 +12,10 @@ const (
 	// TokenEnvVar is the virtual environment variable name used for ChatGPT auth.
 	// This is used by the provider system to check/resolve the ChatGPT token.
 	TokenEnvVar = "CHATGPT_ACCESS_TOKEN"
+
+	// AccountIDEnvVar is the virtual environment variable for the ChatGPT account ID.
+	// Used to set the ChatGPT-Account-Id header required by the backend API.
+	AccountIDEnvVar = "CHATGPT_ACCOUNT_ID"
 )
 
 // Provider implements environment.Provider for ChatGPT tokens.
@@ -27,20 +31,29 @@ func NewProvider() *Provider {
 	return &Provider{}
 }
 
-// Get retrieves the ChatGPT access token when the requested variable
-// matches TokenEnvVar. For all other variables, it returns ("", false).
+// Get retrieves ChatGPT credentials when the requested variable
+// matches TokenEnvVar or AccountIDEnvVar. For all other variables, it returns ("", false).
 func (p *Provider) Get(ctx context.Context, name string) (string, bool) {
-	if name != TokenEnvVar {
+	switch name {
+	case TokenEnvVar:
+		token, err := p.resolveToken(ctx)
+		if err != nil {
+			slog.Debug("ChatGPT token not available", "error", err)
+			return "", false
+		}
+		return token, true
+
+	case AccountIDEnvVar:
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.token != nil && p.token.AccountID != "" {
+			return p.token.AccountID, true
+		}
+		return "", false
+
+	default:
 		return "", false
 	}
-
-	token, err := p.resolveToken(ctx)
-	if err != nil {
-		slog.Debug("ChatGPT token not available", "error", err)
-		return "", false
-	}
-
-	return token, true
 }
 
 // GetAccessToken returns the current access token, refreshing if needed.

@@ -1,12 +1,13 @@
 // Package chatgpt implements OAuth authentication for ChatGPT Plus/Pro subscriptions.
 // It uses the OAuth2 PKCE flow against auth.openai.com to obtain access tokens
-// that can be exchanged for an OpenAI API key.
+// that are used directly with the ChatGPT backend API.
 package chatgpt
 
 import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -45,6 +47,7 @@ type Token struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
 	IDToken      string    `json:"id_token,omitempty"`
+	AccountID    string    `json:"account_id,omitempty"`
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
@@ -61,8 +64,8 @@ func (t *Token) IsExpired() bool {
 
 // Login performs the OAuth PKCE flow to authenticate with ChatGPT.
 // It opens the user's browser to the OpenAI login page, starts a local
-// callback server, exchanges the authorization code for tokens, and then
-// exchanges the id_token for a standard OpenAI API key.
+// callback server, and exchanges the authorization code for tokens.
+// The resulting OAuth access token is used directly with the ChatGPT backend API.
 func Login(ctx context.Context) (*Token, error) {
 	// Generate PKCE code verifier and challenge
 	verifier := oauth2.GenerateVerifier()
@@ -166,36 +169,24 @@ func Login(ctx context.Context) (*Token, error) {
 			return nil, err
 		}
 
-		// Exchange id_token for an OpenAI API key
-		apiKey, err := exchangeForAPIKey(ctx, tokens.IDToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to obtain API key: %w", err)
-		}
-
-		tokens.AccessToken = apiKey
 		return tokens, nil
 	}
 }
 
 // RefreshAccessToken refreshes an expired access token using the refresh token.
-// It obtains new OAuth tokens and then exchanges the new id_token for an API key.
 func RefreshAccessToken(ctx context.Context, refreshToken string) (*Token, error) {
-	payload, err := json.Marshal(map[string]string{
-		"grant_type":    "refresh_token",
-		"client_id":     clientID,
-		"refresh_token": refreshToken,
-		"scope":         "openid profile email",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal refresh request: %w", err)
-	}
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("client_id", clientID)
+	data.Set("refresh_token", refreshToken)
 
 	var refreshResp struct {
 		IDToken      string `json:"id_token"`
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
 	}
-	if err := postJSON(ctx, tokenEndpointURL, "application/json", bytes.NewReader(payload), &refreshResp); err != nil {
+	if err := postForm(ctx, tokenEndpointURL, data, &refreshResp); err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
 	}
 
@@ -210,18 +201,21 @@ func RefreshAccessToken(ctx context.Context, refreshToken string) (*Token, error
 		return nil, errors.New("refresh response did not include an id_token")
 	}
 
-	apiKey, err := exchangeForAPIKey(ctx, refreshResp.IDToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to obtain API key after refresh: %w", err)
+	accountID := extractAccountID(refreshResp.IDToken, refreshResp.AccessToken)
+
+	expiry := 1 * time.Hour
+	if refreshResp.ExpiresIn > 0 {
+		expiry = time.Duration(refreshResp.ExpiresIn) * time.Second
 	}
 
 	slog.Debug("ChatGPT token refreshed successfully")
 	return &Token{
-		AccessToken:  apiKey,
+		AccessToken:  refreshResp.AccessToken,
 		RefreshToken: newRefreshToken,
 		IDToken:      refreshResp.IDToken,
+		AccountID:    accountID,
 		TokenType:    "Bearer",
-		ExpiresAt:    time.Now().Add(1 * time.Hour),
+		ExpiresAt:    time.Now().Add(expiry),
 	}, nil
 }
 
@@ -257,33 +251,17 @@ func exchangeCode(ctx context.Context, code, verifier, redirectURI string) (*Tok
 	}
 
 	slog.Debug("ChatGPT OAuth code exchange successful")
+
+	accountID := extractAccountID(tokenResp.IDToken, tokenResp.AccessToken)
+
 	return &Token{
 		IDToken:      tokenResp.IDToken,
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: tokenResp.RefreshToken,
+		AccountID:    accountID,
 		TokenType:    "Bearer",
 		ExpiresAt:    time.Now().Add(1 * time.Hour),
 	}, nil
-}
-
-// exchangeForAPIKey exchanges an id_token for a standard OpenAI API key
-// using the token exchange grant type.
-func exchangeForAPIKey(ctx context.Context, idToken string) (string, error) {
-	data := url.Values{}
-	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange")
-	data.Set("client_id", clientID)
-	data.Set("requested_token", "openai-api-key")
-	data.Set("subject_token", idToken)
-	data.Set("subject_token_type", "urn:ietf:params:oauth:token-type:id_token")
-
-	var exchangeResp struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := postForm(ctx, tokenEndpointURL, data, &exchangeResp); err != nil {
-		return "", fmt.Errorf("API key exchange failed: %w", err)
-	}
-
-	return exchangeResp.AccessToken, nil
 }
 
 // postForm sends a POST request with form-encoded data and decodes the JSON response.
@@ -325,4 +303,50 @@ func generateState() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// extractAccountID extracts the ChatGPT account ID from the OAuth tokens.
+// It first tries the id_token, then falls back to the access_token.
+func extractAccountID(idToken, accessToken string) string {
+	if id := accountIDFromJWT(idToken); id != "" {
+		return id
+	}
+	return accountIDFromJWT(accessToken)
+}
+
+// accountIDFromJWT parses a JWT and extracts the ChatGPT account ID from its claims.
+func accountIDFromJWT(token string) string {
+	parts := strings.SplitN(token, ".", 4)
+	if len(parts) != 3 {
+		return ""
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+
+	var claims struct {
+		ChatGPTAccountID string `json:"chatgpt_account_id"`
+		Auth             *struct {
+			ChatGPTAccountID string `json:"chatgpt_account_id"`
+		} `json:"https://api.openai.com/auth"`
+		Organizations []struct {
+			ID string `json:"id"`
+		} `json:"organizations"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+
+	if claims.ChatGPTAccountID != "" {
+		return claims.ChatGPTAccountID
+	}
+	if claims.Auth != nil && claims.Auth.ChatGPTAccountID != "" {
+		return claims.Auth.ChatGPTAccountID
+	}
+	if len(claims.Organizations) > 0 && claims.Organizations[0].ID != "" {
+		return claims.Organizations[0].ID
+	}
+	return ""
 }

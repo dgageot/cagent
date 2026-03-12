@@ -49,6 +49,9 @@ func TestIsCatalogProvider(t *testing.T) {
 		{"ollama has BaseURL", "ollama", true},
 		{"minimax has BaseURL", "minimax", true},
 
+		// Aliases with BaseURL
+		{"chatgpt has BaseURL", "chatgpt", true},
+
 		// Aliases without BaseURL (should be excluded)
 		{"azure has no BaseURL", "azure", false},
 

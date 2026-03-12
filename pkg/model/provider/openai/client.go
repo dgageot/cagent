@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/openai/openai-go/v3/shared"
 
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/chatgpt"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/httpclient"
@@ -26,6 +28,7 @@ import (
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/useragent"
 )
 
 // Client represents an OpenAI client wrapper
@@ -58,6 +61,12 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				return nil, fmt.Errorf("%s environment variable is required", cfg.TokenKey)
 			}
 			clientOptions = append(clientOptions, option.WithAPIKey(authToken))
+
+			// For ChatGPT provider, inject the account ID header via middleware
+			// so the backend API can identify the subscription.
+			if cfg.Provider == "chatgpt" {
+				clientOptions = append(clientOptions, option.WithMiddleware(chatgptHeaderMiddleware(env)))
+			}
 		} else if isCustomProvider(cfg) {
 			// Custom provider (has api_type in ProviderOpts) without token_key - no auth
 			slog.Debug("Custom provider with no token_key, sending requests without authentication",
@@ -311,12 +320,22 @@ func (c *Client) CreateResponseStream(
 		return nil, err
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	isChatGPT := c.ModelConfig.Provider == "chatgpt"
+	input := convertMessagesToResponseInput(messages, isChatGPT)
 
 	params := responses.ResponseNewParams{
 		Model: c.ModelConfig.Model,
 	}
 	params.Input.OfInputItemList = input
+
+	// The ChatGPT codex backend requires the instructions field to be set.
+	// Extract system messages into the top-level instructions param and
+	// keep them out of the input array.
+	if isChatGPT {
+		instructions := extractSystemInstructions(messages)
+		params.Instructions = param.NewOpt(instructions)
+		params.Store = param.NewOpt(false)
+	}
 
 	if c.ModelConfig.Temperature != nil {
 		params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
@@ -325,21 +344,23 @@ func (c *Client) CreateResponseStream(
 		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
 	}
 
-	if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
-		maxTokens := *maxToken
+	if !isChatGPT {
+		if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
+			maxTokens := *maxToken
 
-		// Reasoning models consume output tokens on internal reasoning even when
-		// thinking is explicitly disabled. Bump a small budget so the model has
-		// headroom for both reasoning and actual text output.
-		thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
-		if isOpenAIReasoningModel(c.ModelConfig.Model) && !thinkingEnabled && maxTokens < 200 {
-			slog.Debug("Bumping max_output_tokens for reasoning model with thinking disabled",
-				"model", c.ModelConfig.Model, "original", maxTokens, "adjusted", 200)
-			maxTokens = 200
+			// Reasoning models consume output tokens on internal reasoning even when
+			// thinking is explicitly disabled. Bump a small budget so the model has
+			// headroom for both reasoning and actual text output.
+			thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
+			if isOpenAIReasoningModel(c.ModelConfig.Model) && !thinkingEnabled && maxTokens < 200 {
+				slog.Debug("Bumping max_output_tokens for reasoning model with thinking disabled",
+					"model", c.ModelConfig.Model, "original", maxTokens, "adjusted", 200)
+				maxTokens = 200
+			}
+
+			params.MaxOutputTokens = param.NewOpt(maxTokens)
+			slog.Debug("OpenAI responses request configured with max output tokens", "max_output_tokens", maxTokens)
 		}
-
-		params.MaxOutputTokens = param.NewOpt(maxTokens)
-		slog.Debug("OpenAI responses request configured with max output tokens", "max_output_tokens", maxTokens)
 	}
 
 	if len(requestTools) > 0 {
@@ -416,9 +437,42 @@ func (c *Client) CreateResponseStream(
 	return newResponseStreamAdapter(stream, c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage), nil
 }
 
-func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
+// extractSystemInstructions concatenates all system messages into a single
+// instructions string. The ChatGPT codex backend requires this as a top-level
+// field rather than inline system messages in the input array.
+func extractSystemInstructions(messages []chat.Message) string {
+	var parts []string
+	for _, msg := range messages {
+		if msg.Role != chat.MessageRoleSystem {
+			continue
+		}
+		if len(msg.MultiContent) > 0 {
+			for _, part := range msg.MultiContent {
+				if part.Type == chat.MessagePartTypeText && part.Text != "" {
+					parts = append(parts, part.Text)
+				}
+			}
+		} else if msg.Content != "" {
+			parts = append(parts, msg.Content)
+		}
+	}
+	if len(parts) == 0 {
+		return "You are a helpful assistant."
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// convertMessagesToResponseInput converts chat messages to OpenAI Responses API
+// input items. When skipSystem is true, system messages are omitted (they are
+// expected to be provided via the top-level instructions field instead).
+func convertMessagesToResponseInput(messages []chat.Message, skipSystem bool) []responses.ResponseInputItemUnionParam {
 	var input []responses.ResponseInputItemUnionParam
 	for _, msg := range messages {
+		// Skip system messages when they're provided as top-level instructions
+		if skipSystem && msg.Role == chat.MessageRoleSystem {
+			continue
+		}
+
 		// Skip invalid messages
 		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) == 0 && len(msg.MultiContent) == 0 && strings.TrimSpace(msg.Content) == "" {
 			continue
@@ -935,4 +989,17 @@ type jsonSchema map[string]any
 
 func (j jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any(j))
+}
+
+// chatgptHeaderMiddleware returns an OpenAI SDK middleware that injects
+// headers required by the ChatGPT codex backend API on every request.
+func chatgptHeaderMiddleware(env environment.Provider) option.Middleware {
+	return func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
+		if accountID, ok := env.Get(req.Context(), chatgpt.AccountIDEnvVar); ok {
+			req.Header.Set("ChatGPT-Account-Id", accountID)
+		}
+		req.Header.Set("originator", "cagent")
+		req.Header.Set("User-Agent", useragent.Header)
+		return next(req)
+	}
 }

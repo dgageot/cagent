@@ -2,6 +2,7 @@ package chatgpt
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -145,26 +146,19 @@ func TestTokenStore_InvalidJSON(t *testing.T) {
 }
 
 func TestRefreshAccessToken(t *testing.T) {
-	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.Header().Set("Content-Type", "application/json")
+		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
+		require.NoError(t, r.ParseForm())
+		assert.Equal(t, "refresh_token", r.Form.Get("grant_type"))
+		assert.Equal(t, clientID, r.Form.Get("client_id"))
+		assert.Equal(t, "test-refresh", r.Form.Get("refresh_token"))
 
-		if callCount == 1 {
-			// First call: token refresh (JSON body)
-			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id_token":      "new-id-token",
-				"access_token":  "new-access-token",
-				"refresh_token": "", // no new refresh token
-			})
-		} else {
-			// Second call: API key exchange (form body)
-			assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"access_token": "new-api-key",
-			})
-		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id_token":      "new-id-token",
+			"access_token":  "new-access-token",
+			"refresh_token": "",
+		})
 	}))
 	defer server.Close()
 
@@ -172,7 +166,7 @@ func TestRefreshAccessToken(t *testing.T) {
 
 	token, err := RefreshAccessToken(t.Context(), "test-refresh")
 	require.NoError(t, err)
-	assert.Equal(t, "new-api-key", token.AccessToken)
+	assert.Equal(t, "new-access-token", token.AccessToken)
 	assert.Equal(t, "test-refresh", token.RefreshToken) // preserved when empty in response
 	assert.Equal(t, "new-id-token", token.IDToken)
 	assert.Equal(t, "Bearer", token.TokenType)
@@ -180,22 +174,13 @@ func TestRefreshAccessToken(t *testing.T) {
 }
 
 func TestRefreshAccessToken_NewRefreshToken(t *testing.T) {
-	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		callCount++
 		w.Header().Set("Content-Type", "application/json")
-
-		if callCount == 1 {
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id_token":      "new-id-token",
-				"access_token":  "new-access-token",
-				"refresh_token": "new-refresh-token",
-			})
-		} else {
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"access_token": "new-api-key",
-			})
-		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id_token":      "new-id-token",
+			"access_token":  "new-access-token",
+			"refresh_token": "new-refresh-token",
+		})
 	}))
 	defer server.Close()
 
@@ -257,22 +242,13 @@ func TestProvider_Get_ValidToken(t *testing.T) {
 func TestProvider_Get_ExpiredTokenRefreshes(t *testing.T) {
 	overrideTokenPath(t)
 
-	// Set up a mock token endpoint that handles refresh + API key exchange
-	callCount := 0
+	// Set up a mock token endpoint that handles refresh
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		callCount++
 		w.Header().Set("Content-Type", "application/json")
-
-		if callCount == 1 {
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id_token":     "refreshed-id",
-				"access_token": "refreshed-access",
-			})
-		} else {
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"access_token": "refreshed-api-key",
-			})
-		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id_token":     "refreshed-id",
+			"access_token": "refreshed-access-token",
+		})
 	}))
 	defer server.Close()
 
@@ -290,7 +266,7 @@ func TestProvider_Get_ExpiredTokenRefreshes(t *testing.T) {
 	p := NewProvider()
 	val, ok := p.Get(t.Context(), TokenEnvVar)
 	assert.True(t, ok)
-	assert.Equal(t, "refreshed-api-key", val)
+	assert.Equal(t, "refreshed-access-token", val)
 }
 
 func TestProvider_Get_ExpiredTokenNoRefresh(t *testing.T) {
@@ -391,46 +367,6 @@ func TestExchangeCode(t *testing.T) {
 	assert.False(t, token.ExpiresAt.IsZero())
 }
 
-func TestExchangeForAPIKey(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "bad form", http.StatusBadRequest)
-			return
-		}
-		assert.Equal(t, "urn:ietf:params:oauth:grant-type:token-exchange", r.Form.Get("grant_type"))
-		assert.Equal(t, clientID, r.Form.Get("client_id"))
-		assert.Equal(t, "openai-api-key", r.Form.Get("requested_token"))
-		assert.Equal(t, "my-id-token", r.Form.Get("subject_token"))
-		assert.Equal(t, "urn:ietf:params:oauth:token-type:id_token", r.Form.Get("subject_token_type"))
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"access_token": "sk-api-key-12345",
-		})
-	}))
-	defer server.Close()
-
-	overrideTokenEndpoint(t, server.URL)
-
-	apiKey, err := exchangeForAPIKey(t.Context(), "my-id-token")
-	require.NoError(t, err)
-	assert.Equal(t, "sk-api-key-12345", apiKey)
-}
-
-func TestExchangeForAPIKey_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-	}))
-	defer server.Close()
-
-	overrideTokenEndpoint(t, server.URL)
-
-	_, err := exchangeForAPIKey(t.Context(), "bad-token")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "API key exchange failed")
-}
-
 func TestProvider_ContextCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -443,4 +379,109 @@ func TestProvider_ContextCancellation(t *testing.T) {
 	val, ok := p.Get(ctx, "OTHER_VAR")
 	assert.Empty(t, val)
 	assert.False(t, ok)
+}
+
+func TestAccountIDFromJWT(t *testing.T) {
+	t.Parallel()
+
+	// Helper to create a JWT with the given claims JSON
+	makeJWT := func(claims string) string {
+		header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`))
+		payload := base64.RawURLEncoding.EncodeToString([]byte(claims))
+		return header + "." + payload + ".sig"
+	}
+
+	tests := []struct {
+		name     string
+		token    string
+		expected string
+	}{
+		{
+			name:     "chatgpt_account_id claim",
+			token:    makeJWT(`{"chatgpt_account_id":"acct-123"}`),
+			expected: "acct-123",
+		},
+		{
+			name:     "nested auth claim",
+			token:    makeJWT(`{"https://api.openai.com/auth":{"chatgpt_account_id":"acct-456"}}`),
+			expected: "acct-456",
+		},
+		{
+			name:     "organizations claim",
+			token:    makeJWT(`{"organizations":[{"id":"org-789"}]}`),
+			expected: "org-789",
+		},
+		{
+			name:     "priority: direct claim wins over nested",
+			token:    makeJWT(`{"chatgpt_account_id":"acct-direct","https://api.openai.com/auth":{"chatgpt_account_id":"acct-nested"}}`),
+			expected: "acct-direct",
+		},
+		{
+			name:     "empty claims",
+			token:    makeJWT(`{}`),
+			expected: "",
+		},
+		{
+			name:     "invalid token format",
+			token:    "not-a-jwt",
+			expected: "",
+		},
+		{
+			name:     "empty token",
+			token:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := accountIDFromJWT(tt.token)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractAccountID(t *testing.T) {
+	t.Parallel()
+
+	makeJWT := func(claims string) string {
+		header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`))
+		payload := base64.RawURLEncoding.EncodeToString([]byte(claims))
+		return header + "." + payload + ".sig"
+	}
+
+	// Prefers id_token over access_token
+	idToken := makeJWT(`{"chatgpt_account_id":"from-id"}`)
+	accessToken := makeJWT(`{"chatgpt_account_id":"from-access"}`)
+	result := extractAccountID(idToken, accessToken)
+	assert.Equal(t, "from-id", result)
+
+	// Falls back to access_token when id_token has no account ID
+	result = extractAccountID(makeJWT(`{}`), accessToken)
+	assert.Equal(t, "from-access", result)
+}
+
+func TestProvider_Get_AccountID(t *testing.T) {
+	overrideTokenPath(t)
+
+	testToken := &Token{
+		AccessToken: "valid-token",
+		AccountID:   "acct-test-123",
+		TokenType:   "Bearer",
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+	}
+	require.NoError(t, SaveToken(testToken))
+
+	p := NewProvider()
+
+	// First resolve the token so it's cached
+	val, ok := p.Get(t.Context(), TokenEnvVar)
+	assert.True(t, ok)
+	assert.Equal(t, "valid-token", val)
+
+	// Now retrieve the account ID
+	val, ok = p.Get(t.Context(), AccountIDEnvVar)
+	assert.True(t, ok)
+	assert.Equal(t, "acct-test-123", val)
 }
