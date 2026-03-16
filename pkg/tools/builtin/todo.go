@@ -86,10 +86,9 @@ type TodoStorage interface {
 	All() []Todo
 	// Len returns the number of todo items.
 	Len() int
-	// FindByID returns the index of the todo with the given ID, or -1 if not found.
-	FindByID(id string) int
-	// Update modifies the todo at the given index using the provided function.
-	Update(index int, fn func(Todo) Todo)
+	// UpdateByID atomically finds a todo by ID and applies fn to it.
+	// It returns true if the todo was found and updated, false otherwise.
+	UpdateByID(id string, fn func(Todo) Todo) bool
 	// Clear removes all todo items.
 	Clear()
 }
@@ -117,13 +116,8 @@ func (s *MemoryTodoStorage) Len() int {
 	return s.todos.Length()
 }
 
-func (s *MemoryTodoStorage) FindByID(id string) int {
-	_, idx := s.todos.Find(func(t Todo) bool { return t.ID == id })
-	return idx
-}
-
-func (s *MemoryTodoStorage) Update(index int, fn func(Todo) Todo) {
-	s.todos.Update(index, fn)
+func (s *MemoryTodoStorage) UpdateByID(id string, fn func(Todo) Todo) bool {
+	return s.todos.FindAndUpdate(func(t Todo) bool { return t.ID == id }, fn)
 }
 
 func (s *MemoryTodoStorage) Clear() {
@@ -222,16 +216,14 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 	result := UpdateTodosOutput{}
 
 	for _, update := range params.Updates {
-		idx := h.storage.FindByID(update.ID)
-		if idx == -1 {
-			result.NotFound = append(result.NotFound, update.ID)
-			continue
-		}
-
-		h.storage.Update(idx, func(t Todo) Todo {
+		ok := h.storage.UpdateByID(update.ID, func(t Todo) Todo {
 			t.Status = update.Status
 			return t
 		})
+		if !ok {
+			result.NotFound = append(result.NotFound, update.ID)
+			continue
+		}
 		result.Updated = append(result.Updated, update)
 	}
 

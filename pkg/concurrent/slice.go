@@ -92,6 +92,21 @@ func (s *Slice[V]) Update(index int, f func(V) V) bool {
 	return true
 }
 
+// FindAndUpdate atomically finds the first element matching the predicate
+// and applies f to it. It returns true if an element was found and updated.
+func (s *Slice[V]) FindAndUpdate(predicate func(V) bool, f func(V) V) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, v := range s.values {
+		if predicate(v) {
+			s.values[i] = f(s.values[i])
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Slice[V]) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
