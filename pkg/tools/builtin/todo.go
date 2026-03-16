@@ -248,26 +248,22 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 // incompleteReminder returns a reminder string listing any non-completed todos,
 // or an empty string if all are completed (or the list is empty).
 func incompleteReminder(all []Todo) string {
-	var pending, inProgress []string
+	var b strings.Builder
 	for _, todo := range all {
+		var prefix string
 		switch todo.Status {
 		case "pending":
-			pending = append(pending, fmt.Sprintf("[%s] %s", todo.ID, todo.Description))
+			prefix = " (pending) "
 		case "in-progress":
-			inProgress = append(inProgress, fmt.Sprintf("[%s] %s", todo.ID, todo.Description))
+			prefix = " (in-progress) "
+		default:
+			continue
 		}
-	}
-	if len(pending) == 0 && len(inProgress) == 0 {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString("The following todos are still incomplete and MUST be completed:")
-	for _, s := range inProgress {
-		b.WriteString(" (in-progress) " + s)
-	}
-	for _, s := range pending {
-		b.WriteString(" (pending) " + s)
+		if b.Len() == 0 {
+			b.WriteString("The following todos are still incomplete and MUST be completed:")
+		}
+		b.WriteString(prefix)
+		fmt.Fprintf(&b, "[%s] %s", todo.ID, todo.Description)
 	}
 	return b.String()
 }
