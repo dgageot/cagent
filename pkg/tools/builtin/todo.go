@@ -214,7 +214,29 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	}, allTodos)
 }
 
+// validTodoStatuses defines the set of allowed todo statuses.
+var validTodoStatuses = map[string]bool{
+	"pending":     true,
+	"in-progress": true,
+	"completed":   true,
+}
+
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
+	for _, update := range params.Updates {
+		if !validTodoStatuses[update.Status] {
+			errMsg := fmt.Sprintf("invalid status %q for todo %s: must be one of pending, in-progress, completed", update.Status, update.ID)
+			out, err := json.Marshal(map[string]string{"error": errMsg})
+			if err != nil {
+				return nil, fmt.Errorf("marshaling todo error: %w", err)
+			}
+			return &tools.ToolCallResult{
+				Output:  string(out),
+				IsError: true,
+				Meta:    h.storage.All(),
+			}, nil
+		}
+	}
+
 	result := UpdateTodosOutput{}
 
 	for _, update := range params.Updates {

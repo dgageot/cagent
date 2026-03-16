@@ -230,6 +230,28 @@ func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
 	assert.Equal(t, "nonexistent2", output.NotFound[1])
 }
 
+func TestTodoTool_UpdateTodos_InvalidStatus(t *testing.T) {
+	storage := NewMemoryTodoStorage()
+	tool := NewTodoTool(WithStorage(storage))
+
+	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{Description: "Task"})
+	require.NoError(t, err)
+
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{
+			{ID: "todo_1", Status: "done"},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Output, "done")
+
+	// Storage should be unchanged — no partial mutation.
+	todos := storage.All()
+	require.Len(t, todos, 1)
+	assert.Equal(t, "pending", todos[0].Status)
+}
+
 func TestTodoTool_UpdateTodos_AllCompleted_NoAutoRemoval(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
