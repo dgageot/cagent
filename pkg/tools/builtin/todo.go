@@ -112,7 +112,11 @@ func (s *MemoryTodoStorage) Add(todo Todo) {
 }
 
 func (s *MemoryTodoStorage) All() []Todo {
-	return s.todos.All()
+	all := s.todos.All()
+	if all == nil {
+		return []Todo{}
+	}
+	return all
 }
 
 func (s *MemoryTodoStorage) Len() int {
@@ -298,9 +302,6 @@ func incompleteReminder(all []Todo) string {
 
 func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
 	todos := h.storage.All()
-	if todos == nil {
-		todos = []Todo{}
-	}
 	out := ListTodosOutput{Todos: todos}
 	out.Reminder = incompleteReminder(todos)
 	return h.jsonResult(out, todos)
