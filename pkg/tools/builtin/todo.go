@@ -179,25 +179,26 @@ func (h *todoHandler) addTodo(description string) Todo {
 	return todo
 }
 
-// jsonResult builds a ToolCallResult with a JSON-serialized output and current storage as Meta.
-func (h *todoHandler) jsonResult(v any) (*tools.ToolCallResult, error) {
+// jsonResult builds a ToolCallResult with a JSON-serialized output and allTodos as Meta.
+func (h *todoHandler) jsonResult(v any, allTodos []Todo) (*tools.ToolCallResult, error) {
 	out, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling todo output: %w", err)
 	}
 	return &tools.ToolCallResult{
 		Output: string(out),
-		Meta:   h.storage.All(),
+		Meta:   allTodos,
 	}, nil
 }
 
 func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
 	created := h.addTodo(params.Description)
+	allTodos := h.storage.All()
 	return h.jsonResult(CreateTodoOutput{
 		Created:  created,
-		AllTodos: h.storage.All(),
-		Reminder: h.incompleteReminder(),
-	})
+		AllTodos: allTodos,
+		Reminder: incompleteReminder(allTodos),
+	}, allTodos)
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
@@ -205,11 +206,12 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	for _, desc := range params.Descriptions {
 		created = append(created, h.addTodo(desc))
 	}
+	allTodos := h.storage.All()
 	return h.jsonResult(CreateTodosOutput{
 		Created:  created,
-		AllTodos: h.storage.All(),
-		Reminder: h.incompleteReminder(),
-	})
+		AllTodos: allTodos,
+		Reminder: incompleteReminder(allTodos),
+	}, allTodos)
 }
 
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
@@ -227,8 +229,12 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 		result.Updated = append(result.Updated, update)
 	}
 
+	allTodos := h.storage.All()
+	result.AllTodos = allTodos
+	result.Reminder = incompleteReminder(allTodos)
+
 	if len(result.NotFound) > 0 && len(result.Updated) == 0 {
-		res, err := h.jsonResult(result)
+		res, err := h.jsonResult(result, allTodos)
 		if err != nil {
 			return nil, err
 		}
@@ -236,16 +242,12 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 		return res, nil
 	}
 
-	result.AllTodos = h.storage.All()
-	result.Reminder = h.incompleteReminder()
-
-	return h.jsonResult(result)
+	return h.jsonResult(result, allTodos)
 }
 
 // incompleteReminder returns a reminder string listing any non-completed todos,
-// or an empty string if all are completed (or storage is empty).
-func (h *todoHandler) incompleteReminder() string {
-	all := h.storage.All()
+// or an empty string if all are completed (or the list is empty).
+func incompleteReminder(all []Todo) string {
 	var pending, inProgress []string
 	for _, todo := range all {
 		switch todo.Status {
@@ -276,8 +278,8 @@ func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.Too
 		todos = []Todo{}
 	}
 	out := ListTodosOutput{Todos: todos}
-	out.Reminder = h.incompleteReminder()
-	return h.jsonResult(out)
+	out.Reminder = incompleteReminder(todos)
+	return h.jsonResult(out, todos)
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
