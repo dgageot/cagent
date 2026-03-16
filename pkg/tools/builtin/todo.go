@@ -86,6 +86,8 @@ type TodoStorage interface {
 	All() []Todo
 	// Len returns the number of todo items.
 	Len() int
+	// NextID returns a unique, monotonically increasing ID for a new todo.
+	NextID() int64
 	// UpdateByID atomically finds a todo by ID and applies fn to it.
 	// It returns true if the todo was found and updated, false otherwise.
 	UpdateByID(id string, fn func(Todo) Todo) bool
@@ -95,7 +97,8 @@ type TodoStorage interface {
 
 // MemoryTodoStorage is an in-memory, concurrency-safe implementation of TodoStorage.
 type MemoryTodoStorage struct {
-	todos *concurrent.Slice[Todo]
+	todos  *concurrent.Slice[Todo]
+	nextID atomic.Int64
 }
 
 func NewMemoryTodoStorage() *MemoryTodoStorage {
@@ -114,6 +117,10 @@ func (s *MemoryTodoStorage) All() []Todo {
 
 func (s *MemoryTodoStorage) Len() int {
 	return s.todos.Length()
+}
+
+func (s *MemoryTodoStorage) NextID() int64 {
+	return s.nextID.Add(1)
 }
 
 func (s *MemoryTodoStorage) UpdateByID(id string, fn func(Todo) Todo) bool {
@@ -140,7 +147,6 @@ func WithStorage(storage TodoStorage) TodoOption {
 
 type todoHandler struct {
 	storage TodoStorage
-	nextID  atomic.Int64
 }
 
 var NewSharedTodoTool = sync.OnceValue(func() *TodoTool { return NewTodoTool() })
@@ -171,7 +177,7 @@ Track task progress with todos:
 // addTodo creates a new todo and adds it to storage.
 func (h *todoHandler) addTodo(description string) Todo {
 	todo := Todo{
-		ID:          fmt.Sprintf("todo_%d", h.nextID.Add(1)),
+		ID:          fmt.Sprintf("todo_%d", h.storage.NextID()),
 		Description: description,
 		Status:      "pending",
 	}
