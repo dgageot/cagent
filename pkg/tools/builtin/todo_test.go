@@ -244,7 +244,13 @@ func TestTodoTool_UpdateTodos_InvalidStatus(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
-	assert.Contains(t, result.Output, "done")
+
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	assert.Contains(t, output.Reminder, "done")
+	assert.Empty(t, output.Updated)
+	assert.Empty(t, output.NotFound)
+	require.Len(t, output.AllTodos, 1)
 
 	// Storage should be unchanged — no partial mutation.
 	todos := storage.All()

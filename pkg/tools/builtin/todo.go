@@ -233,18 +233,19 @@ var validTodoStatuses = map[string]bool{
 
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
 	for _, update := range params.Updates {
-		if !validTodoStatuses[update.Status] {
-			errMsg := fmt.Sprintf("invalid status %q for todo %s: must be one of pending, in-progress, completed", update.Status, update.ID)
-			out, err := json.Marshal(map[string]string{"error": errMsg})
-			if err != nil {
-				return nil, fmt.Errorf("marshaling todo error: %w", err)
-			}
-			return &tools.ToolCallResult{
-				Output:  string(out),
-				IsError: true,
-				Meta:    h.storage.All(),
-			}, nil
+		if validTodoStatuses[update.Status] {
+			continue
 		}
+		allTodos := h.storage.All()
+		res, err := h.jsonResult(UpdateTodosOutput{
+			AllTodos: allTodos,
+			Reminder: fmt.Sprintf("invalid status %q for todo %s: must be one of pending, in-progress, completed", update.Status, update.ID),
+		}, allTodos)
+		if err != nil {
+			return nil, err
+		}
+		res.IsError = true
+		return res, nil
 	}
 
 	result := UpdateTodosOutput{}
