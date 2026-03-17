@@ -113,6 +113,17 @@ func NewRemoteToolset(name, urlString, transport string, headers map[string]stri
 // because there is no live connection to monitor.
 var errServerUnavailable = errors.New("MCP server unavailable")
 
+const (
+	// mcpCallToolTimeout is the maximum time allowed for a single tool call.
+	// Tool calls may be long-running (e.g. code execution), so this is
+	// deliberately generous.
+	mcpCallToolTimeout = 10 * time.Minute
+
+	// mcpListTimeout is the maximum time allowed for listing tools, prompts
+	// or fetching a single prompt from the MCP server.
+	mcpListTimeout = 1 * time.Minute
+)
+
 // Describe returns a short, user-visible description of this toolset instance.
 // It never includes secrets.
 func (ts *Toolset) Describe() string {

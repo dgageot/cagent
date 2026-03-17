@@ -94,7 +94,16 @@ func (c *sessionClient) Close(context.Context) error {
 
 func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsParams) iter.Seq2[*gomcp.Tool, error] {
 	if s := c.getSession(); s != nil {
-		return s.Tools(ctx, request)
+		ctx, cancel := context.WithTimeout(ctx, mcpListTimeout)
+		// Wrap the iterator so the cancel fires after iteration completes.
+		return func(yield func(*gomcp.Tool, error) bool) {
+			defer cancel()
+			for t, err := range s.Tools(ctx, request) {
+				if !yield(t, err) {
+					return
+				}
+			}
+		}
 	}
 	return func(yield func(*gomcp.Tool, error) bool) {
 		yield(nil, errors.New("session not initialized"))
@@ -103,6 +112,8 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 
 func (c *sessionClient) CallTool(ctx context.Context, request *gomcp.CallToolParams) (*gomcp.CallToolResult, error) {
 	if s := c.getSession(); s != nil {
+		ctx, cancel := context.WithTimeout(ctx, mcpCallToolTimeout)
+		defer cancel()
 		return s.CallTool(ctx, request)
 	}
 	return nil, errors.New("session not initialized")
@@ -110,7 +121,15 @@ func (c *sessionClient) CallTool(ctx context.Context, request *gomcp.CallToolPar
 
 func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListPromptsParams) iter.Seq2[*gomcp.Prompt, error] {
 	if s := c.getSession(); s != nil {
-		return s.Prompts(ctx, request)
+		ctx, cancel := context.WithTimeout(ctx, mcpListTimeout)
+		return func(yield func(*gomcp.Prompt, error) bool) {
+			defer cancel()
+			for p, err := range s.Prompts(ctx, request) {
+				if !yield(p, err) {
+					return
+				}
+			}
+		}
 	}
 	return func(yield func(*gomcp.Prompt, error) bool) {
 		yield(nil, errors.New("session not initialized"))
@@ -119,6 +138,8 @@ func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListProm
 
 func (c *sessionClient) GetPrompt(ctx context.Context, request *gomcp.GetPromptParams) (*gomcp.GetPromptResult, error) {
 	if s := c.getSession(); s != nil {
+		ctx, cancel := context.WithTimeout(ctx, mcpListTimeout)
+		defer cancel()
 		return s.GetPrompt(ctx, request)
 	}
 	return nil, errors.New("session not initialized")

@@ -5,10 +5,21 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/docker-agent/pkg/upstream"
+)
+
+const (
+	// mcpInitTimeout is the maximum time allowed for the MCP initialization
+	// handshake (connect + initialize). If a remote server accepts the TCP
+	// connection but never responds, this prevents the agent from hanging
+	// indefinitely. This timeout is only applied to remote servers; stdio
+	// servers are not subject to it because the init context is also used
+	// as the process context and cancelling it would kill the child process.
+	mcpInitTimeout = 2 * time.Minute
 )
 
 type remoteMCPClient struct {
@@ -36,6 +47,11 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 }
 
 func (c *remoteMCPClient) Initialize(ctx context.Context, _ *gomcp.InitializeRequest) (*gomcp.InitializeResult, error) {
+	// Apply an initialization timeout so we don't hang forever if the
+	// remote server accepts the connection but never responds.
+	ctx, cancel := context.WithTimeout(ctx, mcpInitTimeout)
+	defer cancel()
+
 	// Create HTTP client with OAuth support
 	httpClient := c.createHTTPClient()
 
