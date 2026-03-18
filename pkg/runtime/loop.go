@@ -145,8 +145,12 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			// Clear per-tool model override on agent switch so it doesn't
 			// leak from one agent's toolset into another agent's turn.
+			// Also reset the session thinking flag to match the new agent's
+			// config so that a parent agent's thinking setting doesn't leak
+			// into a child agent whose model is not configured for thinking.
 			if a.Name() != prevAgentName {
 				toolModelOverride = ""
+				sess.Thinking = a.ThinkingConfigured()
 				prevAgentName = a.Name()
 			}
 

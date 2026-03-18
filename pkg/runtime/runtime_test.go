@@ -1880,6 +1880,71 @@ func TestResolveSessionAgent_InvalidNameFallsBack(t *testing.T) {
 // processToolCalls carry the pinned agent's name, not root's. Before the fix,
 // processToolCalls called r.CurrentAgent() which always returned root for
 // background sessions.
+// TestAgentSwitch_ResetsThinkingFlag verifies that when the runtime switches
+// from an agent with thinking enabled to one without, the session's Thinking
+// flag is reset to match the new agent's config. Before the fix, thinking
+// leaked from the root agent (e.g. Opus with thinking_budget) into a switched-to
+// agent (e.g. Sonnet without thinking), causing Anthropic API errors like
+// "max_tokens must be greater than thinking_budget".
+func TestAgentSwitch_ResetsThinkingFlag(t *testing.T) {
+	// Root agent: Opus with thinking configured
+	opusStream := newStreamBuilder().
+		AddContent("I'm Opus with thinking").
+		AddStopWithUsage(5, 3).
+		Build()
+	opusProv := &mockProvider{id: "anthropic/opus", stream: opusStream}
+	opus := agent.New("opus-root", "Root agent with thinking",
+		agent.WithModel(opusProv),
+		agent.WithThinkingConfigured(true),
+	)
+
+	// Sub agent: Sonnet without thinking configured
+	sonnetStream := newStreamBuilder().
+		AddContent("I'm Sonnet without thinking").
+		AddStopWithUsage(5, 3).
+		Build()
+	sonnetProv := &mockProvider{id: "anthropic/sonnet", stream: sonnetStream}
+	sonnet := agent.New("sonnet-worker", "Worker agent without thinking",
+		agent.WithModel(sonnetProv),
+	)
+
+	tm := team.New(team.WithAgents(opus, sonnet))
+
+	rt, err := NewLocalRuntime(tm,
+		WithCurrentAgent("opus-root"),
+		WithSessionCompaction(false),
+		WithModelStore(mockModelStore{}),
+	)
+	require.NoError(t, err)
+
+	// Start a session with thinking enabled (as the TUI would set for Opus)
+	sess := session.New(session.WithUserMessage("Hi"), session.WithThinking(true))
+	sess.Title = "Agent Switch Test"
+
+	// Run with Opus first
+	evCh := rt.RunStream(t.Context(), sess)
+	for range evCh {
+	}
+
+	// After Opus run, thinking should be true
+	require.True(t, sess.Thinking, "thinking should be true after Opus run")
+
+	// Now switch to Sonnet (simulating Ctrl+4 in the TUI)
+	require.NoError(t, rt.SetCurrentAgent("sonnet-worker"))
+
+	// Send another message (this triggers a new RunStream with the same session)
+	sess.AddMessage(session.UserMessage("Now help me with something else"))
+
+	evCh = rt.RunStream(t.Context(), sess)
+	for range evCh {
+	}
+
+	// After switching to Sonnet, thinking should have been reset to false
+	// because sonnet-worker doesn't have ThinkingConfigured.
+	assert.False(t, sess.Thinking,
+		"thinking should be reset to false after switching to agent without thinking configured")
+}
+
 func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
 	var executed bool
 	workerTool := tools.Tool{
