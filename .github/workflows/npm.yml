@@ -1,0 +1,100 @@
+name: npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish (e.g., v1.34.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (do not publish to npm)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642195f882660b323136e12 # v4.4.0
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Determine version
+        id: version
+        run: |
+          TAG="${{ inputs.release_tag || github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile binaries
+        run: |
+          docker buildx build \
+            --target=cross \
+            --build-arg GIT_TAG="${{ steps.version.outputs.tag }}" \
+            --build-arg GIT_COMMIT="${{ github.sha }}" \
+            --platform linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64 \
+            --output=./dist \
+            .
+
+      - name: Package npm packages
+        run: |
+          chmod +x npm/scripts/package.sh
+          ./npm/scripts/package.sh "${{ steps.version.outputs.version }}"
+
+      - name: Verify packages
+        run: |
+          echo "=== Main package ==="
+          cat npm/docker-agent/package.json
+          echo ""
+          echo "=== Platform packages ==="
+          for pkg in npm/docker-agent-*/; do
+            echo "--- $(basename "$pkg") ---"
+            cat "$pkg/package.json"
+            ls -lh "$pkg/"
+            echo ""
+          done
+
+      - name: Publish platform packages
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in npm/docker-agent-*/; do
+            echo "Publishing $(basename "$pkg")..."
+            (cd "$pkg" && npm publish --access public)
+          done
+
+      - name: Publish main package
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing @docker/docker-agent..."
+          cd npm/docker-agent && npm publish --access public
+
+      - name: Dry run - show what would be published
+        if: ${{ inputs.dry_run }}
+        run: |
+          for pkg in npm/docker-agent-*/; do
+            echo "=== Would publish $(basename "$pkg") ==="
+            (cd "$pkg" && npm pack --dry-run)
+            echo ""
+          done
+          echo "=== Would publish @docker/docker-agent ==="
+          (cd npm/docker-agent && npm pack --dry-run)

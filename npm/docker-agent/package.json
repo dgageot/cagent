@@ -1,0 +1,36 @@
+{
+  "name": "@docker/docker-agent",
+  "version": "0.0.0",
+  "description": "Docker Agent - Build, run, and share AI agents",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/docker/docker-agent.git"
+  },
+  "homepage": "https://docker.github.io/docker-agent/",
+  "bugs": "https://github.com/docker/docker-agent/issues",
+  "bin": {
+    "docker-agent": "bin/cli.js"
+  },
+  "files": [
+    "bin/cli.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "optionalDependencies": {
+    "@docker/docker-agent-darwin-arm64": "0.0.0",
+    "@docker/docker-agent-darwin-x64": "0.0.0",
+    "@docker/docker-agent-linux-arm64": "0.0.0",
+    "@docker/docker-agent-linux-x64": "0.0.0",
+    "@docker/docker-agent-win32-arm64": "0.0.0",
+    "@docker/docker-agent-win32-x64": "0.0.0"
+  },
+  "keywords": [
+    "docker",
+    "agent",
+    "ai",
+    "coding-agent",
+    "cli",
+    "mcp"
+  ]
+}

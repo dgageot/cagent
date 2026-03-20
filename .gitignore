@@ -21,3 +21,9 @@ vendor
 /cagent
 /cagent-*
 /docker-mcp-*
+
+# npm platform binaries (copied in by npm/scripts/package.sh)
+npm/docker-agent-*/docker-agent
+npm/docker-agent-*/docker-agent.exe
+npm/docker-agent/LICENSE
+npm/docker-agent/README.md

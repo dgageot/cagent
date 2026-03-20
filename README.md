@@ -45,6 +45,8 @@ docker agent run agent.yaml
 
 **Homebrew** — `brew install docker-agent`. Run `docker-agent` directly or symlink the binary to `~/.docker/cli-plugins/docker-agent` and run `docker agent`.
 
+**npm** — `npx -y @docker/docker-agent` to run directly, or `npm install -g @docker/docker-agent` to install globally.
+
 **Binary releases** — Download from [GitHub Releases](https://github.com/docker/docker-agent/releases). Symlink the `docker-agent` binary to `~/.docker/cli-plugins/docker-agent` to be able to use `docker agent`, or use `docker-agent` directly.
 
 Set at least one API key (or use [Docker Model Runner](https://docs.docker.com/ai/model-runner/) for local models):

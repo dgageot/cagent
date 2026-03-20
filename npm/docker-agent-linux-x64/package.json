@@ -1,0 +1,15 @@
+{
+  "name": "@docker/docker-agent-linux-x64",
+  "version": "0.0.0",
+  "description": "Docker Agent binary for Linux x64",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/docker/docker-agent.git"
+  },
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": [
+    "docker-agent"
+  ]
+}
