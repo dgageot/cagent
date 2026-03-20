@@ -111,7 +111,7 @@ func createTasksTool(_ context.Context, toolset latest.Toolset, parentDir string
 	return builtin.NewTasksTool(validatedPath), nil
 }
 
-func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir string, runConfig *config.RuntimeConfig, configName string) (tools.ToolSet, error) {
+func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir string, runConfig *config.RuntimeConfig, agentName string) (tools.ToolSet, error) {
 	var validatedMemoryPath string
 
 	if toolset.Path != "" {
@@ -132,10 +132,10 @@ func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir strin
 		}
 	} else {
 		// Default: ~/.cagent/memory/<configName>/memory.db
-		if configName == "" {
-			configName = "default"
+		if agentName == "" {
+			agentName = "default"
 		}
-		validatedMemoryPath = filepath.Join(paths.GetDataDir(), "memory", configName, "memory.db")
+		validatedMemoryPath = filepath.Join(paths.GetDataDir(), "memory", agentName, "memory.db")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(validatedMemoryPath), 0o700); err != nil {
