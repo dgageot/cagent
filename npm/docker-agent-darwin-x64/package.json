@@ -1,0 +1,15 @@
+{
+  "name": "@docker/docker-agent-darwin-x64",
+  "version": "0.0.0",
+  "description": "Docker Agent binary for macOS x64 (Intel)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/docker/docker-agent.git"
+  },
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": [
+    "docker-agent"
+  ]
+}
