@@ -38,23 +38,23 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 		creators: make(map[string]ToolsetCreator),
 	}
 
-	// Register all built-in toolset creators
-	r.Register("todo", createTodoTool)
-	r.Register("tasks", createTasksTool)
-	r.Register("memory", createMemoryTool)
-	r.Register("think", createThinkTool)
-	r.Register("shell", createShellTool)
-	r.Register("script", createScriptTool)
-	r.Register("filesystem", createFilesystemTool)
-	r.Register("fetch", createFetchTool)
-	r.Register("mcp", createMCPTool)
-	r.Register("api", createAPITool)
 	r.Register("a2a", createA2ATool)
-	r.Register("lsp", createLSPTool)
-	r.Register("user_prompt", createUserPromptTool)
-	r.Register("openapi", createOpenAPITool)
-	r.Register("model_picker", createModelPickerTool)
+	r.Register("api", createAPITool)
 	r.Register("background_agents", createBackgroundAgentsTool)
+	r.Register("fetch", createFetchTool)
+	r.Register("filesystem", createFilesystemTool)
+	r.Register("lsp", createLSPTool)
+	r.Register("mcp", createMCPTool)
+	r.Register("memory", createMemoryTool)
+	r.Register("model_picker", createModelPickerTool)
+	r.Register("openapi", createOpenAPITool)
+	r.Register("script", createScriptTool)
+	r.Register("shell", createShellTool)
+	r.Register("tasks", createTasksTool)
+	r.Register("think", createThinkTool)
+	r.Register("todo", createTodoTool)
+	r.Register("user_prompt", createUserPromptTool)
+
 	return r
 }
 
