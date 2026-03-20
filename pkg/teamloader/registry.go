@@ -33,11 +33,29 @@ type ToolsetRegistry struct {
 	creators map[string]ToolsetCreator
 }
 
-// NewToolsetRegistry creates a new empty toolset registry
-func NewToolsetRegistry() *ToolsetRegistry {
-	return &ToolsetRegistry{
+func NewDefaultToolsetRegistry() *ToolsetRegistry {
+	r := &ToolsetRegistry{
 		creators: make(map[string]ToolsetCreator),
 	}
+
+	// Register all built-in toolset creators
+	r.Register("todo", createTodoTool)
+	r.Register("tasks", createTasksTool)
+	r.Register("memory", createMemoryTool)
+	r.Register("think", createThinkTool)
+	r.Register("shell", createShellTool)
+	r.Register("script", createScriptTool)
+	r.Register("filesystem", createFilesystemTool)
+	r.Register("fetch", createFetchTool)
+	r.Register("mcp", createMCPTool)
+	r.Register("api", createAPITool)
+	r.Register("a2a", createA2ATool)
+	r.Register("lsp", createLSPTool)
+	r.Register("user_prompt", createUserPromptTool)
+	r.Register("openapi", createOpenAPITool)
+	r.Register("model_picker", createModelPickerTool)
+	r.Register("background_agents", createBackgroundAgentsTool)
+	return r
 }
 
 // Register adds a new toolset creator for the given type
@@ -58,28 +76,6 @@ func (r *ToolsetRegistry) CreateTool(ctx context.Context, toolset latest.Toolset
 		return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)
 	}
 	return creator(ctx, toolset, parentDir, runConfig, agentName)
-}
-
-func NewDefaultToolsetRegistry() *ToolsetRegistry {
-	r := NewToolsetRegistry()
-	// Register all built-in toolset creators
-	r.Register("todo", createTodoTool)
-	r.Register("tasks", createTasksTool)
-	r.Register("memory", createMemoryTool)
-	r.Register("think", createThinkTool)
-	r.Register("shell", createShellTool)
-	r.Register("script", createScriptTool)
-	r.Register("filesystem", createFilesystemTool)
-	r.Register("fetch", createFetchTool)
-	r.Register("mcp", createMCPTool)
-	r.Register("api", createAPITool)
-	r.Register("a2a", createA2ATool)
-	r.Register("lsp", createLSPTool)
-	r.Register("user_prompt", createUserPromptTool)
-	r.Register("openapi", createOpenAPITool)
-	r.Register("model_picker", createModelPickerTool)
-	r.Register("background_agents", createBackgroundAgentsTool)
-	return r
 }
 
 func createTodoTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
