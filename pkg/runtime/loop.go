@@ -128,6 +128,11 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		}
 		loopDetector := newToolLoopDetector(loopThreshold)
 
+		// Track whether we already attempted auto-compaction for a context
+		// overflow on this iteration. This prevents an infinite loop when
+		// compaction fails to reduce the context enough.
+		compactionAttempted := false
+
 		// toolModelOverride holds the per-toolset model from the most recent
 		// tool calls. It applies for one LLM turn, then resets.
 		var toolModelOverride string
@@ -280,7 +285,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				// Auto-recovery: if the error is a context overflow and
 				// session compaction is enabled, compact the conversation
 				// and retry the request instead of surfacing raw errors.
-				if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction {
+				// Guard against infinite loops: only attempt once per overflow.
+				if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction && !compactionAttempted {
+					compactionAttempted = true
 					slog.Warn("Context window overflow detected, attempting auto-compaction",
 						"agent", a.Name(),
 						"session_id", sess.ID,
@@ -312,6 +319,11 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				streamSpan.End()
 				return
 			}
+
+			// Model call succeeded — reset the compaction guard so that
+			// a future overflow later in the same session can still
+			// trigger auto-compaction.
+			compactionAttempted = false
 
 			if usedModel != nil && usedModel.ID() != model.ID() {
 				slog.Info("Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())

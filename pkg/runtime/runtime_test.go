@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
+	"github.com/docker/docker-agent/pkg/modelerrors"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/permissions"
 	"github.com/docker/docker-agent/pkg/session"
@@ -1824,4 +1825,59 @@ func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
 				"event %T should reference pinned agent \"worker\", not root", ev)
 		}
 	}
+}
+
+// overflowProvider always returns a ContextOverflowError.
+type overflowProvider struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (p *overflowProvider) ID() string { return "test/overflow-model" }
+
+func (p *overflowProvider) CreateChatCompletionStream(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error) {
+	p.mu.Lock()
+	p.calls++
+	p.mu.Unlock()
+	return nil, modelerrors.NewContextOverflowError(errors.New("prompt is too long: 200000 tokens > 128000 maximum"))
+}
+
+func (p *overflowProvider) BaseConfig() base.Config { return base.Config{} }
+
+func (p *overflowProvider) MaxTokens() int { return 0 }
+
+func (p *overflowProvider) CallCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.calls
+}
+
+func TestContextOverflow_NoInfiniteLoop(t *testing.T) {
+	// When the model always returns a ContextOverflowError and compaction
+	// is enabled, the runtime should attempt compaction once and then stop
+	// instead of looping forever.
+	prov := &overflowProvider{}
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Hello"))
+	sess.Title = "Overflow Test"
+
+	evCh := rt.RunStream(t.Context(), sess)
+	var errorEvents []*ErrorEvent
+	for ev := range evCh {
+		if e, ok := ev.(*ErrorEvent); ok {
+			errorEvents = append(errorEvents, e)
+		}
+	}
+
+	// The provider should be called at most 3 times: once for the initial
+	// request, once for the summarization attempt (which also fails), and
+	// once for the retry after compaction.
+	require.LessOrEqual(t, prov.CallCount(), 3,
+		"expected at most 3 model calls (initial + summarization + retry), got %d", prov.CallCount())
+	require.NotEmpty(t, errorEvents, "expected an error event when compaction cannot resolve overflow")
 }
