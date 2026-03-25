@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -1300,6 +1301,10 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 		msg := m.messages[i]
 		if msg.Type == types.MessageTypeToolCall && msg.ToolCall.ID == toolCall.ID {
 			msg.ToolStatus = status
+			if status == types.ToolStatusRunning && msg.StartedAt == nil {
+				now := time.Now()
+				msg.StartedAt = &now
+			}
 			if toolCall.Function.Arguments != "" {
 				if status == types.ToolStatusPending {
 					msg.ToolCall.Function.Arguments += toolCall.Function.Arguments
