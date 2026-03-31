@@ -1,4 +1,5 @@
 bin
+!npm/docker-agent/bin/
 dist
 .task
 .DS_Store

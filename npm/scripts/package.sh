@@ -17,6 +17,13 @@
 set -euo pipefail
 
 VERSION="${1:?Usage: $0 <version>}"
+
+# Validate version to prevent sed injection
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+  echo "ERROR: Invalid version format: $VERSION"
+  echo "       Expected semver (e.g., 1.2.3 or 1.2.3-beta.1)"
+  exit 1
+fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NPM_DIR="$ROOT_DIR/npm"
