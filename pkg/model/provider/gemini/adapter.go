@@ -171,7 +171,7 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		if res.resp.UsageMetadata != nil && g.trackUsage {
 			resp.Usage = &chat.Usage{
 				InputTokens:       int64(res.resp.UsageMetadata.PromptTokenCount - res.resp.UsageMetadata.CachedContentTokenCount),
-				OutputTokens:      int64(res.resp.UsageMetadata.CandidatesTokenCount),
+				OutputTokens:      int64(res.resp.UsageMetadata.CandidatesTokenCount + res.resp.UsageMetadata.ThoughtsTokenCount),
 				CachedInputTokens: int64(res.resp.UsageMetadata.CachedContentTokenCount),
 				ReasoningTokens:   int64(res.resp.UsageMetadata.ThoughtsTokenCount),
 			}
