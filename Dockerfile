@@ -14,10 +14,10 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS b
 COPY --from=xx / /
 RUN apk add --no-cache clang zig
 WORKDIR /src
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,source=go.mod,target=go.mod \
-    --mount=type=bind,source=go.sum,target=go.sum \
-    go mod download
+# RUN --mount=type=cache,target=/go/pkg/mod \
+#     --mount=type=bind,source=go.mod,target=go.mod \
+#     --mount=type=bind,source=go.sum,target=go.sum \
+#     go mod download
 ENV CGO_ENABLED=1
 
 FROM builder-base AS builder

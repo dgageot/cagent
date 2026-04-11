@@ -1,0 +1,74 @@
+# GoReleaser configuration for gotoon
+# Visit https://goreleaser.com for documentation
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - skip: true
+    # This is a library package, so we skip building binaries
+    # Users will import it as a dependency
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: alpkeskin
+    name: gotoon
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## GoTOON {{ .Tag }}
+
+    Token-Oriented Object Notation (TOON) encoder for Go.
+
+    ### Installation
+
+    ```bash
+    go get github.com/alpkeskin/gotoon@{{ .Tag }}
+    ```
+  footer: |
+    **Full Changelog**: https://github.com/alpkeskin/gotoon/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ---
+
+    For more information, see the [README](https://github.com/alpkeskin/gotoon#readme).

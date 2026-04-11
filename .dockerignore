@@ -9,3 +9,4 @@
 !./**/*.txt
 !/pkg/config/builtin-agents/*.yaml
 !/pkg/tui/styles/themes/*.yaml
+!/vendor
