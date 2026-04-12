@@ -48,8 +48,8 @@ func ResolveCommand(ctx context.Context, rt Runtime, userInput string) string {
 	if err != nil {
 		slog.Warn("Failed to get agent tools for JS expression execution", "error", err)
 	} else {
-		evaluator := js.NewEvaluator(agentTools)
-		instruction = evaluator.Evaluate(ctx, instruction, args)
+		jsRuntime := js.New(nil, agentTools)
+		instruction = jsRuntime.Evaluate(ctx, instruction, args)
 	}
 
 	// Execute tool commands and substitute their output (legacy !tool() syntax)

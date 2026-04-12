@@ -75,7 +75,7 @@ func ResolveHeaders(ctx context.Context, headers map[string]string) map[string]s
 		return headers
 	}
 
-	return js.ExpandMapFunc(headers, "headers", upstream.Get, rewriteBracketNotation)
+	return js.ExpandWithLookup(headers, "headers", upstream.Get, rewriteBracketNotation)
 }
 
 // headerPlaceholderRe matches ${headers.NAME} and captures the header

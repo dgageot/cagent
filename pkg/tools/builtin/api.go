@@ -20,7 +20,7 @@ import (
 
 type APITool struct {
 	config   latest.APIToolConfig
-	expander *js.Expander
+	expander *js.Runtime
 }
 
 // Verify interface compliance
@@ -86,7 +86,7 @@ func (t *APITool) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools
 	return tools.ResultSuccess(limitOutput(string(body))), nil
 }
 
-func NewAPITool(config latest.APIToolConfig, expander *js.Expander) *APITool {
+func NewAPITool(config latest.APIToolConfig, expander *js.Runtime) *APITool {
 	return &APITool{
 		config:   config,
 		expander: expander,

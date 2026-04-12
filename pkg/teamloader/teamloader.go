@@ -135,7 +135,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		return config.AutoModelConfig(ctx, runConfig.ModelsGateway, env, runConfig.DefaultModel)
 	})
 
-	expander := js.NewJsExpander(env)
+	expander := js.New(env, nil)
 
 	cliHooks := runConfig.CLIHooks()
 

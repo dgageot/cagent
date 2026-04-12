@@ -178,7 +178,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 
 	// Configure the embedding input builder to use the chat LLM
 	store.SetEmbeddingInputBuilder(newLLMSemanticEmbeddingBuilder(
-		chatProvider, js.NewJsExpander(buildCtx.Env), semanticPrompt, usageTracker, useASTContext))
+		chatProvider, js.New(buildCtx.Env, nil), semanticPrompt, usageTracker, useASTContext))
 
 	return &Config{
 		Name:      strategyName,
@@ -216,7 +216,7 @@ Include error handling patterns and edge cases if present.`
 // for each chunk before it is embedded.
 type llmSemanticEmbeddingBuilder struct {
 	provider     provider.Provider
-	expander     *js.Expander
+	expander     *js.Runtime
 	prompt       string
 	usageTracker func(ctx context.Context, usage *chat.Usage)
 	astContext   bool
@@ -226,7 +226,7 @@ type llmSemanticEmbeddingBuilder struct {
 // calls the given provider with the configured prompt template.
 func newLLMSemanticEmbeddingBuilder(
 	p provider.Provider,
-	expander *js.Expander,
+	expander *js.Runtime,
 	prompt string,
 	usageTracker func(ctx context.Context, usage *chat.Usage),
 	astContext bool,

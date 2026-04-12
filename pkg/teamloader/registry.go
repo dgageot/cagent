@@ -223,7 +223,7 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		return nil, errors.New("api tool requires an endpoint in api_config")
 	}
 
-	expander := js.NewJsExpander(runConfig.EnvProvider())
+	expander := js.New(runConfig.EnvProvider(), nil)
 	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint, nil)
 	toolset.APIConfig.Headers = expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
@@ -289,7 +289,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 	// Remote MCP Server
 	case toolset.Remote.URL != "":
-		expander := js.NewJsExpander(envProvider)
+		expander := js.New(envProvider, nil)
 
 		headers := expander.ExpandMap(ctx, toolset.Remote.Headers)
 		url := expander.Expand(ctx, toolset.Remote.URL, nil)
@@ -302,7 +302,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 }
 
 func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
-	expander := js.NewJsExpander(runConfig.EnvProvider())
+	expander := js.New(runConfig.EnvProvider(), nil)
 
 	headers := expander.ExpandMap(ctx, toolset.Headers)
 
@@ -338,7 +338,7 @@ func createUserPromptTool(_ context.Context, _ latest.Toolset, _ string, _ *conf
 }
 
 func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
-	expander := js.NewJsExpander(runConfig.EnvProvider())
+	expander := js.New(runConfig.EnvProvider(), nil)
 
 	specURL := expander.Expand(ctx, toolset.URL, nil)
 	headers := expander.ExpandMap(ctx, toolset.Headers)

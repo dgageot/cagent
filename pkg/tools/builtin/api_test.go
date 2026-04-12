@@ -179,6 +179,6 @@ type noopEnvProvider struct{}
 
 func (noopEnvProvider) Get(context.Context, string) (string, bool) { return "", false }
 
-func testExpander() *js.Expander {
-	return js.NewJsExpander(noopEnvProvider{})
+func testExpander() *js.Runtime {
+	return js.New(noopEnvProvider{}, nil)
 }
