@@ -30,9 +30,32 @@ func TestParseNpmRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.ref, func(t *testing.T) {
-			pkg, version := parseNpmRef(tt.ref)
+			pkg, version, err := parseNpmRef(tt.ref)
+			require.NoError(t, err)
 			assert.Equal(t, tt.pkg, pkg)
 			assert.Equal(t, tt.version, version)
+		})
+	}
+}
+
+func TestParseNpmRef_Invalid(t *testing.T) {
+	invalid := []struct {
+		ref  string
+		desc string
+	}{
+		{"npm:", "empty after prefix"},
+		{"npm:  ", "whitespace only"},
+		{"npm:@", "bare @"},
+		{"npm:@scope", "scope without package name"},
+		{"npm:@/pkg", "empty scope"},
+		{"npm:@scope/", "empty name after scope"},
+		{"npm:@scope/@pkg", "@ in package name"},
+	}
+
+	for _, tt := range invalid {
+		t.Run(tt.desc, func(t *testing.T) {
+			_, _, err := parseNpmRef(tt.ref)
+			assert.Error(t, err, "parseNpmRef(%q) should return an error", tt.ref)
 		})
 	}
 }

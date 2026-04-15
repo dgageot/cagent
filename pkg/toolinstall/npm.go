@@ -21,40 +21,46 @@ func isNpmRef(version string) bool {
 
 // parseNpmRef parses an npm version reference like "npm:@scope/pkg" or "npm:pkg@1.0.0"
 // and returns the npm package name and optional version.
-func parseNpmRef(ref string) (pkg, version string) {
+func parseNpmRef(ref string) (pkg, version string, err error) {
 	ref = strings.TrimPrefix(ref, npmPrefix)
 	ref = strings.TrimSpace(ref)
 
+	if ref == "" {
+		return "", "", errors.New("empty npm package reference")
+	}
+
 	// Handle scoped packages like @scope/pkg@version
 	if strings.HasPrefix(ref, "@") {
-		// Find the second @ which separates version
-		idx := strings.Index(ref[1:], "@")
-		if idx >= 0 {
-			return ref[:idx+1], ref[idx+2:]
+		parts := strings.SplitN(ref, "/", 2)
+		if len(parts) != 2 || parts[0] == "@" || parts[1] == "" {
+			return "", "", fmt.Errorf("invalid scoped npm package %q: expected @scope/name format", ref)
 		}
-		return ref, ""
+
+		// Find version separator after the package name
+		if idx := strings.Index(parts[1], "@"); idx >= 0 {
+			if parts[1][:idx] == "" {
+				return "", "", fmt.Errorf("invalid scoped npm package %q: empty package name", ref)
+			}
+			return parts[0] + "/" + parts[1][:idx], parts[1][idx+1:], nil
+		}
+		return ref, "", nil
 	}
 
 	// Handle unscoped packages like pkg@version
-	if idx := strings.LastIndex(ref, "@"); idx > 0 {
-		return ref[:idx], ref[idx+1:]
+	parts := strings.SplitN(ref, "@", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1], nil
 	}
 
-	return ref, ""
+	return ref, "", nil
 }
 
 // installNpmPackage installs an npm package globally into the tools directory
 // and returns the path to the command binary.
 func installNpmPackage(ctx context.Context, command, npmRef string) (string, error) {
-	npmPkg, npmVersion := parseNpmRef(npmRef)
-	if npmPkg == "" {
-		return "", fmt.Errorf("invalid npm reference %q: package name is required", npmRef)
-	}
-
-	// Check if already installed in our bin dir.
-	binPath := filepath.Join(BinDir(), command)
-	if info, err := os.Stat(binPath); err == nil && info.Mode()&0o111 != 0 {
-		return binPath, nil
+	npmPkg, npmVersion, err := parseNpmRef(npmRef)
+	if err != nil {
+		return "", fmt.Errorf("invalid npm reference %q: %w", npmRef, err)
 	}
 
 	npmBin, err := exec.LookPath("npm")
@@ -81,10 +87,11 @@ func installNpmPackage(ctx context.Context, command, npmRef string) (string, err
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("npm install --global --prefix %s %s: %w", prefixDir, installArg, err)
+		return "", fmt.Errorf("npm install %s failed: %w", installArg, err)
 	}
 
-	// npm --prefix installs binaries into <prefix>/bin/
+	// Verify the binary was installed.
+	binPath := filepath.Join(BinDir(), command)
 	if info, err := os.Stat(binPath); err == nil && info.Mode()&0o111 != 0 {
 		slog.Info("Successfully installed npm package", "command", command, "package", installArg, "path", binPath)
 		return binPath, nil
