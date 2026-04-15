@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -71,6 +72,8 @@ func (t *FilesystemToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 
 // resolvePath resolves a user-supplied path relative to the working directory
 // and validates that the resulting path does not escape the working directory.
+// It follows symlinks to prevent a symlink inside the working directory from
+// pointing outside it.
 func (t *FilesystemToolset) resolvePath(userPath string) (string, error) {
 	resolved := filepath.Clean(filepath.Join(t.workingDir, userPath))
 	absWorkingDir, err := filepath.Abs(t.workingDir)
@@ -81,14 +84,52 @@ func (t *FilesystemToolset) resolvePath(userPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve path: %w", err)
 	}
+
+	// Resolve symlinks. For paths that don't exist yet (e.g. a new file
+	// being created), walk up to the nearest existing ancestor, resolve
+	// symlinks on that, then re-append the remaining components.
+	realResolved, err := evalSymlinksAllowMissing(absResolved)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate symlinks: %w", err)
+	}
+	realWorkingDir, err := filepath.EvalSymlinks(absWorkingDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate symlinks for working directory: %w", err)
+	}
+
 	// Normalize paths for comparison to prevent bypasses on case-insensitive
 	// filesystems (macOS, Windows) where differing case could defeat the check.
-	normResolved := normalizePathForComparison(absResolved)
-	normWorkingDir := normalizePathForComparison(absWorkingDir)
+	normResolved := normalizePathForComparison(realResolved)
+	normWorkingDir := normalizePathForComparison(realWorkingDir)
 	if !strings.HasPrefix(normResolved, normWorkingDir+string(filepath.Separator)) && normResolved != normWorkingDir {
 		return "", fmt.Errorf("path %q escapes the working directory", userPath)
 	}
-	return absResolved, nil
+	return realResolved, nil
+}
+
+// evalSymlinksAllowMissing resolves symlinks for a path that may not fully
+// exist. It walks up from the given path until it finds an existing ancestor,
+// resolves symlinks on that ancestor, then re-appends the missing tail.
+func evalSymlinksAllowMissing(path string) (string, error) {
+	real, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return real, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	// Walk up to find the nearest existing ancestor.
+	parent := filepath.Dir(path)
+	if parent == path {
+		// Reached filesystem root without finding an existing path.
+		return path, nil
+	}
+	realParent, err := evalSymlinksAllowMissing(parent)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(realParent, filepath.Base(path)), nil
 }
 
 func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
