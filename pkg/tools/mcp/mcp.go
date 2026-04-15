@@ -311,7 +311,14 @@ func (ts *Toolset) tryRestart(ctx context.Context) bool {
 	for attempt := range maxAttempts {
 		backoff := time.Duration(1<<uint(attempt)) * time.Second
 		slog.Debug("Restarting MCP server", "server", ts.logID, "attempt", attempt+1, "backoff", backoff)
-		time.Sleep(backoff)
+
+		timer := time.NewTimer(backoff)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return false
+		}
 
 		ts.mu.Lock()
 		if ts.stopping {
