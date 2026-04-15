@@ -120,9 +120,9 @@ When configuring MCP or LSP tools that require a binary command, docker agent ca
 2. If not found, it checks the docker agent tools directory (`~/.cagent/tools/bin/`)
 3. If still not found, it looks up the command in the aqua registry and installs it automatically
 
-### Explicit Package Reference
+### Explicit Package Reference (aqua)
 
-Use the `version` property to specify exactly which package to install:
+Use the `version` property to specify exactly which aqua package to install:
 
 ```yaml
 toolsets:
@@ -137,6 +137,22 @@ toolsets:
 ```
 
 The format is `owner/repo` or `owner/repo@version`. When a version is omitted, the latest release is used.
+
+### npm Packages
+
+Use the `npm:` prefix to install tools from the npm registry via `npm install --global`:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: gws
+    version: "npm:@googleworkspace/cli"
+  - type: mcp
+    command: my-server
+    version: "npm:@example/mcp-server@2.0.0"
+```
+
+The format is `npm:<package>` or `npm:<package>@<version>`. Requires Node.js/npm to be installed on the system. Packages are installed into `~/.cagent/tools/` using `--prefix` so they don't affect global npm state.
 
 ### Automatic Detection
 
@@ -179,7 +195,7 @@ Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are o
 <div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
-  <p>Auto-install supports both Go packages (via <code>go install</code>) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.</p>
+  <p>Auto-install supports Go packages (via <code>go install</code>), GitHub release binaries (via archive download), and npm packages (via <code>npm install --global</code>). For aqua-sourced tools, the registry metadata determines which method is used. Use the <code>npm:</code> prefix in <code>version</code> for npm packages.</p>
 </div>
 
 ## Tool Filtering

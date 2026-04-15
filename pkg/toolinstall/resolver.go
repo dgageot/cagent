@@ -78,6 +78,11 @@ func doInstall(ctx context.Context, command, versionRef string) (string, error) 
 		return binPath, nil
 	}
 
+	// npm: prefix routes to npm-based installation.
+	if isNpmRef(versionRef) {
+		return installNpmPackage(ctx, command, versionRef)
+	}
+
 	slog.Info("Auto-installing missing command via aqua registry", "command", command)
 
 	registry := SharedRegistry()
