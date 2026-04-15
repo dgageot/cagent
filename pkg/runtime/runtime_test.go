@@ -1950,3 +1950,34 @@ func TestMergeExcludedTools(t *testing.T) {
 		assert.ElementsMatch(t, []string{"run_skill", "shell", "read_skill"}, result)
 	})
 }
+
+func TestRunStream_EmptyMessages_SendUserMessage(t *testing.T) {
+	t.Parallel()
+
+	// session.New() defaults to SendUserMessage=true with no messages.
+	// With an empty instruction the system prompt is also empty, so
+	// GetMessages returns an empty slice.
+	// Before the fix, messages[len(messages)-1] panicked with index -1.
+	stream := newStreamBuilder().
+		AddContent("hello").
+		AddStopWithUsage(5, 5).
+		Build()
+
+	prov := &mockProvider{id: "test/mock-model", stream: stream}
+	root := agent.New("root", "", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New() // SendUserMessage=true, no messages
+	sess.Title = "Unit Test"
+
+	// Must not panic.
+	evCh := rt.RunStream(t.Context(), sess)
+	var events []Event
+	for ev := range evCh {
+		events = append(events, ev)
+	}
+	require.NotEmpty(t, events)
+}

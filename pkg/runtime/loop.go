@@ -110,7 +110,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		events <- ToolsetInfo(len(agentTools), false, a.Name())
 
 		messages := sess.GetMessages(a)
-		if sess.SendUserMessage {
+		if sess.SendUserMessage && len(messages) > 0 {
 			lastMsg := messages[len(messages)-1]
 			events <- UserMessage(lastMsg.Content, sess.ID, lastMsg.MultiContent, len(sess.Messages)-1)
 		}
