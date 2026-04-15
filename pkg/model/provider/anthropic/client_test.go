@@ -523,3 +523,20 @@ func TestExtractSystemBlocksCacheControl(t *testing.T) {
 	assert.Equal(t, "ephemeral", string(blocks[3].CacheControl.Type))
 	assert.Empty(t, string(blocks[3].CacheControl.TTL))
 }
+
+func TestExtractSystemBlocks_EmptyContentWithCacheControl(t *testing.T) {
+	t.Parallel()
+
+	// An empty system message with CacheControl must not panic.
+	msgs := []chat.Message{
+		{
+			Role:         chat.MessageRoleSystem,
+			Content:      "",
+			CacheControl: true,
+		},
+	}
+
+	// Before the fix this panicked with index out of range [-1].
+	blocks := extractSystemBlocks(msgs)
+	assert.Empty(t, blocks)
+}

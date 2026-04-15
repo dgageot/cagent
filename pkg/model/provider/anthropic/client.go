@@ -671,7 +671,7 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 			})
 		}
 
-		if msg.CacheControl {
+		if msg.CacheControl && len(systemBlocks) > 0 {
 			systemBlocks[len(systemBlocks)-1].CacheControl = anthropic.NewCacheControlEphemeralParam()
 		}
 	}
