@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
@@ -45,6 +46,7 @@ type Client struct {
 	routes         []Provider
 	fallback       Provider
 	index          bleve.Index
+	mu             sync.RWMutex
 	lastSelectedID string // ID of the provider selected by the most recent call
 }
 
@@ -165,10 +167,13 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, errors.New("no provider available for routing")
 	}
 
-	c.lastSelectedID = provider.ID()
+	selectedID := provider.ID()
+	c.mu.Lock()
+	c.lastSelectedID = selectedID
+	c.mu.Unlock()
 	slog.Debug("Rule-based router selected model",
 		"router", c.ID(),
-		"selected_model", c.lastSelectedID,
+		"selected_model", selectedID,
 		"message_count", len(messages),
 	)
 
@@ -179,6 +184,8 @@ func (c *Client) CreateChatCompletionStream(
 // recent CreateChatCompletionStream call. This allows callers to display
 // the YAML-configured sub-model name for rule-based routing.
 func (c *Client) LastSelectedModelID() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.lastSelectedID
 }
 
