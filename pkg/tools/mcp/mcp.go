@@ -341,9 +341,8 @@ func (ts *Toolset) tryRestart(ctx context.Context) bool {
 
 func (ts *Toolset) Instructions() string {
 	ts.mu.Lock()
-	started := ts.started
-	ts.mu.Unlock()
-	if !started {
+	defer ts.mu.Unlock()
+	if !ts.started {
 		// TODO: this should never happen...
 		return ""
 	}
