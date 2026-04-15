@@ -472,6 +472,8 @@ func (s *Session) AddMessageUsageRecord(agentName, model string, cost float64, u
 	if usage == nil {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.MessageUsageHistory = append(s.MessageUsageHistory, MessageUsageRecord{
 		AgentName: agentName,
 		Model:     model,
