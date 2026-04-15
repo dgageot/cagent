@@ -116,12 +116,14 @@ func (cs *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Verify state parameter for CSRF protection
+	// Verify state parameter for CSRF protection.
+	// Reject the callback if the expected state has not been set yet
+	// (i.e. the callback arrived before SetExpectedState was called).
 	cs.mu.Lock()
 	expectedState := cs.expectedState
 	cs.mu.Unlock()
 
-	if expectedState != "" && state != expectedState {
+	if expectedState == "" || state != expectedState {
 		cs.errCh <- fmt.Errorf("state mismatch: expected %s, got %s", expectedState, state)
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Invalid state parameter")

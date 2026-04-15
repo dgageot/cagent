@@ -263,3 +263,27 @@ func TestRefreshAccessToken_SendsEmptyClientIDWhenNotStored(t *testing.T) {
 		t.Error("client_secret should not be sent when empty")
 	}
 }
+
+// TestCallbackServer_RejectsCallbackBeforeStateSet verifies that a callback
+// arriving before SetExpectedState is called is rejected (CSRF protection).
+func TestCallbackServer_RejectsCallbackBeforeStateSet(t *testing.T) {
+	cs, err := NewCallbackServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cs.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Shutdown(t.Context())
+
+	// Send a callback before SetExpectedState has been called.
+	resp, err := http.Get(cs.GetRedirectURI() + "?code=authcode&state=anything")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d — callback accepted without expected state set", resp.StatusCode)
+	}
+}
