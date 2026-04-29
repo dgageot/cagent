@@ -173,6 +173,7 @@ func readCache() (cacheEntry, error) {
 }
 
 // writeCache persists the given release tag along with the current timestamp.
+// It uses atomic write-and-rename to prevent corruption from concurrent writes.
 func writeCache(latest string) error {
 	if err := os.MkdirAll(paths.GetCacheDir(), 0o755); err != nil {
 		return fmt.Errorf("create cache dir: %w", err)
@@ -181,7 +182,14 @@ func writeCache(latest string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(cachePath(), data, 0o600)
+
+	// Write to a temporary file first, then atomically rename it to prevent
+	// corruption if multiple processes write concurrently.
+	tmpPath := cachePath() + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, cachePath())
 }
 
 // IsNewer reports whether the semver-like tag latest is strictly greater than
