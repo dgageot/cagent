@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -191,4 +192,38 @@ func TestDisabled(t *testing.T) {
 			assert.Assert(t, !disabled())
 		})
 	}
+}
+
+func TestFetchLatestTag_RedirectLimit(t *testing.T) {
+	redirectCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectCount++
+		if redirectCount <= 5 {
+			http.Redirect(w, r, "/redirect", http.StatusFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := fetchLatestTag(t.Context(), srv.URL)
+	assert.ErrorContains(t, err, "stopped after 3 redirects")
+}
+
+func TestRefreshAsync_ConcurrentCalls(t *testing.T) {
+	SeedCacheForTest(t, "")
+
+	const numCalls = 10
+	var wg sync.WaitGroup
+	wg.Add(numCalls)
+	
+	for i := 0; i < numCalls; i++ {
+		go func() {
+			defer wg.Done()
+			<-RefreshAsync(t.Context())
+		}()
+	}
+	
+	wg.Wait()
+	// If we get here without panicking or racing, the test passes
 }

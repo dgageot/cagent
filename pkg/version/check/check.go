@@ -1,16 +1,3 @@
-// Package check provides a best-effort upgrade hint built from the GitHub
-// releases of docker/docker-agent.
-//
-// Behaviour:
-//   - The latest release tag is fetched in the background by [RefreshAsync],
-//     called once per `docker agent run` invocation.
-//   - The result is cached on disk for 24h so subsequent reads are instant.
-//   - [LatestCached] never touches the network: it only consults that cache,
-//     so callers (TUI status bar, `version` subcommand) can surface a hint
-//     without blocking on I/O.
-//   - The whole feature is opt-out via [DisableEnvVar].
-//   - All errors (offline, rate-limited, parse errors, dev builds, …) are
-//     swallowed: the user simply does not see an upgrade hint.
 package check
 
 import (
@@ -108,6 +95,19 @@ func disabled() bool {
 // fetchLatestTag returns the `tag_name` field of the latest stable release.
 // The endpoint is parameterised to keep the function unit-testable.
 func fetchLatestTag(ctx context.Context, url string) (string, error) {
+	// Use a custom client with timeout and redirect limit to prevent
+	// SSRF/redirect loops. The context timeout in RefreshAsync is a backstop;
+	// this client-level timeout ensures the request doesn't hang.
+	client := &http.Client{
+		Timeout: fetchTimeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 3 {
+				return fmt.Errorf("stopped after 3 redirects")
+			}
+			return nil
+		},
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return "", err
@@ -115,7 +115,7 @@ func fetchLatestTag(ctx context.Context, url string) (string, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
