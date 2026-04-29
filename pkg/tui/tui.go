@@ -305,7 +305,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	m.chatPage = initialChatPage
 
 	// Initialize status bar (pass m as help provider)
-	m.statusBar = statusbar.New(m, statusbar.WithTitle(m.appName+" "+m.appVersion))
+	m.statusBar = statusbar.New(m, statusbar.WithTitle(buildStatusBarTitle(m.appName, m.appVersion)))
 
 	// Add the initial session to the supervisor
 	sv.AddSession(ctx, initialApp, initialApp.Session(), initialWorkingDir, cleanup)
