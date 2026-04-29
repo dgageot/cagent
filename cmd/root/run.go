@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tui"
 	"github.com/docker/docker-agent/pkg/tui/styles"
 	"github.com/docker/docker-agent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/version/check"
 )
 
 type runExecFlags struct {
@@ -144,6 +145,13 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) (command
 			telemetry.TrackCommandError(ctx, "run", args, commandErr)
 		}()
 	}
+
+	// Kick off a best-effort, background check for a newer release. Results
+	// are cached on disk so the TUI status bar (and a future `version` call)
+	// can surface an upgrade hint without blocking on a network call. Only
+	// `run`/`exec` triggers this; other subcommands never reach out to
+	// GitHub. Disabled by setting DOCKER_AGENT_DISABLE_VERSION_CHECK=1.
+	check.RefreshAsync(ctx)
 
 	if f.sandbox {
 		return runInSandbox(ctx, cmd, args, &f.runConfig, f.sandboxTemplate, f.sbx)

@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/telemetry"
 	"github.com/docker/docker-agent/pkg/version"
-	"github.com/docker/docker-agent/pkg/version/check"
 )
 
 type rootFlags struct {
@@ -94,12 +93,6 @@ We collect anonymous usage data to help improve docker agent. To disable:
 			}
 
 			telemetry.SetGlobalTelemetryDebugMode(flags.debugMode)
-
-			// Kick off a best-effort, background check for a newer release.
-			// Results are cached on disk; the next invocation can surface them
-			// without blocking on a network call. Disabled by setting
-			// DOCKER_AGENT_DISABLE_VERSION_CHECK=1.
-			check.RefreshAsync(cmd.Context())
 
 			if flags.enableOtel {
 				if err := initOTelSDK(cmd.Context()); err != nil {

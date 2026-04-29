@@ -35,9 +35,11 @@ func runVersionCommand(cmd *cobra.Command, args []string) {
 	out.Printf("%s version %s\n", commandName, version.Version)
 	out.Printf("Commit: %s\n", version.Commit)
 
-	// Best-effort upgrade hint. Failures (offline, rate-limited, …) are
-	// silently ignored — the user simply does not see the line.
-	if res := check.Latest(cmd.Context(), version.Version); res.UpgradeAvailable() {
+	// Best-effort upgrade hint based on the cached result of the last
+	// `docker agent run`. We never reach out to GitHub from this subcommand;
+	// if the cache is empty (e.g. `run` has never been used) the hint is
+	// simply not shown.
+	if res := check.LatestCached(version.Version); res.UpgradeAvailable() {
 		out.Printf("\nA newer version is available: %s\nRelease notes: https://github.com/docker/docker-agent/releases/tag/%s\n",
 			res.Latest, res.Latest)
 	}
