@@ -102,7 +102,7 @@ func fetchLatestTag(ctx context.Context, url string) (string, error) {
 		Timeout: fetchTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 3 {
-				return fmt.Errorf("stopped after 3 redirects")
+				return errors.New("stopped after 3 redirects")
 			}
 			return nil
 		},

@@ -216,14 +216,14 @@ func TestRefreshAsync_ConcurrentCalls(t *testing.T) {
 	const numCalls = 10
 	var wg sync.WaitGroup
 	wg.Add(numCalls)
-	
-	for i := 0; i < numCalls; i++ {
+
+	for range numCalls {
 		go func() {
 			defer wg.Done()
 			<-RefreshAsync(t.Context())
 		}()
 	}
-	
+
 	wg.Wait()
 	// If we get here without panicking or racing, the test passes
 }
