@@ -75,6 +75,10 @@ RUN apk add --no-cache ca-certificates docker-cli && \
 ARG TARGETOS TARGETARCH
 ENV DOCKER_MCP_IN_CONTAINER=1
 ENV TERM=xterm-256color
+# Disable the once-a-day GitHub release check inside the container image:
+# images are tagged immutably and can't self-upgrade, so the hint would be
+# misleading and waste a network round-trip on every `run`.
+ENV DOCKER_AGENT_DISABLE_VERSION_CHECK=1
 COPY --from=docker/mcp-gateway:v2 /docker-mcp /usr/local/lib/docker/cli-plugins/
 COPY --from=builder-linux /binaries/docker-agent-$TARGETOS-$TARGETARCH /docker-agent
 USER docker-agent
