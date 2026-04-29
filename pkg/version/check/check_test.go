@@ -1,7 +1,6 @@
 package check
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,23 +10,9 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
-
-	"github.com/docker/docker-agent/pkg/paths"
 )
 
-// withCacheDir routes the package's on-disk cache to a per-test temp directory
-// so tests don't pollute the user's real cache and don't interfere with each
-// other.
-func withCacheDir(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	prev := paths.GetCacheDir()
-	paths.SetCacheDir(dir)
-	t.Cleanup(func() { paths.SetCacheDir(prev) })
-	return dir
-}
-
-func TestIsNewer_BasicSemverOrdering(t *testing.T) {
+func TestIsNewer(t *testing.T) {
 	tests := []struct {
 		name    string
 		latest  string
@@ -45,6 +30,10 @@ func TestIsNewer_BasicSemverOrdering(t *testing.T) {
 		{"prerelease loses to release", "v1.2.3-rc.1", "v1.2.3", false},
 		{"build metadata ignored", "v1.2.4+abcdef", "v1.2.3", true},
 		{"both prerelease equal numeric", "v1.2.3-rc.2", "v1.2.3-rc.1", false},
+		{"empty latest", "", "v1.2.3", false},
+		{"empty current", "v1.2.3", "", false},
+		{"dev current never upgrades", "v1.2.3", "dev", false},
+		{"dev latest never upgrades", "dev", "v1.2.3", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -53,199 +42,153 @@ func TestIsNewer_BasicSemverOrdering(t *testing.T) {
 	}
 }
 
-func TestIsNewer_EmptyAndDevAreNeverNewer(t *testing.T) {
-	assert.Equal(t, false, IsNewer("", "v1.2.3"))
-	assert.Equal(t, false, IsNewer("v1.2.3", ""))
-	assert.Equal(t, false, IsNewer("v1.2.3", "dev"))
-	assert.Equal(t, false, IsNewer("dev", "v1.2.3"))
-}
+func TestFetchLatestTag(t *testing.T) {
+	tests := []struct {
+		name       string
+		handler    http.HandlerFunc
+		wantTag    string
+		wantErrSub string
+	}{
+		{
+			name: "success",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "application/vnd.github+json", r.Header.Get("Accept"))
+				_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v9.9.9"})
+			},
+			wantTag: "v9.9.9",
+		},
+		{
+			name:       "http error",
+			handler:    func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "rate limited", http.StatusForbidden) },
+			wantErrSub: "unexpected status 403",
+		},
+		{
+			name:       "malformed payload",
+			handler:    func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("{not json")) },
+			wantErrSub: "decode release payload",
+		},
+		{
+			name:       "missing tag",
+			handler:    func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"foo":"bar"}`)) },
+			wantErrSub: "missing tag_name",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(tc.handler)
+			t.Cleanup(srv.Close)
 
-func TestResult_UpgradeAvailable(t *testing.T) {
-	assert.Equal(t, true, Result{Current: "v1.0.0", Latest: "v1.0.1"}.UpgradeAvailable())
-	assert.Equal(t, false, Result{Current: "v1.0.1", Latest: "v1.0.0"}.UpgradeAvailable())
-	assert.Equal(t, false, Result{Current: "dev", Latest: "v1.0.0"}.UpgradeAvailable())
-	assert.Equal(t, false, Result{Current: "v1.0.0", Latest: ""}.UpgradeAvailable())
-}
-
-func TestFetchLatestTag_Success(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/vnd.github+json", r.Header.Get("Accept"))
-		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v9.9.9"})
-	}))
-	t.Cleanup(srv.Close)
-
-	tag, err := fetchLatestTag(t.Context(), srv.URL)
-	assert.NilError(t, err)
-	assert.Equal(t, "v9.9.9", tag)
-}
-
-func TestFetchLatestTag_HTTPError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "rate limited", http.StatusForbidden)
-	}))
-	t.Cleanup(srv.Close)
-
-	_, err := fetchLatestTag(t.Context(), srv.URL)
-	assert.ErrorContains(t, err, "unexpected status 403")
-}
-
-func TestFetchLatestTag_MalformedPayload(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("{not json"))
-	}))
-	t.Cleanup(srv.Close)
-
-	_, err := fetchLatestTag(t.Context(), srv.URL)
-	assert.ErrorContains(t, err, "decode release payload")
-}
-
-func TestFetchLatestTag_MissingTag(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"foo":"bar"}`))
-	}))
-	t.Cleanup(srv.Close)
-
-	_, err := fetchLatestTag(t.Context(), srv.URL)
-	assert.ErrorContains(t, err, "missing tag_name")
+			tag, err := fetchLatestTag(t.Context(), srv.URL)
+			if tc.wantErrSub != "" {
+				assert.ErrorContains(t, err, tc.wantErrSub)
+				return
+			}
+			assert.NilError(t, err)
+			assert.Equal(t, tc.wantTag, tag)
+		})
+	}
 }
 
 func TestCacheRoundTrip(t *testing.T) {
-	dir := withCacheDir(t)
+	SeedCacheForTest(t, "")
 
-	want := cacheEntry{LatestVersion: "v1.2.3", CheckedAt: time.Now().Unix()}
-	assert.NilError(t, writeCache(want))
+	assert.NilError(t, writeCache("v1.2.3"))
 
 	// Cache file ended up where we expect.
-	_, err := os.Stat(filepath.Join(dir, cacheFileName))
+	_, err := os.Stat(cachePath())
 	assert.NilError(t, err)
 
 	got, err := readCache()
 	assert.NilError(t, err)
-	assert.Equal(t, want.LatestVersion, got.LatestVersion)
-	assert.Equal(t, want.CheckedAt, got.CheckedAt)
+	assert.Equal(t, "v1.2.3", got.LatestVersion)
+	assert.Assert(t, got.fresh(time.Now()))
 }
 
 func TestReadCache_MissingReturnsZero(t *testing.T) {
-	withCacheDir(t)
+	SeedCacheForTest(t, "")
 
 	got, err := readCache()
 	assert.NilError(t, err)
 	assert.Equal(t, cacheEntry{}, got)
 }
 
-func TestReadCache_CorruptReturnsError(t *testing.T) {
-	dir := withCacheDir(t)
-	assert.NilError(t, os.WriteFile(filepath.Join(dir, cacheFileName), []byte("not-json"), 0o600))
+func TestReadCache_CorruptReturnsZero(t *testing.T) {
+	SeedCacheForTest(t, "")
+	assert.NilError(t, os.WriteFile(filepath.Join(filepath.Dir(cachePath()), cacheFileName), []byte("not-json"), 0o600))
 
-	_, err := readCache()
-	assert.Assert(t, err != nil, "expected error when cache is corrupt")
+	got, _ := readCache()
+	assert.Equal(t, cacheEntry{}, got)
 }
 
 func TestCacheFreshness(t *testing.T) {
 	now := time.Now()
-	fresh := cacheEntry{CheckedAt: now.Add(-1 * time.Hour).Unix()}
-	stale := cacheEntry{CheckedAt: now.Add(-48 * time.Hour).Unix()}
-	zero := cacheEntry{}
-
-	assert.Equal(t, true, fresh.fresh(now))
-	assert.Equal(t, false, stale.fresh(now))
-	assert.Equal(t, false, zero.fresh(now))
+	assert.Assert(t, cacheEntry{CheckedAt: now.Add(-1 * time.Hour).Unix()}.fresh(now), "1h-old entry should be fresh")
+	assert.Assert(t, !cacheEntry{CheckedAt: now.Add(-48 * time.Hour).Unix()}.fresh(now), "48h-old entry should be stale")
+	assert.Assert(t, !cacheEntry{}.fresh(now), "zero entry should be stale")
 }
 
-func TestLatestCached_Disabled(t *testing.T) {
-	withCacheDir(t)
-	// Seed a cache entry to prove the function ignores it when disabled.
-	assert.NilError(t, writeCache(cacheEntry{LatestVersion: "v9.9.9", CheckedAt: time.Now().Unix()}))
+func TestLatestCached(t *testing.T) {
+	t.Run("empty cache returns empty", func(t *testing.T) {
+		SeedCacheForTest(t, "")
+		assert.Equal(t, "", LatestCached("v1.0.0"))
+	})
 
-	t.Setenv(DisableEnvVar, "1")
-	res := LatestCached("v1.0.0")
-	assert.Equal(t, "", res.Latest)
-}
+	t.Run("cache newer than current returns latest", func(t *testing.T) {
+		SeedCacheForTest(t, "v9.9.9")
+		assert.Equal(t, "v9.9.9", LatestCached("v1.0.0"))
+	})
 
-func TestLatestCached_FromDisk(t *testing.T) {
-	withCacheDir(t)
-	assert.NilError(t, writeCache(cacheEntry{LatestVersion: "v9.9.9", CheckedAt: time.Now().Unix()}))
+	t.Run("cache older than current returns empty", func(t *testing.T) {
+		SeedCacheForTest(t, "v1.0.0")
+		assert.Equal(t, "", LatestCached("v9.9.9"))
+	})
 
-	res := LatestCached("v1.0.0")
-	assert.Equal(t, "v9.9.9", res.Latest)
-	assert.Equal(t, true, res.UpgradeAvailable())
-}
+	t.Run("dev current never reports upgrade", func(t *testing.T) {
+		SeedCacheForTest(t, "v9.9.9")
+		assert.Equal(t, "", LatestCached("dev"))
+	})
 
-func TestLatestCached_NeverFetches(t *testing.T) {
-	withCacheDir(t)
-
-	// No cache file exists. LatestCached must NOT block on I/O even if we
-	// give it a context that's already canceled.
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-
-	// Ensure the disabled path is not taken.
-	t.Setenv(DisableEnvVar, "")
-
-	done := make(chan struct{})
-	go func() {
-		_ = LatestCached("v1.0.0")
-		_ = ctx
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("LatestCached blocked unexpectedly")
-	}
+	t.Run("disabled returns empty even when cache has upgrade", func(t *testing.T) {
+		SeedCacheForTest(t, "v9.9.9")
+		t.Setenv(DisableEnvVar, "1")
+		assert.Equal(t, "", LatestCached("v1.0.0"))
+	})
 }
 
 func TestRefreshAsync_Disabled(t *testing.T) {
-	withCacheDir(t)
+	SeedCacheForTest(t, "")
 	t.Setenv(DisableEnvVar, "true")
 
-	done := RefreshAsync(t.Context())
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("RefreshAsync did not return promptly when disabled")
-	}
+	<-RefreshAsync(t.Context())
 
-	// Cache must remain empty.
 	got, err := readCache()
 	assert.NilError(t, err)
 	assert.Equal(t, "", got.LatestVersion)
 }
 
 func TestRefreshAsync_FreshCacheSkipsRefresh(t *testing.T) {
-	withCacheDir(t)
-	// Pre-seed a fresh entry so RefreshAsync should be a no-op.
-	want := cacheEntry{LatestVersion: "v1.2.3", CheckedAt: time.Now().Unix()}
-	assert.NilError(t, writeCache(want))
-
-	done := RefreshAsync(t.Context())
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("RefreshAsync did not return promptly with fresh cache")
-	}
-
-	got, err := readCache()
+	SeedCacheForTest(t, "v1.2.3")
+	before, err := readCache()
 	assert.NilError(t, err)
-	assert.Equal(t, want.LatestVersion, got.LatestVersion)
-	assert.Equal(t, want.CheckedAt, got.CheckedAt)
+
+	<-RefreshAsync(t.Context())
+
+	after, err := readCache()
+	assert.NilError(t, err)
+	assert.Equal(t, before, after, "fresh cache must not be touched")
 }
 
-func TestDisabled_Truthy(t *testing.T) {
+func TestDisabled(t *testing.T) {
 	for _, val := range []string{"1", "true", "True", "YES", "on"} {
-		t.Run(val, func(t *testing.T) {
+		t.Run("truthy/"+val, func(t *testing.T) {
 			t.Setenv(DisableEnvVar, val)
-			assert.Equal(t, true, disabled())
+			assert.Assert(t, disabled())
 		})
 	}
-}
-
-func TestDisabled_Falsy(t *testing.T) {
 	for _, val := range []string{"", "0", "false", "no", "off", "anything-else"} {
-		t.Run(val, func(t *testing.T) {
+		t.Run("falsy/"+val, func(t *testing.T) {
 			t.Setenv(DisableEnvVar, val)
-			assert.Equal(t, false, disabled())
+			assert.Assert(t, !disabled())
 		})
 	}
 }

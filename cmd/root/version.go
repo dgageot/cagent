@@ -39,8 +39,7 @@ func runVersionCommand(cmd *cobra.Command, args []string) {
 	// `docker agent run`. We never reach out to GitHub from this subcommand;
 	// if the cache is empty (e.g. `run` has never been used) the hint is
 	// simply not shown.
-	if res := check.LatestCached(version.Version); res.UpgradeAvailable() {
-		out.Printf("\nA newer version is available: %s\nRelease notes: https://github.com/docker/docker-agent/releases/tag/%s\n",
-			res.Latest, res.Latest)
+	if latest := check.LatestCached(version.Version); latest != "" {
+		out.Printf("\nA newer version is available: %s\nRelease notes: https://github.com/docker/docker-agent/releases/tag/%s\n", latest, latest)
 	}
 }

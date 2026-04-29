@@ -9,12 +9,12 @@ import (
 // when a newer release tag has been observed in the local cache.
 //
 // Only cached results are consulted so the TUI never blocks on I/O at
-// startup; the cache itself is refreshed asynchronously by the root
-// PersistentPreRunE hook (see cmd/root/root.go).
+// startup; the cache is refreshed in the background by `docker agent run`
+// (see cmd/root/run.go).
 func buildStatusBarTitle(appName, appVersion string) string {
 	base := appName + " " + appVersion
-	if res := check.LatestCached(appVersion); res.UpgradeAvailable() {
-		return base + " (update available: " + res.Latest + ")"
+	if latest := check.LatestCached(appVersion); latest != "" {
+		return base + " (update available: " + latest + ")"
 	}
 	return base
 }
