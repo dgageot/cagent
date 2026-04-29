@@ -161,6 +161,12 @@ API keys and secrets are read from environment variables — never stored in con
 | `DOCKER_AGENT_AUTO_INSTALL` | Set to `false` to disable automatic tool installation           |
 | `DOCKER_AGENT_TOOLS_DIR`    | Override the base directory for installed tools (default: `~/.cagent/tools/`) |
 
+**Update Notifications:**
+
+| Variable                            | Description                                                                                                                                                                  |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DOCKER_AGENT_DISABLE_VERSION_CHECK` | Set to `1`/`true` to disable the once-a-day GitHub release check used to surface an upgrade hint in the TUI status bar and the `version` subcommand. Only `docker agent run` ever performs the check. |
+
 <div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Important
 </div>
