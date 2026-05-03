@@ -14,6 +14,8 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/natefinch/atomic"
+
+	"github.com/docker/docker-agent/pkg/httpclient"
 )
 
 // githubToken returns a GitHub personal access token from the environment,
@@ -115,7 +117,7 @@ var (
 // NewRegistry creates a new Registry with default settings.
 func NewRegistry() *Registry {
 	return &Registry{
-		httpClient: http.DefaultClient,
+		httpClient: httpclient.TracedDefaultClient(),
 		baseURL:    registryBaseURL,
 		cacheDir:   RegistryDir(),
 	}

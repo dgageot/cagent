@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Describer can be implemented by a ToolSet to provide a short, user-visible
@@ -65,7 +70,7 @@ func (s *StartableToolSet) IsStarted() bool {
 // Concurrent callers block until the start attempt completes.
 // If start fails, a future call will retry.
 // If the underlying toolset doesn't implement Startable, this is a no-op.
-func (s *StartableToolSet) Start(ctx context.Context) error {
+func (s *StartableToolSet) Start(ctx context.Context) (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -74,6 +79,24 @@ func (s *StartableToolSet) Start(ctx context.Context) error {
 	}
 
 	if startable, ok := As[Startable](s.ToolSet); ok {
+		// Span the toolset startup — MCP handshake, OAuth probes,
+		// tool discovery, etc. can take seconds to minutes and the
+		// "tools loading…" UI was previously unattributable. Only
+		// fires when the toolset has work to do; cheap toolsets
+		// without a Startable implementation skip the span entirely.
+		ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/tools").Start(
+			ctx,
+			"toolset.start",
+			trace.WithSpanKind(trace.SpanKindInternal),
+			trace.WithAttributes(attribute.String("cagent.toolset.kind", fmt.Sprintf("%T", s.ToolSet))),
+		)
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
 		if err := startable.Start(ctx); err != nil {
 			// Queue a warning ONLY on the first failure of a streak so
 			// repeated retries don't re-queue duplicate warnings.
