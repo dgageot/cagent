@@ -10,6 +10,7 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	otelmcp "github.com/docker/docker-agent/pkg/telemetry/mcp"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -93,35 +94,120 @@ func (c *sessionClient) Close(context.Context) error {
 }
 
 func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsParams) iter.Seq2[*gomcp.Tool, error] {
-	if s := c.getSession(); s != nil {
-		return s.Tools(ctx, request)
+	s := c.getSession()
+	if s == nil {
+		return func(yield func(*gomcp.Tool, error) bool) {
+			yield(nil, errors.New("session not initialized"))
+		}
 	}
+	// Start the span and the underlying RPC inside the closure so a
+	// caller that obtains the iterator and never iterates does not
+	// leak the span (and the in-flight RPC). Span lifetime now equals
+	// iteration lifetime.
 	return func(yield func(*gomcp.Tool, error) bool) {
-		yield(nil, errors.New("session not initialized"))
+		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
+			Method: otelmcp.MethodToolsList,
+		})
+		defer span.End()
+
+		if request != nil {
+			request.Meta = otelmcp.EnsureMeta(request.Meta)
+			otelmcp.InjectMeta(spanCtx, request.Meta)
+		}
+		for tool, err := range s.Tools(spanCtx, request) {
+			if err != nil {
+				// Record each error inline rather than only the
+				// last one — paginated lists may yield multiple
+				// failures and the trace should reflect them all.
+				span.RecordError(err, "")
+			}
+			if !yield(tool, err) {
+				return
+			}
+		}
 	}
 }
 
 func (c *sessionClient) CallTool(ctx context.Context, request *gomcp.CallToolParams) (*gomcp.CallToolResult, error) {
-	if s := c.getSession(); s != nil {
-		return s.CallTool(ctx, request)
+	s := c.getSession()
+	if s == nil {
+		return nil, errors.New("session not initialized")
 	}
-	return nil, errors.New("session not initialized")
+	opts := otelmcp.CallOptions{
+		Method: otelmcp.MethodToolsCall,
+	}
+	if request != nil {
+		opts.ToolName = request.Name
+	}
+	spanCtx, span := otelmcp.StartClient(ctx, opts)
+	defer span.End()
+
+	if request != nil {
+		request.Meta = otelmcp.EnsureMeta(request.Meta)
+		otelmcp.InjectMeta(spanCtx, request.Meta)
+	}
+
+	result, err := s.CallTool(spanCtx, request)
+	if err != nil {
+		span.RecordError(err, "")
+	}
+	return result, err
 }
 
 func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListPromptsParams) iter.Seq2[*gomcp.Prompt, error] {
-	if s := c.getSession(); s != nil {
-		return s.Prompts(ctx, request)
+	s := c.getSession()
+	if s == nil {
+		return func(yield func(*gomcp.Prompt, error) bool) {
+			yield(nil, errors.New("session not initialized"))
+		}
 	}
 	return func(yield func(*gomcp.Prompt, error) bool) {
-		yield(nil, errors.New("session not initialized"))
+		// Span and RPC start at iteration time so an unused
+		// iterator never leaks either.
+		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
+			Method: otelmcp.MethodPromptsList,
+		})
+		defer span.End()
+
+		if request != nil {
+			request.Meta = otelmcp.EnsureMeta(request.Meta)
+			otelmcp.InjectMeta(spanCtx, request.Meta)
+		}
+		for prompt, err := range s.Prompts(spanCtx, request) {
+			if err != nil {
+				span.RecordError(err, "")
+			}
+			if !yield(prompt, err) {
+				return
+			}
+		}
 	}
 }
 
 func (c *sessionClient) GetPrompt(ctx context.Context, request *gomcp.GetPromptParams) (*gomcp.GetPromptResult, error) {
-	if s := c.getSession(); s != nil {
-		return s.GetPrompt(ctx, request)
+	s := c.getSession()
+	if s == nil {
+		return nil, errors.New("session not initialized")
 	}
-	return nil, errors.New("session not initialized")
+	opts := otelmcp.CallOptions{
+		Method: otelmcp.MethodPromptsGet,
+	}
+	if request != nil {
+		opts.PromptName = request.Name
+	}
+	spanCtx, span := otelmcp.StartClient(ctx, opts)
+	defer span.End()
+
+	if request != nil {
+		request.Meta = otelmcp.EnsureMeta(request.Meta)
+		otelmcp.InjectMeta(spanCtx, request.Meta)
+	}
+
+	result, err := s.GetPrompt(spanCtx, request)
+	if err != nil {
+		span.RecordError(err, "")
+	}
+	return result, err
 }
 
 // handleElicitationRequest forwards incoming elicitation requests from the MCP

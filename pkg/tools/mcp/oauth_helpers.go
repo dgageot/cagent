@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/docker/docker-agent/pkg/browser"
+	"github.com/docker/docker-agent/pkg/httpclient"
 )
 
 // GenerateState generates a random state parameter for OAuth CSRF protection
@@ -62,7 +63,7 @@ func ExchangeCodeForToken(ctx context.Context, tokenEndpoint, code, codeVerifier
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.TracedDefaultClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
 	}
@@ -221,7 +222,7 @@ func RegisterClient(ctx context.Context, authMetadata *AuthorizationServerMetada
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.TracedDefaultClient().Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to register client: %w", err)
 	}
@@ -269,7 +270,7 @@ func RefreshAccessToken(ctx context.Context, tokenEndpoint, refreshToken, client
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.TracedDefaultClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
