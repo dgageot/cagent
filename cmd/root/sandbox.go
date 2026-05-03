@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/sandbox"
+	"github.com/docker/docker-agent/pkg/telemetry/genai"
 )
 
 // runInSandbox delegates the current command to a Docker sandbox.
@@ -68,15 +69,30 @@ func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runCon
 		envFlags = append(envFlags, "-e", envModelsGateway+"="+gateway)
 	}
 
+	// Wrap the sandbox exec in a span so the host side captures timing
+	// and exit code, and inject W3C trace context via env vars so the
+	// agent process spawned inside the sandbox container chains its
+	// own spans onto this parent.
+	ctx, sbxSpan := genai.StartSandboxExec(ctx, genai.SandboxOptions{
+		Runtime:   "docker",
+		Container: name,
+	})
+	defer sbxSpan.End()
+	envFlags = append(envFlags, genai.InjectSandboxEnv(ctx)...)
+
 	dockerCmd := backend.BuildExecCmd(ctx, name, wd, dockerAgentArgs, envFlags, envVars)
 	slog.Debug("Executing in sandbox", "name", name, "args", dockerCmd.Args)
 
 	if err := dockerCmd.Run(); err != nil {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			sbxSpan.SetExitCode(exitErr.ExitCode())
+			sbxSpan.RecordError(err, "")
 			return cli.StatusError{StatusCode: exitErr.ExitCode()}
 		}
+		sbxSpan.RecordError(err, "")
 		return fmt.Errorf("docker sandbox exec failed: %w", err)
 	}
+	sbxSpan.SetExitCode(0)
 
 	return nil
 }
