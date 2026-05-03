@@ -71,7 +71,16 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 		slog.Error("Unknown provider type", "type", providerType)
 		return nil, fmt.Errorf("unknown provider type: %s", providerType)
 	}
-	return factory(ctx, enhancedCfg, env, opts...)
+	p, err := factory(ctx, enhancedCfg, env, opts...)
+	if err != nil {
+		return nil, err
+	}
+	// Wrap leaf providers with the GenAI semconv tracer so every chat
+	// completion emits a `chat {model}` CLIENT span and the standard
+	// gen_ai.client.* metrics. The rule-based router constructed by
+	// createRuleBasedRouter is left bare — its routed targets go through
+	// resolveRoutedModel → createDirectProvider and end up wrapped here.
+	return instrumentProvider(p), nil
 }
 
 // providerFactory builds a Provider from a fully-resolved ModelConfig.
