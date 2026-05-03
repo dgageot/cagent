@@ -15,7 +15,10 @@ import (
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/k3a/html2text"
 	"github.com/temoto/robotstxt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/useragent"
@@ -52,10 +55,28 @@ func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*too
 		return nil, errors.New("at least one URL is required")
 	}
 
+	// Decorate the active runtime.tool.handler span with the URL list
+	// and request shape. Each fetched URL still produces its own HTTP
+	// CLIENT child span via `httpclient.WrapWithOTel` below, so the
+	// per-request status / latency / target host all show up there;
+	// the parent span gets the requested URLs so a quick glance answers
+	// "which sites did the agent hit on this turn?" without expanding
+	// the children.
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		attrs := []attribute.KeyValue{
+			attribute.Int("cagent.tool.fetch.url_count", len(params.URLs)),
+			attribute.StringSlice("cagent.tool.fetch.urls", params.URLs),
+		}
+		if params.Format != "" {
+			attrs = append(attrs, attribute.String("cagent.tool.fetch.format", params.Format))
+		}
+		span.SetAttributes(attrs...)
+	}
+
 	// Set timeout if specified
 	client := &http.Client{
 		Timeout:   h.timeout,
-		Transport: remote.NewTransport(ctx),
+		Transport: httpclient.WrapWithOTel(remote.NewTransport(ctx)),
 		// Re-check the domain allow/deny lists on every redirect: without this,
 		// an allowed origin could redirect into a denied one and bypass the
 		// policy. The 10-redirect cap mirrors the net/http default.

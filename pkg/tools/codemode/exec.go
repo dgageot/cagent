@@ -8,6 +8,8 @@ import (
 	"slices"
 
 	"github.com/dop251/goja"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/docker/docker-agent/pkg/tools"
 )
@@ -39,6 +41,24 @@ func (t *toolCallTracker) record(info ToolCallInfo) {
 func (c *codeModeTool) runJavascript(ctx context.Context, script string) (ScriptResult, error) {
 	vm := goja.New()
 	tracker := &toolCallTracker{}
+
+	// Stamp the script body and length onto the active span; the
+	// post-run defer adds the tool-call count. Script ships
+	// unconditionally — it's the main signal of what a code-mode turn
+	// did. Drop or hash `cagent.tool.codemode.script` at the OTel
+	// collector if scripts routinely carry secrets.
+	span := trace.SpanFromContext(ctx)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("cagent.tool.codemode.script", script),
+			attribute.Int("cagent.tool.codemode.script_length", len(script)),
+		)
+	}
+	defer func() {
+		if span.IsRecording() {
+			span.SetAttributes(attribute.Int("cagent.tool.codemode.tool_call_count", len(tracker.calls)))
+		}
+	}()
 
 	// Inject console object to the help the LLM debug its own code.
 	var (

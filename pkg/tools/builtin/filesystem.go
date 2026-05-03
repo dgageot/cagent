@@ -16,11 +16,33 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/fsx"
 	"github.com/docker/docker-agent/pkg/shellpath"
 	"github.com/docker/docker-agent/pkg/tools"
 )
+
+// annotateFilesystemSpan stamps the operation kind and target path
+// onto the active runtime.tool.handler span. Paths ship unconditionally
+// — they're the main signal of what the agent touched. Drop or hash
+// `cagent.tool.filesystem.path` at the OTel collector if paths
+// routinely reveal identifiers you don't want shipped.
+func annotateFilesystemSpan(ctx context.Context, op, path string) {
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	attrs := []attribute.KeyValue{
+		attribute.String("cagent.tool.filesystem.op", op),
+	}
+	if path != "" {
+		attrs = append(attrs, attribute.String("cagent.tool.filesystem.path", path))
+	}
+	span.SetAttributes(attrs...)
+}
 
 const (
 	ToolNameReadFile           = "read_file"
@@ -626,6 +648,7 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 // Handler implementations
 
 func (t *FilesystemTool) handleDirectoryTree(ctx context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "directory_tree", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
@@ -698,6 +721,7 @@ func (t *FilesystemTool) editFileHandler() tools.ToolHandler {
 }
 
 func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "edit_file", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
@@ -735,7 +759,8 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) 
 	return tools.ResultSuccess("File edited successfully. Changes:\n" + strings.Join(changes, "\n")), nil
 }
 
-func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleListDirectory(ctx context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "list_directory", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
@@ -776,7 +801,8 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 	}, nil
 }
 
-func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleReadFile(ctx context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "read_file", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return &tools.ToolCallResult{
@@ -883,6 +909,13 @@ func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tool
 }
 
 func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadMultipleFilesArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "read_multiple_files", "")
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		span.SetAttributes(
+			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
+			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+		)
+	}
 	type PathContent struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -956,7 +989,8 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	}, nil
 }
 
-func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "search_files_content", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
@@ -1076,6 +1110,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 }
 
 func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "write_file", args.Path)
 	resolvedPath, err := t.resolveAndCheckPath(args.Path)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
@@ -1098,7 +1133,14 @@ func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs
 	return tools.ResultSuccess(fmt.Sprintf("File written successfully: %s (%d bytes)", args.Path, len(args.Content))), nil
 }
 
-func (t *FilesystemTool) handleCreateDirectory(_ context.Context, args CreateDirectoryArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleCreateDirectory(ctx context.Context, args CreateDirectoryArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "create_directory", "")
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		span.SetAttributes(
+			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
+			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+		)
+	}
 	var results []string
 	for _, path := range args.Paths {
 		resolvedPath, err := t.resolveAndCheckPath(path)
@@ -1114,7 +1156,14 @@ func (t *FilesystemTool) handleCreateDirectory(_ context.Context, args CreateDir
 	return tools.ResultSuccess(strings.Join(results, "\n")), nil
 }
 
-func (t *FilesystemTool) handleRemoveDirectory(_ context.Context, args RemoveDirectoryArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleRemoveDirectory(ctx context.Context, args RemoveDirectoryArgs) (*tools.ToolCallResult, error) {
+	annotateFilesystemSpan(ctx, "remove_directory", "")
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		span.SetAttributes(
+			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
+			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+		)
+	}
 	var results []string
 	for _, path := range args.Paths {
 		resolvedPath, err := t.resolveAndCheckPath(path)

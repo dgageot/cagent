@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/js"
 	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -32,7 +33,7 @@ var (
 func (t *APITool) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	client := &http.Client{
 		Timeout:   30 * time.Second,
-		Transport: remote.NewTransport(ctx),
+		Transport: httpclient.WrapWithOTel(remote.NewTransport(ctx)),
 	}
 
 	endpoint := t.config.Endpoint
