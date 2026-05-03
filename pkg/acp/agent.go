@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/coder/acp-go-sdk"
+	"go.opentelemetry.io/otel"
 
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/runtime"
@@ -144,6 +145,9 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 	rt, err := runtime.New(a.team,
 		runtime.WithCurrentAgent(defaultAgent.Name()),
 		runtime.WithSessionStore(a.sessionStore),
+		// Match the CLI tracer scope; without this the ACP-mode
+		// runtime's `startSpan` is a no-op for every runtime.* span.
+		runtime.WithTracer(otel.Tracer("cagent")),
 	)
 	if err != nil {
 		return acp.NewSessionResponse{}, fmt.Errorf("failed to create runtime: %w", err)
