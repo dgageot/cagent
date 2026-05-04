@@ -50,22 +50,44 @@ type FetchToolArgs struct {
 	Format  string   `json:"format,omitempty"`
 }
 
+// sanitizeFetchURLs strips query strings and userinfo from each URL so
+// the resulting span attribute can ship by default without leaking
+// signed-URL tokens, OAuth codes, or inline credentials. URLs that fail
+// to parse are emitted as a sentinel rather than the raw string, since
+// an unparseable URL could also carry sensitive material.
+func sanitizeFetchURLs(urls []string) []string {
+	out := make([]string, len(urls))
+	for i, raw := range urls {
+		u, err := url.Parse(raw)
+		if err != nil {
+			out[i] = "<unparseable>"
+			continue
+		}
+		u.RawQuery = ""
+		u.Fragment = ""
+		u.User = nil
+		out[i] = u.String()
+	}
+	return out
+}
+
 func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*tools.ToolCallResult, error) {
 	if len(params.URLs) == 0 {
 		return nil, errors.New("at least one URL is required")
 	}
 
-	// Decorate the active runtime.tool.handler span with the URL list
-	// and request shape. Each fetched URL still produces its own HTTP
-	// CLIENT child span via `httpclient.WrapWithOTel` below, so the
-	// per-request status / latency / target host all show up there;
-	// the parent span gets the requested URLs so a quick glance answers
-	// "which sites did the agent hit on this turn?" without expanding
-	// the children.
+	// Decorate the active runtime.tool.handler span with the requested
+	// URLs. Strip query params and userinfo first: query strings often
+	// carry signed-URL tokens, OAuth codes, or session IDs, and userinfo
+	// carries credentials inline. The path stays intact so dashboards
+	// can still answer "which sites/endpoints did the agent hit?" — the
+	// HTTP CLIENT child span emitted by `httpclient.WrapWithOTel` below
+	// retains the full URL under `http.url` for callers that opt into
+	// that backend's full-URL capture.
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		attrs := []attribute.KeyValue{
 			attribute.Int("cagent.tool.fetch.url_count", len(params.URLs)),
-			attribute.StringSlice("cagent.tool.fetch.urls", params.URLs),
+			attribute.StringSlice("cagent.tool.fetch.urls", sanitizeFetchURLs(params.URLs)),
 		}
 		if params.Format != "" {
 			attrs = append(attrs, attribute.String("cagent.tool.fetch.format", params.Format))
