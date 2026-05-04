@@ -31,21 +31,21 @@ const (
 	ApprovalDecisionDeny     = "deny"
 	ApprovalDecisionCanceled = "canceled"
 
-	ApprovalSourceYolo                      = "yolo"
-	ApprovalSourceSessionPermissionsAllow   = "session_permissions_allow"
-	ApprovalSourceSessionPermissionsDeny    = "session_permissions_deny"
-	ApprovalSourceTeamPermissionsAllow      = "team_permissions_allow"
-	ApprovalSourceTeamPermissionsDeny       = "team_permissions_deny"
-	ApprovalSourcePreToolUseHookAllow       = "pre_tool_use_hook_allow"
-	ApprovalSourcePreToolUseHookDeny        = "pre_tool_use_hook_deny"
-	ApprovalSourcePermissionRequestHookDeny = "permission_request_hook_deny"
-	ApprovalSourcePermissionRequestHook     = "permission_request_hook_allow"
-	ApprovalSourceReadOnlyHint              = "readonly_hint"
-	ApprovalSourceUserApproved              = "user_approved"
-	ApprovalSourceUserApprovedSession       = "user_approved_session"
-	ApprovalSourceUserApprovedTool          = "user_approved_tool"
-	ApprovalSourceUserRejected              = "user_rejected"
-	ApprovalSourceContextCanceled           = "context_canceled"
+	ApprovalSourceYolo                       = "yolo"
+	ApprovalSourceSessionPermissionsAllow    = "session_permissions_allow"
+	ApprovalSourceSessionPermissionsDeny     = "session_permissions_deny"
+	ApprovalSourceTeamPermissionsAllow       = "team_permissions_allow"
+	ApprovalSourceTeamPermissionsDeny        = "team_permissions_deny"
+	ApprovalSourcePreToolUseHookAllow        = "pre_tool_use_hook_allow"
+	ApprovalSourcePreToolUseHookDeny         = "pre_tool_use_hook_deny"
+	ApprovalSourcePermissionRequestHookDeny  = "permission_request_hook_deny"
+	ApprovalSourcePermissionRequestHookAllow = "permission_request_hook_allow"
+	ApprovalSourceReadOnlyHint               = "readonly_hint"
+	ApprovalSourceUserApproved               = "user_approved"
+	ApprovalSourceUserApprovedSession        = "user_approved_session"
+	ApprovalSourceUserApprovedTool           = "user_approved_tool"
+	ApprovalSourceUserRejected               = "user_rejected"
+	ApprovalSourceContextCanceled            = "context_canceled"
 )
 
 // CallOutcome captures the verdicts of a single tool invocation as
@@ -568,7 +568,7 @@ func (c *call) runPermissionRequestHook(ctx context.Context, runTool func() Call
 
 	if result.PermissionAllowed {
 		slog.Debug("Tool auto-approved by permission_request hook", "tool", toolName, "session_id", c.sess.ID, "reason", result.AdditionalContext)
-		c.notifyApproval(ctx, ApprovalDecisionAllow, ApprovalSourcePermissionRequestHook)
+		c.notifyApproval(ctx, ApprovalDecisionAllow, ApprovalSourcePermissionRequestHookAllow)
 		return runTool(), true
 	}
 

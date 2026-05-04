@@ -44,6 +44,22 @@ func annotateFilesystemSpan(ctx context.Context, op, path string) {
 	span.SetAttributes(attrs...)
 }
 
+// maxFilesystemPathsAttr caps how many entries from args.Paths land on a
+// span attribute. Many backends drop attributes over a few KiB and per-
+// element string costs add up fast on a multi-hundred-path call. The
+// path_count attribute (always recorded) preserves total fidelity.
+const maxFilesystemPathsAttr = 32
+
+// cappedPaths returns paths truncated to maxFilesystemPathsAttr entries.
+// Callers should also record `path_count = len(paths)` separately so the
+// truncation is visible.
+func cappedPaths(paths []string) []string {
+	if len(paths) <= maxFilesystemPathsAttr {
+		return paths
+	}
+	return paths[:maxFilesystemPathsAttr]
+}
+
 const (
 	ToolNameReadFile           = "read_file"
 	ToolNameReadMultipleFiles  = "read_multiple_files"
@@ -913,7 +929,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.SetAttributes(
 			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
-			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+			attribute.StringSlice("cagent.tool.filesystem.paths", cappedPaths(args.Paths)),
 		)
 	}
 	type PathContent struct {
@@ -1138,7 +1154,7 @@ func (t *FilesystemTool) handleCreateDirectory(ctx context.Context, args CreateD
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.SetAttributes(
 			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
-			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+			attribute.StringSlice("cagent.tool.filesystem.paths", cappedPaths(args.Paths)),
 		)
 	}
 	var results []string
@@ -1161,7 +1177,7 @@ func (t *FilesystemTool) handleRemoveDirectory(ctx context.Context, args RemoveD
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.SetAttributes(
 			attribute.Int("cagent.tool.filesystem.path_count", len(args.Paths)),
-			attribute.StringSlice("cagent.tool.filesystem.paths", args.Paths),
+			attribute.StringSlice("cagent.tool.filesystem.paths", cappedPaths(args.Paths)),
 		)
 	}
 	var results []string

@@ -24,7 +24,8 @@ func TestEnsureMeta(t *testing.T) {
 }
 
 func TestInjectExtractRoundTrip(t *testing.T) {
-	t.Parallel()
+	// Mutates the global OTel text-map propagator, so this test cannot
+	// run in parallel with other tests that read or modify it.
 
 	// A propagator must be configured for inject/extract to do anything;
 	// install one for the duration of the test and put it back after.
@@ -70,7 +71,8 @@ func TestExtractMetaNilReturnsParent(t *testing.T) {
 }
 
 func TestStartClientReturnsActiveSpan(t *testing.T) {
-	t.Parallel()
+	// Mutates the global OTel tracer provider, so this test cannot run
+	// in parallel with other tests that read or modify it.
 
 	tp := trace.NewTracerProvider(trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(t.Context()) })

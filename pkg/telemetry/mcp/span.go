@@ -169,9 +169,9 @@ func (s *Span) SetAttributes(attrs ...attribute.KeyValue) {
 }
 
 // RecordError marks the span as failed and stores error.type for the
-// duration metric. errType should be a short, low-cardinality string —
-// "rpc_error", "transport", "context_canceled", or the underlying error's
-// type name as a fallback.
+// duration metric. errType should be a short, low-cardinality string;
+// when empty, ClassifyError(err) supplies a value (one of
+// "context_canceled", "deadline_exceeded", "rpc_error").
 func (s *Span) RecordError(err error, errType string) {
 	if s == nil || err == nil {
 		return

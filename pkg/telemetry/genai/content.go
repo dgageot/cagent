@@ -192,10 +192,14 @@ func messageToStructured(m *chat.Message) structuredMessage {
 		})
 	}
 	if m.ToolCallID != "" {
+		// Per the OTel GenAI semconv example schema, tool_call_response
+		// parts carry the payload in `result`, not `content` (which is
+		// reserved for `text`/`reasoning` parts). Spec-aware backends
+		// look for the `result` key when decoding tool responses.
 		parts = append(parts, messagePart{
-			Type:    "tool_call_response",
-			ID:      m.ToolCallID,
-			Content: m.Content,
+			Type:   "tool_call_response",
+			ID:     m.ToolCallID,
+			Result: m.Content,
 		})
 	}
 
