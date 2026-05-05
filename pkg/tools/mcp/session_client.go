@@ -18,8 +18,16 @@ import (
 // implementations. Both stdioMCPClient and remoteMCPClient embed it to avoid
 // duplicating the session-nil guards, notification handlers, and delegating
 // methods.
+//
+// `serverAddress` is captured at construction time (the remote URL for
+// HTTP/SSE clients, the executable name for stdio clients) and stamped on
+// every CLIENT-kind MCP span as the OTel `server.address` attribute. Without
+// it, a `tools/list` failure span carries `mcp.method.name=tools/list` and
+// nothing else identifying which target produced the error — useful in a
+// single-MCP agent, useless in any agent wired to two or more.
 type sessionClient struct {
 	session                  *gomcp.ClientSession
+	serverAddress            string
 	toolListChangedHandler   func()
 	promptListChangedHandler func()
 	elicitationHandler       tools.ElicitationHandler
@@ -32,6 +40,15 @@ func (c *sessionClient) setSession(s *gomcp.ClientSession) {
 	c.mu.Lock()
 	c.session = s
 	c.mu.Unlock()
+}
+
+// ServerAddress returns the connection identifier captured at construction
+// time (URL for remote clients, executable name for stdio). Exposed so
+// the parent `toolset.start` span can stamp it as `server.address` —
+// otherwise an Initialize failure surfaces the error message but no
+// indication of which MCP target produced it.
+func (c *sessionClient) ServerAddress() string {
+	return c.serverAddress
 }
 
 // getSession returns the current session under the read lock.
@@ -106,7 +123,9 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 	// iteration lifetime.
 	return func(yield func(*gomcp.Tool, error) bool) {
 		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
-			Method: otelmcp.MethodToolsList,
+			Method:        otelmcp.MethodToolsList,
+			SessionID:     s.ID(),
+			ServerAddress: c.serverAddress,
 		})
 		defer span.End()
 
@@ -134,7 +153,9 @@ func (c *sessionClient) CallTool(ctx context.Context, request *gomcp.CallToolPar
 		return nil, errors.New("session not initialized")
 	}
 	opts := otelmcp.CallOptions{
-		Method: otelmcp.MethodToolsCall,
+		Method:        otelmcp.MethodToolsCall,
+		SessionID:     s.ID(),
+		ServerAddress: c.serverAddress,
 	}
 	if request != nil {
 		opts.ToolName = request.Name
@@ -165,7 +186,9 @@ func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListProm
 		// Span and RPC start at iteration time so an unused
 		// iterator never leaks either.
 		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
-			Method: otelmcp.MethodPromptsList,
+			Method:        otelmcp.MethodPromptsList,
+			SessionID:     s.ID(),
+			ServerAddress: c.serverAddress,
 		})
 		defer span.End()
 
@@ -190,7 +213,9 @@ func (c *sessionClient) GetPrompt(ctx context.Context, request *gomcp.GetPromptP
 		return nil, errors.New("session not initialized")
 	}
 	opts := otelmcp.CallOptions{
-		Method: otelmcp.MethodPromptsGet,
+		Method:        otelmcp.MethodPromptsGet,
+		SessionID:     s.ID(),
+		ServerAddress: c.serverAddress,
 	}
 	if request != nil {
 		opts.PromptName = request.Name

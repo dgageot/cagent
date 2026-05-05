@@ -72,6 +72,7 @@ func (m *failingInitClient) SetOAuthSuccessHandler(func())                  {}
 func (m *failingInitClient) SetManagedOAuth(bool)                           {}
 func (m *failingInitClient) SetToolListChangedHandler(func())               {}
 func (m *failingInitClient) SetPromptListChangedHandler(func())             {}
+func (m *failingInitClient) ServerAddress() string                          { return "mock://failing" }
 
 func (m *failingInitClient) Wait() error {
 	m.mu.Lock()
