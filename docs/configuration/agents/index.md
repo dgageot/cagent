@@ -38,15 +38,30 @@ agents:
       name: "prompt text"
     welcome_message: string # Optional: message shown at session start
     handoffs: [list] # Optional: agent names this agent can hand off to
-    hooks: # Optional: lifecycle hooks
+    hooks: # Optional: lifecycle hooks (see Hooks reference for the full list)
       pre_tool_use: [list]
       tool_response_transform: [list]
       post_tool_use: [list]
+      permission_request: [list]
       session_start: [list]
       session_end: [list]
+      user_prompt_submit: [list]
+      turn_start: [list]
+      turn_end: [list]
+      before_llm_call: [list]
+      after_llm_call: [list]
+      pre_compact: [list]
+      before_compaction: [list]
+      after_compaction: [list]
+      subagent_stop: [list]
       on_user_input: [list]
       stop: [list]
       notification: [list]
+      on_error: [list]
+      on_max_iterations: [list]
+      on_agent_switch: [list]
+      on_session_resume: [list]
+      on_tool_approval_decision: [list]
     structured_output: # Optional: constrain output format
       name: string
       schema: object

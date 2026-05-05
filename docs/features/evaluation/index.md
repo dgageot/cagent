@@ -129,7 +129,7 @@ The `evals` object inside each session controls what gets scored:
 
 ## Scoring Metrics
 
-docker-agent evaluates agents across four dimensions:
+docker-agent evaluates agents across three dimensions:
 
 | Metric              | How It's Measured                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |

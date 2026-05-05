@@ -45,7 +45,7 @@ models:
 | `gpt-4o`      | Multimodal, balanced performance     |
 | `gpt-4o-mini` | Cheapest, fast for simple tasks      |
 
-Find more model names at [modelname.ai](https://modelname.ai/).
+Run `docker agent models --provider openai` to list the models the catalog currently knows about, or browse the OpenAI [model docs](https://platform.openai.com/docs/models) for the full catalog. The community-maintained [models.dev](https://models.dev/) is also a useful cross-provider reference.
 
 ## Thinking Budget
 
@@ -101,7 +101,7 @@ models:
 ### Requirements
 
 - Only works with Responses API models: `gpt-4.1+`, `o1`, `o3`, `o4`, `gpt-5`
-- NOT compatible with `--gateway` flag (automatically falls back to SSE)
+- NOT compatible with `--models-gateway` flag (automatically falls back to SSE)
 - Requires `OPENAI_API_KEY` environment variable
 
 ### Example

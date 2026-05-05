@@ -136,24 +136,48 @@ $ docker agent models --format json | jq
 Start the HTTP API server for programmatic access.
 
 ```bash
-$ docker agent serve api [config] [flags]
+$ docker agent serve api <agent-file>|<agents-dir> [flags]
+```
 
+| Flag               | Default          | Description                                                              |
+| ------------------ | ---------------- | ------------------------------------------------------------------------ |
+| `-l, --listen`     | `127.0.0.1:8080` | Address to listen on                                                     |
+| `-s, --session-db` | `session.db`     | Path to the SQLite session database                                      |
+| `--pull-interval`  | `0` (disabled)   | Auto-pull OCI references every N minutes when serving from the registry |
+| `--fake`           | (none)           | Replay AI responses from a cassette file (testing)                       |
+| `--record`         | (none)           | Record AI API interactions to a cassette file                            |
+
+```bash
 # Examples
 $ docker agent serve api agent.yaml
-$ docker agent serve api agent.yaml --listen :8080
-$ docker agent serve api ociReference --pull-interval 10  # auto-refresh
+$ docker agent serve api ./agents/                          # serve every YAML in a directory
+$ docker agent serve api agent.yaml --listen 0.0.0.0:9090
+$ docker agent serve api agentcatalog/coder --pull-interval 10  # auto-refresh from OCI
 ```
+
+See [API Server]({{ '/features/api-server/' | relative_url }}) for endpoint reference and SSE streaming details.
 
 ### `docker agent serve mcp`
 
 Expose agents as MCP tools for use in Claude Desktop, Claude Code, or other MCP clients.
 
 ```bash
-$ docker agent serve mcp [config] [flags]
+$ docker agent serve mcp <agent-file>|<registry-ref> [flags]
+```
 
+| Flag             | Default            | Description                                                                   |
+| ---------------- | ------------------ | ----------------------------------------------------------------------------- |
+| `--http`         | `false`            | Use streaming HTTP transport instead of stdio                                 |
+| `-l, --listen`   | `127.0.0.1:8081`   | Address to listen on (when `--http` is enabled)                               |
+| `-a, --agent`    | (all agents)       | Expose only the named agent instead of every agent in the config              |
+
+Runtime configuration flags such as `--working-dir`, `--env-from-file`, `--models-gateway`, and the `--hook-*` flags are also available.
+
+```bash
 # Examples
-$ docker agent serve mcp agent.yaml
+$ docker agent serve mcp agent.yaml                                   # stdio transport
 $ docker agent serve mcp agent.yaml --working-dir /path/to/project
+$ docker agent serve mcp agent.yaml --http --listen 0.0.0.0:9090       # streaming HTTP
 $ docker agent serve mcp agentcatalog/coder
 ```
 
@@ -164,22 +188,39 @@ See [MCP Mode]({{ '/features/mcp-mode/' | relative_url }}) for detailed setup.
 Start an A2A (Agent-to-Agent) protocol server.
 
 ```bash
-$ docker agent serve a2a [config] [flags]
+$ docker agent serve a2a <agent-file>|<registry-ref> [flags]
+```
 
+| Flag           | Default          | Description                                                            |
+| -------------- | ---------------- | ---------------------------------------------------------------------- |
+| `-l, --listen` | `127.0.0.1:8082` | Address to listen on                                                   |
+| `-a, --agent`  | (all agents)     | Expose only the named agent instead of every agent in the config       |
+
+```bash
 # Examples
 $ docker agent serve a2a agent.yaml
 $ docker agent serve a2a agent.yaml --listen 127.0.0.1:9000
+$ docker agent serve a2a ./team.yaml --agent reviewer
 ```
+
+See [A2A Protocol]({{ '/features/a2a/' | relative_url }}) for the protocol reference.
 
 ### `docker agent serve acp`
 
 Start an ACP (Agent Client Protocol) server over stdio. This allows external clients to interact with your agents using the ACP protocol.
 
 ```bash
-$ docker agent serve acp [config] [flags]
+$ docker agent serve acp <agent-file>|<registry-ref> [flags]
+```
 
+| Flag               | Default                  | Description                                  |
+| ------------------ | ------------------------ | -------------------------------------------- |
+| `-s, --session-db` | `~/.cagent/session.db`   | Path to the SQLite session database          |
+
+```bash
 # Examples
 $ docker agent serve acp agent.yaml
+$ docker agent serve acp agent.yaml --session-db ./sessions.db
 ```
 
 See [ACP]({{ '/features/acp/' | relative_url }}) for details on the Agent Client Protocol.
@@ -189,7 +230,7 @@ See [ACP]({{ '/features/acp/' | relative_url }}) for details on the Agent Client
 Start an HTTP server that exposes one or more agents through an **OpenAI-compatible Chat Completions API** at `/v1/chat/completions` and `/v1/models`. This lets any tool that already speaks the OpenAI protocol — for example [Open WebUI](https://github.com/open-webui/open-webui), `curl`, the OpenAI Python SDK, or LangChain — drive a docker-agent agent without any custom integration.
 
 ```bash
-$ docker agent serve chat [config] [flags]
+$ docker agent serve chat <agent-file>|<registry-ref> [flags]
 ```
 
 | Flag                          | Default            | Description                                                                                                       |
@@ -234,17 +275,34 @@ See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for ful
 
 ### `docker agent eval`
 
-Run agent evaluations.
+Run agent evaluations against a directory of recorded eval sessions.
 
 ```bash
-$ docker agent eval eval-config.yaml
+$ docker agent eval <agent-file>|<registry-ref> [<eval-dir>|./evals] [flags]
+```
 
-# With flags
-$ docker agent eval agent.yaml ./evals -c 8              # 8 concurrent evaluations
+| Flag                | Default                                | Description                                                                |
+| ------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| `-c, --concurrency` | num CPUs                               | Number of concurrent evaluation runs                                       |
+| `--judge-model`     | `anthropic/claude-opus-4-5-20251101`   | Model used for LLM-as-a-judge relevance scoring                            |
+| `--output`          | `<eval-dir>/results`                   | Directory for results, logs, and session databases                         |
+| `--only`            | (all)                                  | Only run evaluations whose file names match these patterns (repeatable)    |
+| `--base-image`      | (default)                              | Custom base Docker image for evaluation containers                         |
+| `--keep-containers` | `false`                                | Keep containers after evaluation (skip `--rm`) for debugging               |
+| `-e, --env`         | (none)                                 | Environment variables to pass to containers (`KEY` or `KEY=VALUE`)         |
+| `--repeat`          | `1`                                    | Number of times to repeat each evaluation (useful for computing baselines) |
+
+```bash
+# Examples
+$ docker agent eval agent.yaml                           # default ./evals dir
+$ docker agent eval agent.yaml ./my-evals
+$ docker agent eval agent.yaml -c 8                      # 8 concurrent evaluations
 $ docker agent eval agent.yaml --keep-containers         # Keep containers for debugging
 $ docker agent eval agent.yaml --only "auth*"            # Only run matching evals
 $ docker agent eval agent.yaml --repeat 5                # Repeat each eval 5 times
 ```
+
+See [Evaluation]({{ '/features/evaluation/' | relative_url }}) for the eval session format and scoring metrics.
 
 ### `docker agent version`
 
