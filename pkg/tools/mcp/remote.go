@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	neturl "net/url"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -32,13 +33,33 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 	}
 
 	return &remoteMCPClient{
-		sessionClient: sessionClient{serverAddress: url},
+		sessionClient: sessionClient{serverAddress: sanitizeRemoteAddress(url)},
 		url:           url,
 		transportType: transportType,
 		headers:       headers,
 		tokenStore:    tokenStore,
 		oauthConfig:   oauthConfig,
 	}
+}
+
+// sanitizeRemoteAddress extracts a span-safe identifier from an MCP URL
+// before stamping it as `server.address`. The URL may legitimately
+// contain credentials in userinfo (`https://user:token@host/`) or query
+// params (`?api_key=...`); sending those to the trace backend would be
+// a real exfiltration risk. OTel's semantic convention for
+// `server.address` is the host (with optional port) anyway, so we keep
+// only `u.Host` and drop everything else.
+//
+// Returns the empty string on parse failure or hostless URLs (file://,
+// stdio commands, malformed input). The caller stamps `server.address`
+// only when it's non-empty, so a sanitisation miss leaves the span
+// without that attribute rather than leaking a raw URL.
+func sanitizeRemoteAddress(rawURL string) string {
+	u, err := neturl.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Host
 }
 
 func (c *remoteMCPClient) Initialize(ctx context.Context, _ *gomcp.InitializeRequest) (*gomcp.InitializeResult, error) {
