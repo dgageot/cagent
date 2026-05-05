@@ -9,6 +9,7 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/upstream"
 )
 
@@ -31,6 +32,7 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 	}
 
 	return &remoteMCPClient{
+		sessionClient: sessionClient{serverAddress: url},
 		url:           url,
 		transportType: transportType,
 		headers:       headers,
@@ -132,6 +134,16 @@ func (c *remoteMCPClient) SetManagedOAuth(managed bool) {
 // The oauthTransport is returned alongside the client so callers can inspect
 // the most recent server-side failure (via lastServerError) when Connect()
 // returns a bare HTTP-status error and we need to surface the actual cause.
+//
+// The transport chain wraps `httpclient.WrapWithOTel` outermost so every
+// outbound MCP request injects W3C `traceparent` (and creates an HTTP
+// CLIENT span). Without this wrap, the streamable-HTTP / SSE transports
+// the gomcp SDK builds with our `*http.Client` send raw POST/GET requests
+// that never chain onto the calling cagent span — the downstream MCP
+// server's spans then live in a separate root trace, breaking end-to-end
+// observability for any agent talking to a remote MCP. `WrapWithOTel` is
+// a no-op when OTel is disabled at runtime, so the laptop-mode default
+// stays unchanged.
 func (c *remoteMCPClient) createHTTPClient() (*http.Client, *oauthTransport) {
 	base := c.headerTransport()
 
@@ -145,7 +157,7 @@ func (c *remoteMCPClient) createHTTPClient() (*http.Client, *oauthTransport) {
 		oauthConfig: c.oauthConfig,
 	}
 
-	return &http.Client{Transport: oauthT}, oauthT
+	return &http.Client{Transport: httpclient.WrapWithOTel(oauthT)}, oauthT
 }
 
 func (c *remoteMCPClient) headerTransport() http.RoundTripper {
