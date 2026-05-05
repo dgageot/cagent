@@ -32,6 +32,12 @@ type Manager interface {
 	GetLayers() []*lipgloss.Layer
 	Open() bool
 	TopIsExitConfirmation() bool
+	// ContainsPoint reports whether the point (x, y) in screen coordinates
+	// falls within the bounds of any dialog currently in the stack. This is
+	// used by the top-level mouse handler to let events that target the
+	// chrome (chat content, tab bar) fall through to the underlying region
+	// instead of being absorbed by an open dialog (see #2626).
+	ContainsPoint(x, y int) bool
 }
 
 // dialogEntry pairs a dialog with its drag offset so the two stay in sync.
@@ -280,6 +286,23 @@ func (d *manager) TopIsExitConfirmation() bool {
 	}
 	_, ok := d.stack[len(d.stack)-1].dialog.(*exitConfirmationDialog)
 	return ok
+}
+
+// ContainsPoint reports whether (x, y) in screen coordinates falls within the
+// rendered bounds of any dialog currently on the stack.
+func (d *manager) ContainsPoint(x, y int) bool {
+	for _, e := range d.stack {
+		view := e.dialog.View()
+		row, col := e.dialog.Position()
+		col += e.offsetX
+		row += e.offsetY
+		w := lipgloss.Width(view)
+		h := lipgloss.Height(view)
+		if x >= col && x < col+w && y >= row && y < row+h {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *manager) SetSize(width, height int) tea.Cmd {

@@ -74,6 +74,12 @@ type appModel struct {
 	// Per-session editors (preserved across tab switches for draft text)
 	editors map[string]editor.Editor
 
+	// Per-session dialog stacks. Dialogs (elicitation, tool confirmation,
+	// theme picker, …) are scoped to the tab from which they originated, so
+	// switching tabs naturally hides any open dialog without losing its
+	// state. See #2626.
+	dialogMgrs map[string]dialog.Manager
+
 	// Active session (convenience pointers to the currently visible session)
 	application  *app.App
 	sessionState *service.SessionState
@@ -85,7 +91,7 @@ type appModel struct {
 
 	// UI components
 	notification notification.Manager
-	dialogMgr    dialog.Manager
+	dialogMgr    dialog.Manager // active session's dialog stack (alias into dialogMgrs)
 	statusBar    statusbar.StatusBar
 	completions  completion.Manager
 
@@ -262,6 +268,8 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	initialSessionState := service.NewSessionState(initialApp.Session())
 	sessID := initialApp.Session().ID
 
+	initialDialogMgr := dialog.New()
+
 	m := &appModel{
 		buildCommandCategories: func(ctx context.Context, _ tea.Model) []commands.Category {
 			return commands.BuildCommandCategories(ctx, initialApp)
@@ -271,6 +279,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		tuiStore:                ts,
 		chatPages:               map[string]chat.Page{},
 		editors:                 map[string]editor.Editor{},
+		dialogMgrs:              map[string]dialog.Manager{sessID: initialDialogMgr},
 		sessionStates:           map[string]*service.SessionState{sessID: initialSessionState},
 		application:             initialApp,
 		sessionState:            initialSessionState,
@@ -278,7 +287,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		pendingRestores:         make(map[string]string),
 		pendingSidebarCollapsed: make(map[string]bool),
 		notification:            notification.New(),
-		dialogMgr:               dialog.New(),
+		dialogMgr:               initialDialogMgr,
 		completions:             completion.New(),
 		transcriber:             transcribe.New(os.Getenv("OPENAI_API_KEY")),
 		workingSpinner:          spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
@@ -410,6 +419,39 @@ func (m *appModel) initSessionComponents(tabID string, a *app.App, sess *session
 	m.sessionState = ss
 	m.chatPage = cp
 	m.editor = ed
+
+	m.setActiveDialogMgr(tabID)
+}
+
+// setActiveDialogMgr selects the dialog manager that belongs to the given
+// session, creating an empty one (sized to the current window) when no
+// manager exists yet. Each tab keeps its own dialog stack so a non-modal
+// prompt (e.g. user_prompt elicitation) does not freeze interaction with
+// other tabs (#2626).
+func (m *appModel) setActiveDialogMgr(sessionID string) {
+	mgr, ok := m.dialogMgrs[sessionID]
+	if !ok {
+		mgr = dialog.New()
+		if m.width > 0 || m.height > 0 {
+			updated, _ := mgr.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			mgr = updated.(dialog.Manager)
+		}
+		m.dialogMgrs[sessionID] = mgr
+	}
+	m.dialogMgr = mgr
+}
+
+// resetActiveDialogMgr replaces the active session's dialog stack with an empty
+// one. Used when the active session is cleared or branched.
+func (m *appModel) resetActiveDialogMgr() {
+	activeID := m.supervisor.ActiveID()
+	newMgr := dialog.New()
+	if m.width > 0 || m.height > 0 {
+		updated, _ := newMgr.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+		newMgr = updated.(dialog.Manager)
+	}
+	m.dialogMgrs[activeID] = newMgr
+	m.dialogMgr = newMgr
 }
 
 // initAndFocusComponents returns a batch of commands that initializes and focuses
@@ -1146,7 +1188,7 @@ func (m *appModel) handleClearSession() (tea.Model, tea.Cmd) {
 
 	// Rebuild all per-session UI components.
 	m.initSessionComponents(activeID, m.application, newSess)
-	m.dialogMgr = dialog.New()
+	m.resetActiveDialogMgr()
 	m.supervisor.SetRunnerTitle(activeID, "")
 	m.sessionState.SetSessionTitle("")
 	m.sessionState.SetPreviousMessage(nil)
@@ -1264,6 +1306,7 @@ func (m *appModel) handleSwitchTab(sessionID string) (tea.Model, tea.Cmd) {
 		m.sessionState = m.sessionStates[sessionID]
 		m.chatPage = m.chatPages[sessionID]
 		m.editor = m.editors[sessionID]
+		m.setActiveDialogMgr(sessionID)
 	}
 
 	m.reapplyKeyboardEnhancements()
@@ -1410,6 +1453,7 @@ func (m *appModel) handleCloseTab(sessionID string) (tea.Model, tea.Cmd) {
 		delete(m.editors, sessionID)
 	}
 	delete(m.sessionStates, sessionID)
+	delete(m.dialogMgrs, sessionID)
 	delete(m.pendingRestores, sessionID)
 	delete(m.pendingSidebarCollapsed, sessionID)
 
@@ -1501,7 +1545,7 @@ func (m *appModel) resizeAll() tea.Cmd {
 	}
 
 	// Full mode: update overlay components
-	cmds = append(cmds, m.updateDialogCmd(tea.WindowSizeMsg{Width: width, Height: height}))
+	cmds = append(cmds, m.updateAllDialogsCmd(tea.WindowSizeMsg{Width: width, Height: height}))
 
 	m.completions.SetEditorBottom(editorHeight + m.tabBar.Height())
 	m.completions.Update(tea.WindowSizeMsg{Width: width, Height: height})
@@ -1682,8 +1726,17 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		})
 	}
 
-	// Dialog gets priority when open
+	// Dialog gets priority when open, except for tab navigation shortcuts
+	// (Ctrl+t, Ctrl+p, Ctrl+n) which let the user move between tabs even
+	// while a non-modal dialog — such as a user_prompt elicitation — is
+	// waiting for input. Each tab has its own dialog stack so switching
+	// away preserves the dialog state for when the user returns (#2626).
 	if m.dialogMgr.Open() {
+		if !m.leanMode && isTabNavigationKey(msg) {
+			if cmd := m.tabBar.Update(msg); cmd != nil {
+				return m, cmd
+			}
+		}
 		return m.forwardDialog(msg)
 	}
 
@@ -1799,6 +1852,20 @@ func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
 	return -1
 }
 
+// isTabNavigationKey reports whether msg is one of the non-destructive tab
+// navigation shortcuts (new tab, next tab, prev tab) that should bypass any
+// open dialog so the user can switch tabs while a non-modal prompt is
+// waiting for input. Ctrl+w (close tab) is intentionally excluded because
+// closing a tab while a dialog is open is destructive — the user can press
+// Esc to dismiss the dialog first.
+func isTabNavigationKey(msg tea.KeyPressMsg) bool {
+	switch msg.String() {
+	case "ctrl+t", "ctrl+n", "ctrl+p":
+		return true
+	}
+	return false
+}
+
 // switchFocus toggles between content and editor panels.
 func (m *appModel) switchFocus() (tea.Model, tea.Cmd) {
 	switch m.focusedPanel {
@@ -1827,8 +1894,19 @@ func (m *appModel) handleMouseClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) 
 		return m, cmd
 	}
 
-	// Dialogs use full-window coordinates (they're positioned over the entire screen)
+	// Dialogs use full-window coordinates (they're positioned over the entire
+	// screen). Clicks that land on a dialog go to the dialog. Clicks that
+	// fall outside any dialog go to the underlying region as long as that
+	// region is the tab bar — letting the user switch tabs while a
+	// non-modal prompt is open (#2626). Other regions (chat, editor, etc.)
+	// are still treated as modal so background clicks don't accidentally
+	// steal focus or interact with hidden state.
 	if m.dialogMgr.Open() {
+		if !m.dialogMgr.ContainsPoint(msg.X, msg.Y) {
+			if !m.leanMode && m.hitTestRegion(msg.Y) == regionTabBar {
+				return m.forwardTabBarClick(msg)
+			}
+		}
 		return m.forwardDialog(msg)
 	}
 
@@ -1845,14 +1923,7 @@ func (m *appModel) handleMouseClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) 
 		return m, nil
 
 	case regionTabBar:
-		// Adjust coordinates for tab bar (relative to its start, accounting for padding)
-		adjustedMsg := msg
-		adjustedMsg.X = msg.X - styles.AppPadding
-		adjustedMsg.Y = msg.Y - m.contentHeight - 1
-		if cmd := m.tabBar.Update(adjustedMsg); cmd != nil {
-			return m, cmd
-		}
-		return m, nil
+		return m.forwardTabBarClick(msg)
 
 	case regionEditor:
 		// Focus editor on click
@@ -1873,6 +1944,20 @@ func (m *appModel) handleMouseClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) 
 		}
 	}
 
+	return m, nil
+}
+
+// forwardTabBarClick translates a window-relative click into tab-bar local
+// coordinates and forwards it to the tab bar component. Returns the model
+// and any tab-bar command (typically SwitchTabMsg, CloseTabMsg, or
+// SpawnSessionMsg).
+func (m *appModel) forwardTabBarClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	adjustedMsg := msg
+	adjustedMsg.X = msg.X - styles.AppPadding
+	adjustedMsg.Y = msg.Y - m.contentHeight - 1
+	if cmd := m.tabBar.Update(adjustedMsg); cmd != nil {
+		return m, cmd
+	}
 	return m, nil
 }
 
@@ -1952,7 +2037,11 @@ func (m *appModel) handleWheelCoalesced(msg messages.WheelCoalescedMsg) (tea.Mod
 		return m, nil
 	}
 
-	if m.dialogMgr.Open() {
+	// Forward to the dialog only when the wheel is over the dialog itself.
+	// Outside the dialog (e.g. in the chat content area) the user expects
+	// scrolling to operate on the underlying region so they can read the
+	// conversation while a non-modal prompt is waiting for input (#2626).
+	if m.dialogMgr.Open() && m.dialogMgr.ContainsPoint(msg.X, msg.Y) {
 		return m.forwardDialog(msg)
 	}
 

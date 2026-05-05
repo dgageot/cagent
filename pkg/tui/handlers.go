@@ -79,7 +79,7 @@ func (m *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 	// Replace the session in the app and rebuild all per-session components.
 	m.application.ReplaceSession(ctx, newSess)
 	m.initSessionComponents(activeID, m.application, newSess)
-	m.dialogMgr = dialog.New()
+	m.resetActiveDialogMgr()
 
 	// Restore sidebar settings
 	m.chatPage.SetSidebarSettings(sidebarSettings)
@@ -548,7 +548,7 @@ func (m *appModel) invalidateCachesForThemeChange() {
 func (m *appModel) applyThemeChanged() (tea.Model, tea.Cmd) {
 	m.invalidateCachesForThemeChange()
 	return m, tea.Batch(
-		m.updateDialogCmd(messages.ThemeChangedMsg{}),
+		m.updateAllDialogsCmd(messages.ThemeChangedMsg{}),
 		m.updateChatCmd(messages.ThemeChangedMsg{}),
 	)
 }

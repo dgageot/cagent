@@ -38,11 +38,42 @@ func (m *appModel) updateEditorCmd(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// updateDialogCmd forwards a message to the dialog manager and returns its cmd.
+// updateDialogCmd forwards a message to the active session's dialog manager
+// and returns its cmd. Each tab has its own dialog stack (see #2626) so the
+// helper also keeps dialogMgrs in sync with the active alias.
 func (m *appModel) updateDialogCmd(msg tea.Msg) tea.Cmd {
 	updated, cmd := m.dialogMgr.Update(msg)
 	m.dialogMgr = updated.(dialog.Manager)
+	if m.dialogMgrs != nil && m.supervisor != nil {
+		m.dialogMgrs[m.supervisor.ActiveID()] = m.dialogMgr
+	}
 	return cmd
+}
+
+// updateAllDialogsCmd forwards a message to every per-tab dialog manager and
+// batches the resulting commands. Used for global state updates that need to
+// apply to every dialog stack — e.g. WindowSizeMsg and ThemeChangedMsg.
+func (m *appModel) updateAllDialogsCmd(msg tea.Msg) tea.Cmd {
+	if len(m.dialogMgrs) == 0 {
+		return m.updateDialogCmd(msg)
+	}
+	activeID := ""
+	if m.supervisor != nil {
+		activeID = m.supervisor.ActiveID()
+	}
+	var cmds []tea.Cmd
+	for id, mgr := range m.dialogMgrs {
+		updated, cmd := mgr.Update(msg)
+		newMgr := updated.(dialog.Manager)
+		m.dialogMgrs[id] = newMgr
+		if id == activeID {
+			m.dialogMgr = newMgr
+		}
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 // updateCompletionsCmd forwards a message to the completion manager and
