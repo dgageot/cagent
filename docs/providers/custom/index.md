@@ -181,7 +181,7 @@ providers:
 
 agents:
   root:
-    model: router/anthropic/claude-sonnet-4-0
+    model: router/anthropic/claude-sonnet-4-5
 ```
 
 ### Azure OpenAI

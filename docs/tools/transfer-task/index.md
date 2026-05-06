@@ -27,7 +27,7 @@ agents:
     sub_agents: [developer, researcher]
 
   developer:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Expert software developer
     instruction: Write clean, production-ready code.
     toolsets:

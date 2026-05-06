@@ -60,7 +60,7 @@ Create a file called `agent.yaml`:
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: A helpful coding assistant
     instruction: |
       You are an expert developer. Help users write clean,

@@ -45,7 +45,7 @@ The LSP toolset provides these tools to the agent:
 ```yaml
 agents:
   developer:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Code developer with LSP support
     instruction: You are a software developer.
     toolsets:
@@ -136,7 +136,7 @@ You can configure multiple LSP servers for different file types:
 ```yaml
 agents:
   polyglot:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Multi-language developer
     instruction: You are a full-stack developer.
     toolsets:

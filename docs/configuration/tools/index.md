@@ -395,7 +395,7 @@ toolsets:
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Full-featured developer assistant
     instruction: You are an expert developer.
     toolsets:

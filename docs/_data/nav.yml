@@ -94,6 +94,8 @@
       url: /features/acp/
     - title: API Server
       url: /features/api-server/
+    - title: Chat Server
+      url: /features/chat-server/
     - title: Evaluation
       url: /features/evaluation/
     - title: RAG

@@ -192,7 +192,7 @@ agents:
 ```yaml
 agents:
   classifier:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Classify support tickets
     instruction: |
       Classify the support ticket into the appropriate category

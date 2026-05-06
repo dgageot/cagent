@@ -45,7 +45,7 @@ models:
 | `gpt-4o`      | Multimodal, balanced performance     |
 | `gpt-4o-mini` | Cheapest, fast for simple tasks      |
 
-Find more model names at [modelname.ai](https://modelname.ai/).
+Find more model names at [modelnames.ai](https://modelnames.ai/) or in the [official OpenAI docs](https://platform.openai.com/docs/models).
 
 ## Thinking Budget
 

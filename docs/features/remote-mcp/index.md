@@ -188,7 +188,7 @@ Combine multiple remote MCP servers in a single agent:
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     instruction: |
       You help manage projects and deployments.
     toolsets:

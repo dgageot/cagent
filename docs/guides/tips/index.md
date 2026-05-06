@@ -130,7 +130,7 @@ Always set `max_iterations` for agents with powerful tools to prevent infinite l
 ```yaml
 agents:
   developer:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Development assistant
     instruction: You are a developer.
     max_iterations: 30 # Reasonable limit for development tasks
@@ -150,7 +150,7 @@ Configure fallback models for resilience against provider outages or rate limits
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Reliable assistant
     instruction: You are a helpful assistant.
     fallback:
@@ -210,7 +210,7 @@ For defense in depth, use both permissions and [sandbox mode]({{ '/configuration
 ```yaml
 agents:
   secure_dev:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Secure development assistant
     instruction: You are a secure coding assistant.
     toolsets:
@@ -300,7 +300,7 @@ The root agent uses descriptions to decide which sub-agent to delegate to:
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Technical lead
     instruction: Delegate to specialists based on the task.
     sub_agents: [frontend, backend, devops]
@@ -371,7 +371,7 @@ Set your preferred default model in `~/.config/cagent/config.yaml`:
 
 ```yaml
 settings:
-  default_model: anthropic/claude-sonnet-4-0
+  default_model: anthropic/claude-sonnet-4-5
 ```
 
 This model is used when you run `docker agent run` without a config file.
@@ -411,7 +411,7 @@ With a simple reviewer agent:
 # reviewer.yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: PR reviewer
     instruction: |
       Review pull requests for code quality, bugs, and security issues.
