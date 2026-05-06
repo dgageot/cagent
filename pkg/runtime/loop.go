@@ -231,6 +231,12 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 	}
 	agentTools = filterExcludedTools(agentTools, sess.ExcludedTools)
 
+	// Record the catalogue size on the session span — answers "how
+	// many tools could this turn actually use?" without having to
+	// walk into per-toolset spans. Stamped after exclusion filters
+	// so the count matches what was offered to the model.
+	sessionSpan.SetAttributes(attribute.Int("cagent.agent.tools.count", len(agentTools)))
+
 	events <- ToolsetInfo(len(agentTools), false, a.Name())
 
 	messages := sess.GetMessages(a)

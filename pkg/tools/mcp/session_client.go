@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.opentelemetry.io/otel/attribute"
 
 	otelmcp "github.com/docker/docker-agent/pkg/telemetry/mcp"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -129,6 +130,16 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 		})
 		defer span.End()
 
+		// Stamp the tool count on the span when iteration finishes —
+		// answers "what did this server actually return?" without
+		// having to walk into the JSON-RPC payload. Counts only the
+		// tools the iterator yielded successfully; partial counts are
+		// preserved when the caller breaks out early.
+		var count int
+		defer func() {
+			span.SetAttributes(attribute.Int("cagent.mcp.tools.count", count))
+		}()
+
 		if request != nil {
 			request.Meta = otelmcp.EnsureMeta(request.Meta)
 			otelmcp.InjectMeta(spanCtx, request.Meta)
@@ -139,6 +150,8 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 				// last one — paginated lists may yield multiple
 				// failures and the trace should reflect them all.
 				span.RecordError(err, "")
+			} else if tool != nil {
+				count++
 			}
 			if !yield(tool, err) {
 				return
