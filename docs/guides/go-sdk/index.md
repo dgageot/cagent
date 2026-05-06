@@ -294,7 +294,7 @@ openaiClient, _ := openai.NewClient(ctx, &latest.ModelConfig{
 // Anthropic
 anthropicClient, _ := anthropic.NewClient(ctx, &latest.ModelConfig{
     Provider: "anthropic",
-    Model:    "claude-sonnet-4-0",
+    Model:    "claude-sonnet-4-5",
 }, env)
 
 // Google Gemini

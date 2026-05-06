@@ -40,7 +40,7 @@ models:
 | Property              | Type       | Required | Description                                                                           |
 | --------------------- | ---------- | -------- | ------------------------------------------------------------------------------------- |
 | `provider`            | string     | ✓        | Provider: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, `mistral`, `xai`, `nebius`, `minimax`, `requesty`, `azure`, `ollama`, `github-copilot`, or any [named provider]({{ '/providers/custom/' | relative_url }}). |
-| `model`               | string     | ✓        | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`, `gemini-2.5-flash`)                  |
+| `model`               | string     | ✓        | Model name (e.g., `gpt-4o`, `claude-sonnet-4-5`, `gemini-2.5-flash`)                  |
 | `temperature`         | float      | ✗        | Sampling randomness. Range is provider-dependent — typically `0.0–2.0` (Anthropic caps at `1.0`). `0.0` is deterministic. |
 | `max_tokens`          | int        | ✗        | Maximum response length in tokens                                                     |
 | `top_p`               | float      | ✗        | Nucleus sampling threshold (`0.0–1.0`)                                                |
@@ -232,7 +232,7 @@ models:
   # Anthropic
   claude:
     provider: anthropic
-    model: claude-sonnet-4-0
+    model: claude-sonnet-4-5
     max_tokens: 64000
 
   # Google Gemini

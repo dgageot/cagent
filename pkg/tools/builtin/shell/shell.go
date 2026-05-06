@@ -525,7 +525,6 @@ func (t *Tool) Instructions() string {
 - Default timeout: 30s. Set "timeout" for longer operations (builds, tests)
 - Use "cwd" parameter instead of cd within commands
 - Combine operations with pipes, redirections, and heredocs
-- For git commits, add trailer: git commit -m "message" -m "" -m "Assisted-By: docker-agent"
 - Non-zero exit codes return error info with output; timed-out commands are terminated
 
 ### Background Jobs

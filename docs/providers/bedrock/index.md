@@ -64,7 +64,7 @@ models:
 models:
   bedrock:
     provider: amazon-bedrock
-    model: anthropic.claude-3-sonnet-20240229-v1:0
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
     provider_opts:
       role_arn: "arn:aws:iam::123456789012:role/BedrockAccessRole"
       external_id: "my-external-id"

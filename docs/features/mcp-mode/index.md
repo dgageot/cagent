@@ -108,14 +108,14 @@ When you expose a multi-agent configuration via MCP, each agent becomes a separa
 ```yaml
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Main coordinator
     sub_agents: [designer, engineer]
   designer:
     model: openai/gpt-5-mini
     description: UI/UX design specialist
   engineer:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Software engineer
 ```
 

@@ -43,7 +43,7 @@ func NewHTTPClient(ctx context.Context, opts ...Opt) *http.Client {
 	return &http.Client{
 		Transport: WrapWithOTel(&userAgentTransport{
 			httpOptions: httpOptions,
-			rt:          rt,
+			rt:          &sseFilterTransport{base: rt},
 		}),
 	}
 }

@@ -65,8 +65,8 @@ $ docker agent run [config] [message...] [flags]
 $ docker agent run agent.yaml
 $ docker agent run agent.yaml "Fix the bug in auth.go"
 $ docker agent run agent.yaml -a developer --yolo
-$ docker agent run agent.yaml --model anthropic/claude-sonnet-4-0
-$ docker agent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-0"
+$ docker agent run agent.yaml --model anthropic/claude-sonnet-4-5
+$ docker agent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-5"
 $ docker agent run agent.yaml --session -1  # resume last session
 $ docker agent run agent.yaml --prompt-file ./context.md  # include file as context
 
@@ -265,6 +265,8 @@ $ curl http://127.0.0.1:8083/v1/chat/completions \
     -d '{"model": "root", "messages": [{"role": "user", "content": "hello"}]}'
 ```
 
+See [Chat Server]({{ '/features/chat-server/' | relative_url }}) for the full feature reference.
+
 ### `docker agent share push` / `docker agent share pull`
 
 Share agents via OCI registries.
@@ -344,7 +346,7 @@ $ docker agent alias add other ociReference
 # Add an alias with runtime options
 $ docker agent alias add yolo-coder agentcatalog/coder --yolo
 $ docker agent alias add fast-coder agentcatalog/coder --model openai/gpt-4o-mini
-$ docker agent alias add turbo agentcatalog/coder --yolo --model anthropic/claude-sonnet-4-0
+$ docker agent alias add turbo agentcatalog/coder --yolo --model anthropic/claude-sonnet-4-5
 
 # Use an alias
 $ docker agent run pirate
@@ -364,7 +366,7 @@ $ docker agent alias ls
 Registered aliases (3):
 
   fast-coder  → agentcatalog/coder [model=openai/gpt-4o-mini]
-  turbo       → agentcatalog/coder [yolo, model=anthropic/claude-sonnet-4-0]
+  turbo       → agentcatalog/coder [yolo, model=anthropic/claude-sonnet-4-5]
   yolo-coder  → agentcatalog/coder [yolo]
 
 Run an alias with: docker agent run <alias>

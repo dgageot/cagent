@@ -58,6 +58,34 @@ var multiCategoryCommands = []commands.Category{
 	},
 }
 
+// TestCommandPaletteFilteringIgnoresCategory ensures that typing the name of
+// a category does not match every command in that category. Regression test
+// for the case where typing "session" would surface every Session-category
+// command, defeating the purpose of filtering.
+func TestCommandPaletteFilteringIgnoresCategory(t *testing.T) {
+	cats := []commands.Category{
+		{
+			Name: "Session",
+			Commands: []commands.Item{
+				{ID: "session.attach", Label: "Attach", SlashCommand: "/attach", Description: "Attach a file to your message", Category: "Session"},
+				{ID: "session.history", Label: "Sessions", SlashCommand: "/sessions", Description: "Browse and load past sessions", Category: "Session"},
+			},
+		},
+	}
+	dialog := NewCommandPaletteDialog(cats)
+	d := dialog.(*commandPaletteDialog)
+
+	d.textInput.SetValue("session")
+	d.filterCommands()
+
+	var ids []string
+	for _, c := range d.filtered {
+		ids = append(ids, c.ID)
+	}
+	require.Equal(t, []string{"session.history"}, ids,
+		"typing 'session' must not surface unrelated commands like 'Attach' just because they share the Session category")
+}
+
 func TestCommandPaletteFiltering(t *testing.T) {
 	dialog := NewCommandPaletteDialog(categories)
 	d := dialog.(*commandPaletteDialog)

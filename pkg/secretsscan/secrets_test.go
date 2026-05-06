@@ -36,6 +36,21 @@ func TestContainsSecretsRecognisesKnownTokens(t *testing.T) {
 		{"jfrog_api_key", "AKCp" + strings.Repeat("a", 73)},
 		{"tencent_cloud_secret_id", "AKID" + strings.Repeat("a", 32)},
 		{"sentry_user_auth_token", "sntrys_" + "eyJ" + strings.Repeat("a", 60)},
+		{"stripe_restricted_key_test", "rk_test_" + strings.Repeat("a", 24)},
+		{"stripe_restricted_key_live", "rk_live_" + strings.Repeat("a", 24)},
+		{"notion_integration_token", "ntn_" + strings.Repeat("a", 46)},
+		{"gitlab_pipeline_trigger_token", "glptt-" + strings.Repeat("a", 40)},
+		{"vault_service_token", "hvs." + strings.Repeat("a", 95)},
+		{"vault_service_token_long", "hvs." + strings.Repeat("a", 180)},
+		{"slack_rotating_refresh_token", "xoxe-" + strings.Repeat("a", 60)},
+		{"slack_rotating_user_token", "xoxe.xoxp-" + strings.Repeat("a", 50)},
+		{"slack_rotating_bot_token", "xoxe.xoxb-" + strings.Repeat("a", 50)},
+		{"slack_rotating_long_token", "xoxe.xoxp-" + strings.Repeat("a", 250)},
+		{"replicate_api_token", "r8_" + strings.Repeat("a", 37)},
+		{"square_access_token", "EAAA" + strings.Repeat("a", 60)},
+		{"atlassian_cloud_api_token", "ATATT3xFfGF0" + strings.Repeat("a", 200)},
+		{"digitalocean_oauth_token", "doo_v1_" + strings.Repeat("a", 64)},
+		{"digitalocean_oauth_refresh", "dor_v1_" + strings.Repeat("a", 64)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -47,6 +62,77 @@ func TestContainsSecretsRecognisesKnownTokens(t *testing.T) {
 				"redaction marker must appear in %q", out)
 		})
 	}
+}
+
+// TestRedactDetectsBareUnquotedSecrets exercises the rules whose
+// expressions used to require surrounding `'` / `"` characters
+// (copied from upstream Trivy, where the scanner is aimed at JSON /
+// YAML config files). The agent's leak vectors are different: tool
+// output, CLI shells, and chat content where credentials routinely
+// appear unquoted (`echo $NPM_TOKEN`, `vault token lookup`, log
+// dumps). Each rule below has a unique-enough prefix to stay
+// specific without the quote anchor — this test pins that property
+// so a future refactor doesn't accidentally re-introduce the
+// quote-only matching.
+func TestRedactDetectsBareUnquotedSecrets(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		token string
+	}{
+		{"npm_access_token_bare", "npm_" + strings.Repeat("a", 36)},
+		{"dynatrace_api_token_bare", "dt0c01." + strings.Repeat("a", 24) + "." + strings.Repeat("b", 64)},
+		{"doppler_personal_token_bare", "dp.pt." + strings.Repeat("a", 43)},
+		{"easypost_production_token_bare", "EZAK" + strings.Repeat("a", 54)},
+		{"easypost_test_token_bare", "EZTK" + strings.Repeat("a", 54)},
+		{"hashicorp_terraform_token_bare", strings.Repeat("a", 14) + ".atlasv1." + strings.Repeat("b", 64)},
+		{"new_relic_user_api_key_bare", "NRAK-" + strings.Repeat("A", 27)},
+		{"new_relic_browser_api_token_bare", "NRJS-" + strings.Repeat("a", 19)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// The same value emitted bare (CLI / log) and quoted
+			// (config file) must both be redacted.
+			for _, in := range []string{tc.token, `"` + tc.token + `"`, `'` + tc.token + `'`} {
+				assert.Truef(t, secretsscan.ContainsSecrets(in),
+					"must detect %s in %q", tc.name, in)
+				out := secretsscan.Redact(in)
+				assert.NotContainsf(t, out, tc.token,
+					"raw secret must be gone after Redact: %q", out)
+				assert.Containsf(t, out, secretsscan.RedactionMarker,
+					"redaction marker must appear in %q", out)
+			}
+		})
+	}
+}
+
+// TestRedactDoesNotSwallowAdjacentTextAfterSlackRotatingToken pins
+// the upper bound on the slack-rotating-token rule. The body class
+// overlaps with hostnames / dotted identifiers, so without an upper
+// quantifier bound a Slack token followed (without separator) by an
+// `api.slack.com`-style URL would silently consume the URL into the
+// redaction span. The upper bound of 300 is comfortably above the
+// longest observed Slack rotating-token body, so a real secret is
+// still fully redacted, but text well past that length stops being
+// part of the same match.
+func TestRedactDoesNotSwallowAdjacentTextAfterSlackRotatingToken(t *testing.T) {
+	t.Parallel()
+
+	// 320 chars is past the {40,300} cap, so the regex must split
+	// the input into a redacted prefix and a literal trailing
+	// suffix. The trailing dotted hostname is exactly the kind of
+	// content that an open-ended quantifier would over-consume.
+	token := "xoxe-" + strings.Repeat("a", 320)
+	input := token + ".api.slack.com"
+
+	out := secretsscan.Redact(input)
+
+	assert.Containsf(t, out, secretsscan.RedactionMarker,
+		"a Slack rotating token must still be redacted: %q", out)
+	assert.Containsf(t, out, "api.slack.com",
+		"adjacent hostname must NOT be swallowed by the rotating-token regex: %q", out)
 }
 
 // TestContainsSecretsIgnoresHarmlessText: pure digit strings, plain

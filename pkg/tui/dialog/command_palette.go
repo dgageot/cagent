@@ -139,11 +139,14 @@ func (d *commandPaletteDialog) filterCommands() {
 }
 
 // matchesCommandQuery reports whether the given command matches the lowercase
-// query string by searching label, description, category, or slash command.
+// query string by searching label, description, or slash command. The
+// category is intentionally excluded: category names act as section headers
+// and matching them would surface every command in a category, drowning out
+// targeted queries (e.g. typing "session" would otherwise match every
+// command in the Session category).
 func matchesCommandQuery(cmd commands.Item, query string) bool {
 	return strings.Contains(strings.ToLower(cmd.Label), query) ||
 		strings.Contains(strings.ToLower(cmd.Description), query) ||
-		strings.Contains(strings.ToLower(cmd.Category), query) ||
 		strings.Contains(strings.ToLower(cmd.SlashCommand), query)
 }
 
