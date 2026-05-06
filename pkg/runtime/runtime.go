@@ -535,12 +535,16 @@ func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
 		return err
 	}
 	next := r.CurrentAgent()
-	if prev != next {
-		// User-driven switches don't carry a request context, but Unload
-		// must be bounded so a slow engine doesn't stall the picker.
-		// unloadOnSwitch already wraps each call in a per-call timeout.
-		r.unloadOnSwitch(context.Background(), prev, next)
+	if prev == next {
+		return nil
 	}
+	// Run the unload in the background: the TUI agent picker drives this
+	// path from the bubbletea Update loop, so a synchronous call would
+	// freeze the UI for as long as the engine takes to acknowledge the
+	// unload (up to unloadOnSwitchTimeout). Fire-and-forget is safe here
+	// because the new agent's model isn't loaded until the user sends a
+	// message — typically long after the unload completes.
+	go r.unloadOnSwitch(context.Background(), prev, next)
 	return nil
 }
 

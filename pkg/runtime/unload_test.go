@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -205,4 +206,66 @@ func TestUnloadOnSwitch_UnloadErrorDoesNotPropagate(t *testing.T) {
 	rt.unloadOnSwitch(t.Context(), prevAgent, nextAgent)
 	assert.Equal(t, int32(1), prev.calls.Load(),
 		"Unload should still be invoked even though it returns an error")
+}
+
+func TestSetCurrentAgent_UnloadIsAsync(t *testing.T) {
+	t.Parallel()
+
+	// A blocking unloader that lets the test assert SetCurrentAgent
+	// returns BEFORE the unload completes.
+	done := make(chan struct{})
+	release := make(chan struct{})
+	prev := &unloadingProvider{
+		id: "dmr/qwen3",
+		cfg: latest.ModelConfig{
+			ProviderOpts: map[string]any{"unload_on_switch": true},
+		},
+	}
+	// Wrap the default Unload to block until release is closed.
+	slowPrev := &slowUnloadingProvider{unloadingProvider: prev, released: release, started: done}
+	next := &unloadingProvider{id: "dmr/llama3.2"}
+
+	agents := []*agent.Agent{
+		agent.New("prev", "", agent.WithModel(slowPrev)),
+		agent.New("next", "", agent.WithModel(next)),
+	}
+	tm := team.New(team.WithAgents(agents...))
+	rt, err := NewLocalRuntime(tm, WithModelStore(mockModelStore{}), WithCurrentAgent("prev"))
+	require.NoError(t, err)
+
+	// SetCurrentAgent must return immediately, not wait for unload.
+	require.NoError(t, rt.SetCurrentAgent("next"))
+
+	// Confirm the goroutine actually started Unload.
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("unload goroutine never started")
+	}
+
+	// Releasing the slow unloader lets it finish so the test cleans up.
+	close(release)
+}
+
+// slowUnloadingProvider is an [unloadingProvider] whose Unload blocks on
+// the released channel. Used to assert that SetCurrentAgent does not wait
+// for unload to complete.
+type slowUnloadingProvider struct {
+	*unloadingProvider
+
+	released <-chan struct{}
+	started  chan<- struct{}
+}
+
+func (s *slowUnloadingProvider) Unload(ctx context.Context) error {
+	select {
+	case s.started <- struct{}{}:
+	default:
+	}
+	select {
+	case <-s.released:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return s.unloadingProvider.Unload(ctx)
 }

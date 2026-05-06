@@ -28,6 +28,9 @@ func (r *LocalRuntime) unloadOnSwitch(ctx context.Context, prev, next *agent.Age
 		return
 	}
 	for _, m := range prev.ConfiguredModels() {
+		if m == nil {
+			continue
+		}
 		cfg := m.BaseConfig().ModelConfig
 		if !cfg.UnloadOnSwitch() {
 			continue
