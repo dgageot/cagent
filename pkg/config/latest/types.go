@@ -232,6 +232,15 @@ type ProviderConfig struct {
 	APIType string `json:"api_type,omitempty"`
 	// BaseURL is the base URL for the provider's API endpoint
 	BaseURL string `json:"base_url,omitempty"`
+	// UnloadAPI is the path to the provider's model-unload endpoint (relative
+	// to the provider's host). Models that opt in via
+	// `provider_opts.unload_on_switch: true` are unloaded via this endpoint
+	// when the runtime switches to a different agent. Used by local
+	// inference engines (DMR, ollama, ramalama, ...) to free GPU/RAM held
+	// by the previous model. The runtime issues `POST <unload_api>` with a
+	// JSON body of the form `{"model": "<id>"}`. Cloud providers should
+	// leave this unset.
+	UnloadAPI string `json:"unload_api,omitempty"`
 	// TokenKey is the environment variable name containing the API token
 	TokenKey string `json:"token_key,omitempty"`
 	// Temperature is the default sampling temperature for models using this provider
@@ -645,6 +654,28 @@ func (m *ModelConfig) Clone() *ModelConfig {
 // otherwise falls back to Model.
 func (m *ModelConfig) DisplayOrModel() string {
 	return cmp.Or(m.DisplayModel, m.Model)
+}
+
+// UnloadOnSwitch reports whether the model has opted into being unloaded
+// when the runtime switches to a different agent (via
+// `provider_opts.unload_on_switch: true`).
+func (m *ModelConfig) UnloadOnSwitch() bool {
+	if m == nil {
+		return false
+	}
+	v, _ := m.ProviderOpts["unload_on_switch"].(bool)
+	return v
+}
+
+// UnloadAPI returns the unload endpoint path inherited from the model's
+// provider config, or "" when no `unload_api` was set. Populated by the
+// provider-config merge step from [ProviderConfig.UnloadAPI].
+func (m *ModelConfig) UnloadAPI() string {
+	if m == nil {
+		return ""
+	}
+	v, _ := m.ProviderOpts["unload_api"].(string)
+	return strings.TrimSpace(v)
 }
 
 // FlexibleModelConfig wraps ModelConfig to support both shorthand and full syntax.

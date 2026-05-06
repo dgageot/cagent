@@ -199,6 +199,37 @@ func TestMergeFromProviderConfig_Fields(t *testing.T) {
 			},
 		},
 		{
+			name: "UnloadAPI plumbed into ProviderOpts.unload_api",
+			dst:  &latest.ModelConfig{},
+			src:  latest.ProviderConfig{UnloadAPI: "/engines/_unload"},
+			assert: func(t *testing.T, got *latest.ModelConfig) {
+				t.Helper()
+				require.NotNil(t, got.ProviderOpts)
+				assert.Equal(t, "/engines/_unload", got.ProviderOpts["unload_api"])
+			},
+		},
+		{
+			name: "UnloadAPI does not overwrite an existing model-level unload_api",
+			dst:  &latest.ModelConfig{ProviderOpts: map[string]any{"unload_api": "/custom"}},
+			src:  latest.ProviderConfig{UnloadAPI: "/engines/_unload"},
+			assert: func(t *testing.T, got *latest.ModelConfig) {
+				t.Helper()
+				assert.Equal(t, "/custom", got.ProviderOpts["unload_api"])
+			},
+		},
+		{
+			name: "empty UnloadAPI doesn't pollute ProviderOpts",
+			dst:  &latest.ModelConfig{},
+			src:  latest.ProviderConfig{},
+			assert: func(t *testing.T, got *latest.ModelConfig) {
+				t.Helper()
+				if got.ProviderOpts != nil {
+					_, has := got.ProviderOpts["unload_api"]
+					assert.False(t, has)
+				}
+			},
+		},
+		{
 			name: "explicit APIType wins over OpenAI-compatible default",
 			dst:  &latest.ModelConfig{},
 			src:  latest.ProviderConfig{APIType: "openai_responses"},

@@ -217,9 +217,11 @@ func mergeExcludedTools(parent, child []string) []string {
 func (r *LocalRuntime) swapCurrentAgent(ctx context.Context, sessionID string, from, to *agent.Agent, evts chan<- Event) func() {
 	evts <- AgentSwitching(true, from.Name(), to.Name())
 	r.executeOnAgentSwitchHooks(ctx, from, sessionID, from.Name(), to.Name(), agentSwitchKindTransferTask)
+	r.unloadOnSwitch(ctx, from, to)
 	r.setCurrentAgent(to.Name())
 	evts <- AgentInfo(to.Name(), getAgentModelID(to), to.Description(), to.WelcomeMessage())
 	return func() {
+		r.unloadOnSwitch(ctx, to, from)
 		r.setCurrentAgent(from.Name())
 		evts <- AgentSwitching(false, to.Name(), from.Name())
 		r.executeOnAgentSwitchHooks(ctx, from, sessionID, to.Name(), from.Name(), agentSwitchKindTransferTaskReturn)
@@ -450,6 +452,7 @@ func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session,
 	}
 
 	r.executeOnAgentSwitchHooks(ctx, currentAgent, sess.ID, ca, next.Name(), agentSwitchKindHandoff)
+	r.unloadOnSwitch(ctx, currentAgent, next)
 	r.setCurrentAgent(next.Name())
 	handoffMessage := "The agent " + ca + " handed off the conversation to you. " +
 		"Your available handoff agents and tools are specified in the system messages that follow. " +

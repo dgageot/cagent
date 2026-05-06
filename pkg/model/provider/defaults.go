@@ -96,6 +96,12 @@ func mergeFromProviderConfig(dst *latest.ModelConfig, src latest.ProviderConfig)
 	if dst.TokenKey == "" {
 		dst.TokenKey = src.TokenKey
 	}
+	// Stash the provider-level unload endpoint into the model's ProviderOpts so
+	// the provider implementation can pick it up at unload time without needing
+	// a back-reference to the parent ProviderConfig.
+	if src.UnloadAPI != "" {
+		setProviderOptIfAbsent(dst, "unload_api", src.UnloadAPI)
+	}
 	setIfNil(&dst.Temperature, src.Temperature)
 	setIfNil(&dst.MaxTokens, src.MaxTokens)
 	setIfNil(&dst.TopP, src.TopP)

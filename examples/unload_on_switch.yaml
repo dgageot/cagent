@@ -1,0 +1,71 @@
+#!/usr/bin/env docker agent run
+
+# Example: Unload local models when switching agents
+#
+# Local inference engines (DMR, ollama, ramalama, ...) keep models in
+# GPU/RAM until something kicks them out. When two agents in a multi-agent
+# config use different models on the same engine, switching from one to the
+# other risks running out of memory because the previous model is still
+# resident.
+#
+# This example wires up the runtime's "unload on switch" feature:
+#
+#   1. The provider exposes an HTTP endpoint via `unload_api`.
+#   2. Each model that should be evicted on agent switch sets
+#      `provider_opts.unload_on_switch: true`.
+#
+# When the active agent moves between `coder` and `reviewer` (via handoff,
+# transfer_task, or the TUI agent picker), the runtime issues
+#
+#     POST http://model-runner.docker.internal/engines/_unload
+#     Content-Type: application/json
+#
+#     {"model": "ai/qwen3"}
+#
+# so DMR releases the previous model before the next one is activated.
+
+providers:
+  # Docker Model Runner exposes `/engines/_unload` to release resources held
+  # for a given model. The base URL points at the OpenAI-compatible endpoint;
+  # `unload_api` is resolved against its scheme/host (the path component is
+  # ignored), so this is enough to unload regardless of the engine prefix.
+  local_dmr:
+    provider: dmr
+    base_url: http://model-runner.docker.internal/engines/llama.cpp/v1
+    unload_api: /engines/_unload
+
+models:
+  qwen:
+    provider: local_dmr
+    model: ai/qwen3
+    provider_opts:
+      # Opt in: when an agent stops using this model, unload it from VRAM
+      # before the next agent's model is loaded.
+      unload_on_switch: true
+
+  llama:
+    provider: local_dmr
+    model: ai/llama3.2
+    provider_opts:
+      unload_on_switch: true
+
+agents:
+  root:
+    model: qwen
+    description: Orchestrator
+    instruction: |
+      You are the orchestrator. Hand the conversation off to `coder` for
+      programming tasks and to `reviewer` for code review.
+    handoffs:
+      - coder
+      - reviewer
+
+  coder:
+    model: qwen
+    description: Writes code.
+    instruction: You are a programmer. Write clean, idiomatic code.
+
+  reviewer:
+    model: llama
+    description: Reviews code.
+    instruction: You are a code reviewer. Critique the code with empathy.

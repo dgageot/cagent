@@ -530,7 +530,18 @@ func (r *LocalRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
 }
 
 func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
-	return r.agents.SetValidated(agentName)
+	prev := r.CurrentAgent()
+	if err := r.agents.SetValidated(agentName); err != nil {
+		return err
+	}
+	next := r.CurrentAgent()
+	if prev != next {
+		// User-driven switches don't carry a request context, but Unload
+		// must be bounded so a slow engine doesn't stall the picker.
+		// unloadOnSwitch already wraps each call in a per-call timeout.
+		r.unloadOnSwitch(context.Background(), prev, next)
+	}
+	return nil
 }
 
 func (r *LocalRuntime) CurrentAgentCommands(context.Context) types.Commands {

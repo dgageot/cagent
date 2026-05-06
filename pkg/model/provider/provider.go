@@ -71,6 +71,24 @@ type RerankingProvider interface {
 	Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error)
 }
 
+// Unloader is an optional interface implemented by providers that can
+// release the resources held for the provider's currently configured
+// model. Local inference engines (DMR, ollama, ramalama, ...) typically
+// do; remote cloud APIs do not.
+//
+// The runtime calls Unload when switching away from an agent whose model
+// has `provider_opts.unload_on_switch: true` so that the next agent's
+// model can claim the freed GPU/RAM. Implementations are expected to be
+// best-effort: returning an error logs a warning but never blocks the
+// agent switch.
+type Unloader interface {
+	Provider
+	// Unload asks the provider to release any resources held for the
+	// model in its [base.Config]. Implementations should be idempotent
+	// — repeated calls on an already-unloaded model must succeed.
+	Unload(ctx context.Context) error
+}
+
 // New creates a new provider from a model config.
 // This is a convenience wrapper for NewWithModels with no models map.
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
