@@ -114,7 +114,7 @@ func (t *Toolset) Tools(_ context.Context) ([]tools.Tool, error) {
 
 // Start connects to the A2A agent and fetches the agent card.
 func (t *Toolset) Start(ctx context.Context) error {
-	slog.Debug("Starting A2A toolset", "url", t.url)
+	slog.DebugContext(ctx, "Starting A2A toolset", "url", t.url)
 
 	card, err := agentcard.DefaultResolver.Resolve(ctx, t.url)
 	if err != nil {
@@ -136,7 +136,7 @@ func (t *Toolset) Start(ctx context.Context) error {
 	t.card = card
 	t.mu.Unlock()
 
-	slog.Debug("A2A toolset started", "agent", card.Name, "skills", len(card.Skills))
+	slog.DebugContext(ctx, "A2A toolset started", "agent", card.Name, "skills", len(card.Skills))
 	return nil
 }
 

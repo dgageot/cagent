@@ -79,7 +79,7 @@ func (exp *Expander) Evaluate(ctx context.Context, input string, args []string) 
 	}
 	_ = vm.Set("args", args)
 
-	slog.Debug("Evaluating JS template", "input", input)
+	slog.DebugContext(ctx, "Evaluating JS template", "input", input)
 
 	return runExpansion(vm, input)
 }

@@ -294,7 +294,7 @@ func (e *fallbackExecutor) execute(
 				)
 			}
 
-			slog.Debug("Creating chat completion stream",
+			slog.DebugContext(ctx, "Creating chat completion stream",
 				"agent", a.Name(),
 				"model", modelEntry.provider.ID(),
 				"is_fallback", modelEntry.isFallback,
@@ -315,7 +315,7 @@ func (e *fallbackExecutor) execute(
 				continue
 			}
 
-			slog.Debug("Processing stream", "agent", a.Name(), "model", modelEntry.provider.ID())
+			slog.DebugContext(ctx, "Processing stream", "agent", a.Name(), "model", modelEntry.provider.ID())
 
 			// If the provider is a rule-based router, notify the sidebar
 			// of the selected sub-model's YAML-configured name.
@@ -403,7 +403,7 @@ func (e *fallbackExecutor) handleModelError(
 		// Default behavior (retryOnRateLimit=false) treats 429 as non-retryable,
 		// identical to today's behavior before this feature was added.
 		if !e.retryOnRateLimit || hasFallbacks {
-			slog.Warn("Rate limited, treating as non-retryable",
+			slog.WarnContext(ctx, "Rate limited, treating as non-retryable",
 				"agent", a.Name(),
 				"model", modelEntry.provider.ID(),
 				"retry_on_rate_limit_enabled", e.retryOnRateLimit,
@@ -420,14 +420,14 @@ func (e *fallbackExecutor) handleModelError(
 		if waitDuration <= 0 {
 			waitDuration = backoff.Calculate(attempt)
 		} else if waitDuration > backoff.MaxRetryAfterWait {
-			slog.Warn("Retry-After exceeds maximum, capping",
+			slog.WarnContext(ctx, "Retry-After exceeds maximum, capping",
 				"agent", a.Name(),
 				"model", modelEntry.provider.ID(),
 				"retry_after", retryAfter,
 				"max", backoff.MaxRetryAfterWait)
 			waitDuration = backoff.MaxRetryAfterWait
 		}
-		slog.Warn("Rate limited, retrying (opt-in enabled)",
+		slog.WarnContext(ctx, "Rate limited, retrying (opt-in enabled)",
 			"agent", a.Name(),
 			"model", modelEntry.provider.ID(),
 			"attempt", attempt+1,
@@ -441,7 +441,7 @@ func (e *fallbackExecutor) handleModelError(
 	}
 
 	if !retryable {
-		slog.Error("Non-retryable error from model",
+		slog.ErrorContext(ctx, "Non-retryable error from model",
 			"agent", a.Name(),
 			"model", modelEntry.provider.ID(),
 			"error", err)
@@ -451,7 +451,7 @@ func (e *fallbackExecutor) handleModelError(
 		return retryDecisionBreak
 	}
 
-	slog.Warn("Retryable error from model",
+	slog.WarnContext(ctx, "Retryable error from model",
 		"agent", a.Name(),
 		"model", modelEntry.provider.ID(),
 		"attempt", attempt+1,

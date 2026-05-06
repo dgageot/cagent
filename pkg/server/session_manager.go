@@ -355,7 +355,7 @@ func (sm *SessionManager) UpdateSessionTitle(ctx context.Context, sessionID, tit
 	// This ensures the runtime's saveSession won't overwrite our manual edit.
 	if rt, ok := sm.runtimeSessions.Load(sessionID); ok && rt.session != nil {
 		rt.session.Title = title
-		slog.Debug("Updated title for active session", "session_id", sessionID, "title", title)
+		slog.DebugContext(ctx, "Updated title for active session", "session_id", sessionID, "title", title)
 		return sm.sessionStore.UpdateSession(ctx, rt.session)
 	}
 
@@ -379,7 +379,7 @@ func (sm *SessionManager) generateTitle(ctx context.Context, sess *session.Sessi
 
 	title, err := gen.Generate(ctx, sess.ID, userMessages)
 	if err != nil {
-		slog.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
+		slog.ErrorContext(ctx, "Failed to generate session title", "session_id", sess.ID, "error", err)
 		return
 	}
 
@@ -392,16 +392,16 @@ func (sm *SessionManager) generateTitle(ctx context.Context, sess *session.Sessi
 
 	// Persist the title
 	if err := sm.sessionStore.UpdateSession(ctx, sess); err != nil {
-		slog.Error("Failed to persist generated title", "session_id", sess.ID, "error", err)
+		slog.ErrorContext(ctx, "Failed to persist generated title", "session_id", sess.ID, "error", err)
 		return
 	}
 
 	// Emit the title event
 	select {
 	case events <- runtime.SessionTitle(sess.ID, title):
-		slog.Debug("Generated and emitted session title", "session_id", sess.ID, "title", title)
+		slog.DebugContext(ctx, "Generated and emitted session title", "session_id", sess.ID, "title", title)
 	case <-ctx.Done():
-		slog.Debug("Context cancelled while emitting title event", "session_id", sess.ID)
+		slog.DebugContext(ctx, "Context cancelled while emitting title event", "session_id", sess.ID)
 	}
 }
 
@@ -458,9 +458,9 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 		return nil, nil, err
 	}
 
-	titleGen := sessiontitle.New(agt.Model(), agt.FallbackModels()...)
+	titleGen := sessiontitle.New(agt.Model(ctx), agt.FallbackModels()...)
 
-	slog.Debug("Runtime created for session", "session_id", sess.ID)
+	slog.DebugContext(ctx, "Runtime created for session", "session_id", sess.ID)
 
 	return run, titleGen, nil
 }
@@ -484,7 +484,7 @@ func (sm *SessionManager) GetAgentToolCount(ctx context.Context, agentFilename, 
 	}
 	defer func() {
 		if stopErr := t.StopToolSets(ctx); stopErr != nil {
-			slog.Error("Failed to stop tool sets", "error", stopErr)
+			slog.ErrorContext(ctx, "Failed to stop tool sets", "error", stopErr)
 		}
 	}()
 

@@ -111,7 +111,7 @@ func (c *remoteMCPClient) Initialize(ctx context.Context, _ *gomcp.InitializeReq
 
 	c.setSession(session)
 
-	slog.Debug("Remote MCP client connected successfully")
+	slog.DebugContext(ctx, "Remote MCP client connected successfully")
 	return session.InitializeResult(), nil
 }
 

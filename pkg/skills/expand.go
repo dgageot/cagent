@@ -35,7 +35,7 @@ func ExpandCommands(ctx context.Context, content, workDir string) string {
 
 		output, err := runCommand(ctx, command, workDir)
 		if err != nil {
-			slog.Warn("Skill command expansion failed", "command", command, "error", err)
+			slog.WarnContext(ctx, "Skill command expansion failed", "command", command, "error", err)
 			return fmt.Sprintf("[error executing `%s`: %s]", command, err)
 		}
 

@@ -164,7 +164,7 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 				result, runErr := r.runSingleEval(ctx, item.eval)
 				if runErr != nil {
 					result.Error = runErr.Error()
-					slog.Error("Evaluation failed", "title", item.eval.displayTitle(), "error", runErr)
+					slog.ErrorContext(ctx, "Evaluation failed", "title", item.eval.displayTitle(), "error", runErr)
 				}
 
 				results[item.index] = result
@@ -323,7 +323,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	startTime := time.Now()
 	title := evalSess.displayTitle()
 
-	slog.Debug("Starting evaluation", "title", title)
+	slog.DebugContext(ctx, "Starting evaluation", "title", title)
 
 	var evals *session.EvalCriteria
 	if evalSess.Evals != nil {
@@ -393,7 +393,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		result.RelevanceResults = results
 	}
 
-	slog.Debug("Evaluation complete", "title", title, "duration", time.Since(startTime))
+	slog.DebugContext(ctx, "Evaluation complete", "title", title, "duration", time.Since(startTime))
 	return result, nil
 }
 
@@ -506,19 +506,19 @@ func (r *Runner) runDockerAgentInContainer(ctx context.Context, imageID string, 
 
 		var event map[string]any
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			slog.Debug("Failed to parse JSON event", "line", line, "error", err)
+			slog.DebugContext(ctx, "Failed to parse JSON event", "line", line, "error", err)
 			continue
 		}
 		events = append(events, event)
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.Warn("Error reading container output", "error", err)
+		slog.WarnContext(ctx, "Error reading container output", "error", err)
 	}
 
 	waitErr := cmd.Wait()
 	if waitErr != nil {
-		slog.Debug("Container exited with error", "stderr", string(stderrData), "error", waitErr)
+		slog.DebugContext(ctx, "Container exited with error", "stderr", string(stderrData), "error", waitErr)
 	}
 
 	if len(events) == 0 {

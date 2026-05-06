@@ -68,7 +68,7 @@ func (t *Tool) Start(ctx context.Context) error {
 
 	go func() {
 		if err := t.manager.StartFileWatcher(ctx); err != nil {
-			slog.Error("Failed to start RAG file watcher", "tool", t.toolName, "error", err)
+			slog.ErrorContext(ctx, "Failed to start RAG file watcher", "tool", t.toolName, "error", err)
 		}
 	}()
 	return nil

@@ -98,7 +98,7 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 	ctx, cancel := context.WithTimeout(ctx, titleGenerationTimeout)
 	defer cancel()
 
-	slog.Debug("Generating title for session", "session_id", sessionID, "message_count", len(userMessages))
+	slog.DebugContext(ctx, "Generating title for session", "session_id", sessionID, "message_count", len(userMessages))
 
 	messages := buildPrompt(userMessages)
 
@@ -113,14 +113,14 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 
 		title, err := generateOnce(ctx, baseModel, messages)
 		if err == nil {
-			slog.Debug("Generated session title", "session_id", sessionID, "title", title, "model", baseModel.ID())
+			slog.DebugContext(ctx, "Generated session title", "session_id", sessionID, "title", title, "model", baseModel.ID())
 			return title, nil
 		}
 
 		lastErr = err
 		// Per-attempt failures are logged at Debug because we still have
 		// fallbacks; the final error is what callers log/wrap.
-		slog.Debug("Title generation attempt failed",
+		slog.DebugContext(ctx, "Title generation attempt failed",
 			"session_id", sessionID,
 			"model", baseModel.ID(),
 			"attempt", idx+1,

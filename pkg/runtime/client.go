@@ -365,27 +365,27 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				continue
 			}
 
-			slog.Debug("event", "event", string(after))
+			slog.DebugContext(ctx, "event", "event", string(after))
 
 			// First unmarshal to get the type
 			var baseEvent struct {
 				Type string `json:"type"`
 			}
 			if err := json.Unmarshal(after, &baseEvent); err != nil {
-				slog.Debug("event", "error", err)
+				slog.DebugContext(ctx, "event", "error", err)
 				continue
 			}
 
 			// Then unmarshal the full event
 			createEvent, found := c.registry[baseEvent.Type]
 			if !found {
-				slog.Debug("event", "invalid_type", baseEvent.Type)
+				slog.DebugContext(ctx, "event", "invalid_type", baseEvent.Type)
 				continue
 			}
 
 			e := createEvent()
 			if err := json.Unmarshal(after, &e); err != nil {
-				slog.Debug("event", "error", err)
+				slog.DebugContext(ctx, "event", "error", err)
 				continue
 			}
 

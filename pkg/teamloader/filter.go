@@ -72,7 +72,7 @@ func (f *filterTools) Tools(ctx context.Context) ([]tools.Tool, error) {
 		// Exclude mode: keep only tools NOT in the list
 		// Include mode: keep only tools in the list
 		if (f.exclude && contains) || (!f.exclude && !contains) {
-			slog.Debug("Filtering out tool", "tool", tool.Name)
+			slog.DebugContext(ctx, "Filtering out tool", "tool", tool.Name)
 			continue
 		}
 

@@ -485,7 +485,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		return nil, err
 	}
 
-	if defaultAgent.Model() == nil {
+	if defaultAgent.Model(context.TODO()) == nil {
 		return nil, fmt.Errorf("agent %s has no valid model", defaultAgent.Name())
 	}
 
@@ -645,14 +645,14 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 	// Get the current agent to access its toolsets
 	currentAgent := r.CurrentAgent()
 	if currentAgent == nil {
-		slog.Warn("No current agent available for MCP prompt discovery")
+		slog.WarnContext(ctx, "No current agent available for MCP prompt discovery")
 		return prompts
 	}
 
 	// Iterate through all toolsets of the current agent
 	for _, toolset := range currentAgent.ToolSets() {
 		if mcpToolset, ok := tools.As[*mcptools.Toolset](toolset); ok {
-			slog.Debug("Found MCP toolset", "toolset", mcpToolset)
+			slog.DebugContext(ctx, "Found MCP toolset", "toolset", mcpToolset)
 			// Discover prompts from this MCP toolset
 			mcpPrompts := r.discoverMCPPrompts(ctx, mcpToolset)
 
@@ -660,11 +660,11 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 			// If there are name conflicts, the later toolset's prompt will override
 			maps.Copy(prompts, mcpPrompts)
 		} else {
-			slog.Debug("Toolset is not an MCP toolset", "type", fmt.Sprintf("%T", toolset))
+			slog.DebugContext(ctx, "Toolset is not an MCP toolset", "type", fmt.Sprintf("%T", toolset))
 		}
 	}
 
-	slog.Debug("Discovered MCP prompts", "agent", currentAgent.Name(), "prompt_count", len(prompts))
+	slog.DebugContext(ctx, "Discovered MCP prompts", "agent", currentAgent.Name(), "prompt_count", len(prompts))
 	return prompts
 }
 
@@ -674,7 +674,7 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 func (r *LocalRuntime) discoverMCPPrompts(ctx context.Context, toolset *mcptools.Toolset) map[string]mcptools.PromptInfo {
 	mcpPrompts, err := toolset.ListPrompts(ctx)
 	if err != nil {
-		slog.Warn("Failed to list MCP prompts from toolset", "error", err)
+		slog.WarnContext(ctx, "Failed to list MCP prompts from toolset", "error", err)
 		return nil
 	}
 
@@ -695,7 +695,7 @@ func (r *LocalRuntime) discoverMCPPrompts(ctx context.Context, toolset *mcptools
 		}
 
 		prompts[mcpPrompt.Name] = promptInfo
-		slog.Debug("Discovered MCP prompt", "name", mcpPrompt.Name, "args_count", len(promptInfo.Arguments))
+		slog.DebugContext(ctx, "Discovered MCP prompt", "name", mcpPrompt.Name, "args_count", len(promptInfo.Arguments))
 	}
 
 	return prompts
@@ -777,7 +777,10 @@ func (r *LocalRuntime) TitleGenerator() *sessiontitle.Generator {
 	if a == nil {
 		return nil
 	}
-	model := a.Model()
+	// Title-gen setup happens before any session ctx exists; the resulting
+	// generator carries its own ctx when actually invoked. context.TODO is
+	// the right marker here.
+	model := a.Model(context.TODO())
 	if model == nil {
 		return nil
 	}
@@ -786,7 +789,7 @@ func (r *LocalRuntime) TitleGenerator() *sessiontitle.Generator {
 
 // getAgentModelID returns the model ID for an agent, or empty string if no model is set.
 func getAgentModelID(a *agent.Agent) string {
-	if model := a.Model(); model != nil {
+	if model := a.Model(context.TODO()); model != nil {
 		return model.ID()
 	}
 	return ""
@@ -1065,7 +1068,7 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 						// deliberately deferred until the user is interacting
 						// with the agent. The dialog will appear naturally on
 						// the first RunStream — no need to pre-announce it.
-						slog.Debug("Toolset deferred until first message", "agent", a.Name(), "toolset", desc, "reason", err)
+						slog.DebugContext(ctx, "Toolset deferred until first message", "agent", a.Name(), "toolset", desc, "reason", err)
 						continue
 					}
 					// Route real failures through the agent's warning
@@ -1077,10 +1080,10 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 					// so a failing toolset doesn't flood the UI with a
 					// new warning every time the agent is restarted.
 					if !startable.ShouldReportFailure() {
-						slog.Debug("Toolset still unavailable; skipping", "agent", a.Name(), "toolset", desc, "error", err)
+						slog.DebugContext(ctx, "Toolset still unavailable; skipping", "agent", a.Name(), "toolset", desc, "error", err)
 						continue
 					}
-					slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
+					slog.WarnContext(ctx, "Toolset start failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
 					a.AddToolWarning(fmt.Sprintf("%s start failed: %v", desc, err))
 					continue
 				}
@@ -1090,7 +1093,7 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 		// Get tools from this toolset
 		ts, err := toolset.Tools(ctx)
 		if err != nil {
-			slog.Warn("Failed to get tools from toolset", "agent", a.Name(), "error", err)
+			slog.WarnContext(ctx, "Failed to get tools from toolset", "agent", a.Name(), "error", err)
 			continue
 		}
 
@@ -1211,7 +1214,7 @@ func (r *LocalRuntime) compactWithReason(ctx context.Context, sess *session.Sess
 	source := preCompactSourceFor(reason)
 	skip, msg, extraPrompt := r.executePreCompactHooks(ctx, sess, a, source, events)
 	if skip {
-		slog.Warn("pre_compact hook signalled skip",
+		slog.WarnContext(ctx, "pre_compact hook signalled skip",
 			"agent", a.Name(), "session_id", sess.ID, "source", source, "reason", msg)
 		if msg != "" {
 			events <- Warning(msg, a.Name())

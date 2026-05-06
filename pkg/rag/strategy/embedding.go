@@ -57,7 +57,7 @@ func CreateEmbeddingProvider(ctx context.Context, modelName string, buildCtx Bui
 	// Create models.dev store for pricing
 	modelsStore, err := modelsdev.NewStore()
 	if err != nil {
-		slog.Debug("Failed to create models.dev store for RAG pricing; cost tracking disabled",
+		slog.DebugContext(ctx, "Failed to create models.dev store for RAG pricing; cost tracking disabled",
 			"error", err)
 	}
 

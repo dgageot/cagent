@@ -735,7 +735,7 @@ func (s *SQLiteSessionStore) loadSessionItems(ctx context.Context, q querier, se
 			// Skip if subsession_id is NULL (can happen if the sub-session was deleted
 			// and the foreign key set the reference to NULL)
 			if !row.subsessionID.Valid || row.subsessionID.String == "" {
-				slog.Warn("Skipping subsession item with NULL reference", "session_id", sessionID, "position", row.position)
+				slog.WarnContext(ctx, "Skipping subsession item with NULL reference", "session_id", sessionID, "position", row.position)
 				continue
 			}
 			// Recursively load sub-session
@@ -743,7 +743,7 @@ func (s *SQLiteSessionStore) loadSessionItems(ctx context.Context, q querier, se
 			if err != nil {
 				if errors.Is(err, ErrNotFound) {
 					// Sub-session was deleted but item reference remains (orphaned reference)
-					slog.Warn("Skipping orphaned subsession reference", "session_id", sessionID, "subsession_id", row.subsessionID.String)
+					slog.WarnContext(ctx, "Skipping orphaned subsession reference", "session_id", sessionID, "subsession_id", row.subsessionID.String)
 					continue
 				}
 				return nil, fmt.Errorf("getting sub-session %s: %w", row.subsessionID.String, err)
@@ -984,7 +984,7 @@ func (s *SQLiteSessionStore) AddMessage(ctx context.Context, sessionID string, m
 		return 0, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	slog.Debug("[STORE] AddMessage", "session_id", sessionID, "message_id", id, "role", msg.Message.Role, "agent", msg.AgentName)
+	slog.DebugContext(ctx, "[STORE] AddMessage", "session_id", sessionID, "message_id", id, "role", msg.Message.Role, "agent", msg.AgentName)
 	return id, nil
 }
 

@@ -227,7 +227,7 @@ func (j *Judge) checkSingle(ctx context.Context, response, criterion string) (pa
 	raw := fullResponse.String()
 	passed, reason, err = parseJudgeResponse(raw)
 	if err != nil {
-		slog.Warn("Failed to parse judge response",
+		slog.WarnContext(ctx, "Failed to parse judge response",
 			"criterion", criterion,
 			"raw_response", raw,
 			"error", err,
@@ -235,7 +235,7 @@ func (j *Judge) checkSingle(ctx context.Context, response, criterion string) (pa
 		return false, "", fmt.Errorf("parsing judge response (length=%d): %w", len(raw), err)
 	}
 
-	slog.Debug("Judge response parsed successfully",
+	slog.DebugContext(ctx, "Judge response parsed successfully",
 		"criterion", criterion,
 		"passed", passed,
 		"reason", reason,

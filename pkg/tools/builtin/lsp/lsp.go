@@ -768,7 +768,7 @@ func (h *lspHandler) prepareFileRequest(ctx context.Context, file string) (strin
 	}
 	uri := pathToURI(file)
 	if err := h.openFileOnDemand(ctx, uri); err != nil {
-		slog.Debug("Failed to auto-open file", "file", file, "error", err)
+		slog.DebugContext(ctx, "Failed to auto-open file", "file", file, "error", err)
 	}
 	return uri, nil
 }
@@ -991,7 +991,7 @@ func (h *lspHandler) getDiagnostics(ctx context.Context, args FileArgs) (*tools.
 	uri := pathToURI(args.File)
 	wasOpen := h.isFileOpen(uri)
 	if err := h.openFileOnDemand(ctx, uri); err != nil {
-		slog.Debug("Failed to auto-open file for diagnostics", "file", args.File, "error", err)
+		slog.DebugContext(ctx, "Failed to auto-open file for diagnostics", "file", args.File, "error", err)
 	}
 
 	if !wasOpen {
@@ -1126,7 +1126,7 @@ func (h *lspHandler) format(ctx context.Context, args FileArgs) (*tools.ToolCall
 	}
 
 	if err := h.notifyFileChangeLocked(uri); err != nil {
-		slog.Debug("Failed to notify LSP of format changes", "error", err)
+		slog.DebugContext(ctx, "Failed to notify LSP of format changes", "error", err)
 	}
 
 	return tools.ResultSuccess(fmt.Sprintf("Formatted %s\nApplied %d formatting change(s)", args.File, len(edits))), nil
@@ -1567,7 +1567,7 @@ func (h *lspHandler) readNotifications(ctx context.Context, stderrBuf *concurren
 			return
 		case <-ticker.C:
 			if content := stderrBuf.Drain(); content != "" {
-				slog.Debug("LSP stderr", "content", content)
+				slog.DebugContext(ctx, "LSP stderr", "content", content)
 			}
 		}
 	}

@@ -311,15 +311,15 @@ func (ts *Toolset) Start(ctx context.Context) error {
 
 // Stop tears the supervisor down. Idempotent.
 func (ts *Toolset) Stop(ctx context.Context) error {
-	slog.Debug("Stopping MCP toolset", "server", ts.logID)
+	slog.DebugContext(ctx, "Stopping MCP toolset", "server", ts.logID)
 	if ts.supervisor == nil {
 		return nil
 	}
 	if err := ts.supervisor.Stop(ctx); err != nil && ctx.Err() == nil {
-		slog.Error("Failed to stop MCP toolset", "server", ts.logID, "error", err)
+		slog.ErrorContext(ctx, "Failed to stop MCP toolset", "server", ts.logID, "error", err)
 		return err
 	}
-	slog.Debug("Stopped MCP toolset successfully", "server", ts.logID)
+	slog.DebugContext(ctx, "Stopped MCP toolset successfully", "server", ts.logID)
 	return nil
 }
 
@@ -342,7 +342,7 @@ func (c *clientConnector) Connect(ctx context.Context) (lifecycle.Session, error
 	// connection even though OAuth succeeded.
 	ctx = context.WithoutCancel(ctx)
 
-	slog.Debug("Starting MCP toolset", "server", ts.logID)
+	slog.DebugContext(ctx, "Starting MCP toolset", "server", ts.logID)
 
 	// Register notification handlers: they invalidate caches and refresh
 	// eagerly so subsequent Tools()/ListPrompts() calls see fresh data.
@@ -352,14 +352,14 @@ func (c *clientConnector) Connect(ctx context.Context) (lifecycle.Session, error
 		ts.mu.Lock()
 		ts.invalidateCache()
 		ts.mu.Unlock()
-		slog.Debug("MCP server notified tool list changed, refreshing", "server", ts.logID)
+		slog.DebugContext(ctx, "MCP server notified tool list changed, refreshing", "server", ts.logID)
 		ts.refreshToolCache(ctx)
 	})
 	ts.mcpClient.SetPromptListChangedHandler(func() {
 		ts.mu.Lock()
 		ts.invalidateCache()
 		ts.mu.Unlock()
-		slog.Debug("MCP server notified prompt list changed, refreshing", "server", ts.logID)
+		slog.DebugContext(ctx, "MCP server notified prompt list changed, refreshing", "server", ts.logID)
 		ts.refreshPromptCache(ctx)
 	})
 
@@ -393,22 +393,21 @@ func (c *clientConnector) Connect(ctx context.Context) (lifecycle.Session, error
 		if !isInitNotificationSendError(err) {
 			classified := lifecycle.Classify(err)
 			if errors.Is(classified, lifecycle.ErrServerUnavailable) {
-				slog.Debug(
-					"MCP client unavailable, will retry on next conversation turn",
+				slog.DebugContext(ctx, "MCP client unavailable, will retry on next conversation turn",
 					"server", ts.logID,
 					"error", err,
 				)
 				return nil, errServerUnavailable
 			}
-			slog.Error("Failed to initialize MCP client", "error", err)
+			slog.ErrorContext(ctx, "Failed to initialize MCP client", "error", err)
 			return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 		}
 		if attempt >= maxRetries {
-			slog.Error("Failed to initialize MCP client after retries", "error", err)
+			slog.ErrorContext(ctx, "Failed to initialize MCP client after retries", "error", err)
 			return nil, fmt.Errorf("failed to initialize MCP client after retries: %w", err)
 		}
 		backoff := time.Duration(200*(attempt+1)) * time.Millisecond
-		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", ts.logID, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
+		slog.DebugContext(ctx, "MCP initialize failed to send initialized notification; retrying", "id", ts.logID, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
 		select {
 		case <-time.After(backoff):
 		case <-ctx.Done():
@@ -416,7 +415,7 @@ func (c *clientConnector) Connect(ctx context.Context) (lifecycle.Session, error
 		}
 	}
 
-	slog.Debug("Started MCP toolset successfully", "server", ts.logID)
+	slog.DebugContext(ctx, "Started MCP toolset successfully", "server", ts.logID)
 	ts.mu.Lock()
 	ts.instructions = result.Instructions
 	ts.mu.Unlock()
@@ -454,7 +453,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	gen := ts.cacheGen
 	ts.mu.Unlock()
 
-	slog.Debug("Listing MCP tools (cache miss)", "server", ts.logID)
+	slog.DebugContext(ctx, "Listing MCP tools (cache miss)", "server", ts.logID)
 
 	resp := ts.mcpClient.ListTools(ctx, &mcp.ListToolsParams{})
 
@@ -482,10 +481,10 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 		}
 		toolsList = append(toolsList, tool)
 
-		slog.Debug("Added MCP tool", "tool", name)
+		slog.DebugContext(ctx, "Added MCP tool", "tool", name)
 	}
 
-	slog.Debug("Listed MCP tools", "count", len(toolsList), "server", ts.logID)
+	slog.DebugContext(ctx, "Listed MCP tools", "count", len(toolsList), "server", ts.logID)
 
 	ts.mu.Lock()
 	// Only populate the cache if no invalidation happened while we were
@@ -504,7 +503,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 // the cache is already warm by the time the runtime loop calls Tools().
 func (ts *Toolset) refreshToolCache(ctx context.Context) {
 	if _, err := ts.Tools(ctx); err != nil {
-		slog.Warn("Failed to refresh tools after notification", "server", ts.logID, "error", err)
+		slog.WarnContext(ctx, "Failed to refresh tools after notification", "server", ts.logID, "error", err)
 		return
 	}
 
@@ -521,17 +520,17 @@ func (ts *Toolset) refreshToolCache(ctx context.Context) {
 // the cache. It is called by the PromptListChanged notification handler.
 func (ts *Toolset) refreshPromptCache(ctx context.Context) {
 	if _, err := ts.ListPrompts(ctx); err != nil {
-		slog.Warn("Failed to refresh prompts after notification", "server", ts.logID, "error", err)
+		slog.WarnContext(ctx, "Failed to refresh prompts after notification", "server", ts.logID, "error", err)
 	}
 }
 
 func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	slog.Debug("Calling MCP tool", "tool", toolCall.Function.Name, "arguments", toolCall.Function.Arguments)
+	slog.DebugContext(ctx, "Calling MCP tool", "tool", toolCall.Function.Name, "arguments", toolCall.Function.Arguments)
 
 	toolCall.Function.Arguments = cmp.Or(toolCall.Function.Arguments, "{}")
 	var args map[string]any
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		slog.Error("Failed to parse tool arguments", "tool", toolCall.Function.Name, "error", err)
+		slog.ErrorContext(ctx, "Failed to parse tool arguments", "tool", toolCall.Function.Name, "error", err)
 		return nil, fmt.Errorf("failed to parse tool arguments: %w", err)
 	}
 
@@ -555,7 +554,7 @@ func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tool
 	// server restarted), trigger or wait for a reconnection and retry
 	// the call once.
 	if err != nil && isConnectionError(err) && ctx.Err() == nil {
-		slog.Warn("MCP call failed, forcing reconnect and retrying", "tool", toolCall.Function.Name, "server", ts.logID, "error", err)
+		slog.WarnContext(ctx, "MCP call failed, forcing reconnect and retrying", "tool", toolCall.Function.Name, "server", ts.logID, "error", err)
 		if waitErr := ts.supervisor.RestartAndWait(ctx, sessionMissingRetryTimeout); waitErr != nil {
 			return nil, fmt.Errorf("failed to reconnect after call failure: %w", waitErr)
 		}
@@ -563,16 +562,16 @@ func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tool
 	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
-			slog.Debug("CallTool canceled by context", "tool", toolCall.Function.Name)
+			slog.DebugContext(ctx, "CallTool canceled by context", "tool", toolCall.Function.Name)
 			return nil, err
 		}
-		slog.Error("Failed to call MCP tool", "tool", toolCall.Function.Name, "error", err)
+		slog.ErrorContext(ctx, "Failed to call MCP tool", "tool", toolCall.Function.Name, "error", err)
 		return nil, fmt.Errorf("failed to call tool: %w", err)
 	}
 
 	result := processMCPContent(resp)
-	slog.Debug("MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
-	slog.Debug(result.Output)
+	slog.DebugContext(ctx, "MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
+	slog.DebugContext(ctx, result.Output)
 	return result, nil
 }
 
@@ -679,7 +678,7 @@ func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
 	gen := ts.cacheGen
 	ts.mu.Unlock()
 
-	slog.Debug("Listing MCP prompts (cache miss)", "server", ts.logID)
+	slog.DebugContext(ctx, "Listing MCP prompts (cache miss)", "server", ts.logID)
 
 	// Call the underlying MCP client to list prompts
 	resp := ts.mcpClient.ListPrompts(ctx, &mcp.ListPromptsParams{})
@@ -687,7 +686,7 @@ func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
 	var promptsList []PromptInfo
 	for prompt, err := range resp {
 		if err != nil {
-			slog.Warn("Error listing MCP prompt", "error", err)
+			slog.WarnContext(ctx, "Error listing MCP prompt", "error", err)
 			return promptsList, err
 		}
 
@@ -711,10 +710,10 @@ func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
 		}
 
 		promptsList = append(promptsList, promptInfo)
-		slog.Debug("Added MCP prompt", "prompt", prompt.Name, "args_count", len(promptInfo.Arguments))
+		slog.DebugContext(ctx, "Added MCP prompt", "prompt", prompt.Name, "args_count", len(promptInfo.Arguments))
 	}
 
-	slog.Debug("Listed MCP prompts", "count", len(promptsList), "server", ts.logID)
+	slog.DebugContext(ctx, "Listed MCP prompts", "count", len(promptsList), "server", ts.logID)
 
 	ts.mu.Lock()
 	if ts.cacheGen == gen {
@@ -732,7 +731,7 @@ func (ts *Toolset) GetPrompt(ctx context.Context, name string, arguments map[str
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	slog.Debug("Getting MCP prompt", "prompt", name, "arguments", arguments)
+	slog.DebugContext(ctx, "Getting MCP prompt", "prompt", name, "arguments", arguments)
 
 	// Prepare the request parameters
 	request := &mcp.GetPromptParams{
@@ -743,11 +742,11 @@ func (ts *Toolset) GetPrompt(ctx context.Context, name string, arguments map[str
 	// Call the underlying MCP client to get the prompt
 	result, err := ts.mcpClient.GetPrompt(ctx, request)
 	if err != nil {
-		slog.Error("Failed to get MCP prompt", "prompt", name, "error", err)
+		slog.ErrorContext(ctx, "Failed to get MCP prompt", "prompt", name, "error", err)
 		return nil, fmt.Errorf("failed to get prompt %s: %w", name, err)
 	}
 
-	slog.Debug("Retrieved MCP prompt", "prompt", name, "messages_count", len(result.Messages))
+	slog.DebugContext(ctx, "Retrieved MCP prompt", "prompt", name, "messages_count", len(result.Messages))
 	return result, nil
 }
 

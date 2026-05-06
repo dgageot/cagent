@@ -27,7 +27,7 @@ type lspConnector struct{ h *lspHandler }
 // methods can use them without going through the supervisor.
 func (c *lspConnector) Connect(ctx context.Context) (lifecycle.Session, error) {
 	h := c.h
-	slog.Debug("Starting LSP server", "command", h.command, "args", h.args)
+	slog.DebugContext(ctx, "Starting LSP server", "command", h.command, "args", h.args)
 
 	p, err := spawnLSPProcess(ctx, h)
 	if err != nil {
@@ -47,7 +47,7 @@ func (c *lspConnector) Connect(ctx context.Context) (lifecycle.Session, error) {
 		return nil, lifecycle.Classify(err)
 	}
 
-	slog.Debug("LSP server initialized", "command", h.command)
+	slog.DebugContext(ctx, "LSP server initialized", "command", h.command)
 	h.fireToolsChanged()
 
 	return &lspSession{
@@ -266,7 +266,7 @@ func (s *lspSession) Close(ctx context.Context) error {
 	s.closed = true
 	s.mu.Unlock()
 
-	slog.Debug("Stopping LSP server")
+	slog.DebugContext(ctx, "Stopping LSP server")
 
 	// Hold h.mu across the entire teardown (shutdown handshake AND state
 	// clearing) so a concurrent per-request method can't slip in between
@@ -292,6 +292,6 @@ func (s *lspSession) Close(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return nil
 	}
-	slog.Debug("LSP server stopped")
+	slog.DebugContext(ctx, "LSP server stopped")
 	return nil
 }

@@ -120,7 +120,7 @@ func (r *LocalRuntime) setAgentModelInternal(ctx context.Context, agentName, mod
 	// Empty modelRef means clear the override (use agent's default)
 	if modelRef == "" {
 		snap := a.SetModelOverride()
-		slog.Info("Cleared agent model override (using default)", "agent", agentName)
+		slog.InfoContext(ctx, "Cleared agent model override (using default)", "agent", agentName)
 		return snap, nil
 	}
 
@@ -134,7 +134,7 @@ func (r *LocalRuntime) setAgentModelInternal(ctx context.Context, agentName, mod
 				return agent.ModelOverrideSnapshot{}, fmt.Errorf("failed to create alloy model from config: %w", err)
 			}
 			snap := a.SetModelOverride(providers...)
-			slog.Info("Set agent model override (alloy)", "agent", agentName, "config_name", modelRef, "model_count", len(providers))
+			slog.InfoContext(ctx, "Set agent model override (alloy)", "agent", agentName, "config_name", modelRef, "model_count", len(providers))
 			return snap, nil
 		}
 
@@ -143,7 +143,7 @@ func (r *LocalRuntime) setAgentModelInternal(ctx context.Context, agentName, mod
 			return agent.ModelOverrideSnapshot{}, fmt.Errorf("failed to create model from config: %w", err)
 		}
 		snap := a.SetModelOverride(prov)
-		slog.Info("Set agent model override", "agent", agentName, "model", prov.ID(), "config_name", modelRef)
+		slog.InfoContext(ctx, "Set agent model override", "agent", agentName, "model", prov.ID(), "config_name", modelRef)
 		return snap, nil
 	}
 
@@ -155,7 +155,7 @@ func (r *LocalRuntime) setAgentModelInternal(ctx context.Context, agentName, mod
 			return agent.ModelOverrideSnapshot{}, fmt.Errorf("failed to create inline alloy model: %w", err)
 		}
 		snap := a.SetModelOverride(providers...)
-		slog.Info("Set agent model override (inline alloy)", "agent", agentName, "model_count", len(providers))
+		slog.InfoContext(ctx, "Set agent model override (inline alloy)", "agent", agentName, "model_count", len(providers))
 		return snap, nil
 	}
 
@@ -165,7 +165,7 @@ func (r *LocalRuntime) setAgentModelInternal(ctx context.Context, agentName, mod
 		return agent.ModelOverrideSnapshot{}, fmt.Errorf("failed to resolve model %q: %w", modelRef, err)
 	}
 	snap := a.SetModelOverride(prov)
-	slog.Info("Set agent model override (inline)", "agent", agentName, "model", prov.ID())
+	slog.InfoContext(ctx, "Set agent model override (inline)", "agent", agentName, "model", prov.ID())
 	return snap, nil
 }
 
@@ -333,7 +333,7 @@ func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
 func (r *LocalRuntime) buildCatalogChoices(ctx context.Context) []ModelChoice {
 	db, err := r.modelsStore.GetDatabase(ctx)
 	if err != nil {
-		slog.Debug("Failed to get models.dev database for catalog", "error", err)
+		slog.DebugContext(ctx, "Failed to get models.dev database for catalog", "error", err)
 		return nil
 	}
 
@@ -349,7 +349,7 @@ func (r *LocalRuntime) buildCatalogChoices(ctx context.Context) []ModelChoice {
 	// Check which providers the user has credentials for
 	availableProviders := r.getAvailableProviders(ctx)
 	if len(availableProviders) == 0 {
-		slog.Debug("No provider credentials available, skipping catalog")
+		slog.DebugContext(ctx, "No provider credentials available, skipping catalog")
 		return nil
 	}
 
@@ -392,7 +392,7 @@ func (r *LocalRuntime) buildCatalogChoices(ctx context.Context) []ModelChoice {
 		}
 	}
 
-	slog.Debug("Built catalog choices", "count", len(choices), "available_providers", len(availableProviders))
+	slog.DebugContext(ctx, "Built catalog choices", "count", len(choices), "available_providers", len(availableProviders))
 	return choices
 }
 

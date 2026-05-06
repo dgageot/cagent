@@ -361,7 +361,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 		)
 		defer span.End()
 
-		slog.Debug("Starting background agent task", "task_id", taskID, "agent", params.Agent)
+		slog.DebugContext(tracedCtx, "Starting background agent task", "task_id", taskID, "agent", params.Agent)
 
 		result := h.runner.RunAgent(tracedCtx, RunParams{
 			AgentName:      params.Agent,
@@ -379,14 +379,14 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 				attribute.String("error.type", "agent_error"),
 				attribute.String("cagent.background_agent.outcome", "failed"),
 			)
-			slog.Debug("Background agent task failed", "task_id", taskID, "agent", params.Agent, "error", result.ErrMsg)
+			slog.DebugContext(tracedCtx, "Background agent task failed", "task_id", taskID, "agent", params.Agent, "error", result.ErrMsg)
 			return
 		}
 
 		if tracedCtx.Err() != nil && t.loadStatus() == taskRunning {
 			t.storeStatus(taskStopped)
 			span.SetAttributes(attribute.String("cagent.background_agent.outcome", "stopped"))
-			slog.Debug("Background agent task stopped", "task_id", taskID)
+			slog.DebugContext(tracedCtx, "Background agent task stopped", "task_id", taskID)
 			return
 		}
 
@@ -395,7 +395,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 		t.result = result.Result
 		if t.casStatus(taskRunning, taskCompleted) {
 			span.SetAttributes(attribute.String("cagent.background_agent.outcome", "completed"))
-			slog.Debug("Background agent task completed", "task_id", taskID, "agent", params.Agent)
+			slog.DebugContext(tracedCtx, "Background agent task completed", "task_id", taskID, "agent", params.Agent)
 		}
 	})
 

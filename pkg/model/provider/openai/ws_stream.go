@@ -93,7 +93,7 @@ func dialWebSocket(
 		HandshakeTimeout: wsHandshakeTimeout,
 	}
 
-	slog.Debug("Opening WebSocket connection", "url", wsURL)
+	slog.DebugContext(ctx, "Opening WebSocket connection", "url", wsURL)
 
 	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
@@ -101,7 +101,7 @@ func dialWebSocket(
 			if resp.Body != nil {
 				_ = resp.Body.Close()
 			}
-			slog.Error("WebSocket handshake failed",
+			slog.ErrorContext(ctx, "WebSocket handshake failed",
 				"status", resp.StatusCode,
 				"error", err)
 		}
@@ -113,7 +113,7 @@ func dialWebSocket(
 		return nil, err
 	}
 
-	slog.Debug("WebSocket response.create sent", "url", wsURL)
+	slog.DebugContext(ctx, "WebSocket response.create sent", "url", wsURL)
 
 	return &wsStream{conn: conn}, nil
 }

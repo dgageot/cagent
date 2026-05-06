@@ -260,13 +260,13 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	var tsErr error
 	ts, tsErr = tuistate.New()
 	if tsErr != nil {
-		slog.Warn("Failed to open TUI state store, tabs won't persist", "error", tsErr)
+		slog.WarnContext(ctx, "Failed to open TUI state store, tabs won't persist", "error", tsErr)
 	}
 
 	// Initialize shared command history
 	historyStore, err := history.New("")
 	if err != nil {
-		slog.Warn("Failed to initialize command history", "error", err)
+		slog.WarnContext(ctx, "Failed to initialize command history", "error", err)
 	}
 
 	initialSessionState := service.NewSessionState(initialApp.Session())
@@ -1117,7 +1117,7 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 func (m *appModel) replaceActiveSession(ctx context.Context, sess *session.Session) (tea.Model, tea.Cmd) {
 	activeID := m.supervisor.ActiveID()
 
-	slog.Debug("Replacing empty session in-place", "tab_id", activeID, "loaded_session", sess.ID)
+	slog.DebugContext(ctx, "Replacing empty session in-place", "tab_id", activeID, "loaded_session", sess.ID)
 
 	// Cleanup old editor for the active session
 	if ed, ok := m.editors[activeID]; ok {
@@ -1131,14 +1131,14 @@ func (m *appModel) replaceActiveSession(ctx context.Context, sess *session.Sessi
 	if sessWorkingDir != "" && runner != nil && sessWorkingDir != runner.WorkingDir {
 		newApp, _, spawnCleanup, err := m.supervisor.Spawner()(ctx, sessWorkingDir)
 		if err == nil {
-			slog.Debug("Respawning runtime for working dir mismatch",
+			slog.DebugContext(ctx, "Respawning runtime for working dir mismatch",
 				"tab_id", activeID,
 				"old_dir", runner.WorkingDir,
 				"new_dir", sessWorkingDir)
 			m.supervisor.ReplaceRunnerApp(ctx, activeID, newApp, sessWorkingDir, spawnCleanup)
 			m.application = newApp
 		} else {
-			slog.Warn("Failed to respawn runtime for working dir, using existing",
+			slog.WarnContext(ctx, "Failed to respawn runtime for working dir, using existing",
 				"working_dir", sessWorkingDir, "error", err)
 		}
 	}

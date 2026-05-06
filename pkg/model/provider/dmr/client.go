@@ -61,12 +61,12 @@ type Client struct {
 // NewClient creates a new DMR client from the provided configuration
 func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
-		slog.Error("DMR client creation failed", "error", "model configuration is required")
+		slog.ErrorContext(ctx, "DMR client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Provider != "dmr" {
-		slog.Error("DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Provider)
+		slog.ErrorContext(ctx, "DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'dmr'")
 	}
 
@@ -83,14 +83,14 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		endpoint, engine, err = getDockerModelEndpointAndEngine(ctx)
 		if err != nil {
 			if err.Error() == "unknown flag: --json\n\nUsage:  docker [OPTIONS] COMMAND [ARG...]\n\nRun 'docker --help' for more information" {
-				slog.Debug("docker model status query failed", "error", err)
+				slog.DebugContext(ctx, "docker model status query failed", "error", err)
 				return nil, ErrNotInstalled
 			}
-			slog.Error("docker model status query failed", "error", err)
+			slog.ErrorContext(ctx, "docker model status query failed", "error", err)
 		} else {
 			// Auto-pull the model if needed
 			if err := pullDockerModelIfNeeded(ctx, cfg.Model); err != nil {
-				slog.Debug("docker model pull failed", "error", err)
+				slog.DebugContext(ctx, "docker model pull failed", "error", err)
 				return nil, err
 			}
 		}
@@ -107,11 +107,11 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 
 	parsed, err := parseDMRProviderOpts(engine, cfg)
 	if err != nil {
-		slog.Error("DMR provider_opts invalid", "error", err, "model", cfg.Model)
+		slog.ErrorContext(ctx, "DMR provider_opts invalid", "error", err, "model", cfg.Model)
 		return nil, err
 	}
 	backendCfg := buildConfigureBackendConfig(parsed.contextSize, parsed.runtimeFlags, parsed.specOpts, parsed.llamaCpp, parsed.vllm, parsed.keepAlive)
-	slog.Debug("DMR provider_opts parsed",
+	slog.DebugContext(ctx, "DMR provider_opts parsed",
 		"model", cfg.Model,
 		"engine", engine,
 		"context_size", derefInt64(parsed.contextSize),
@@ -127,11 +127,11 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 	// with different settings (e.g., smaller max_tokens) that would affect the main agent.
 	if !globalOptions.GeneratingTitle() {
 		if err := configureModel(ctx, httpClient, baseURL, cfg.Model, backendCfg, parsed.mode, parsed.rawRuntimeFlags); err != nil {
-			slog.Debug("model configure via API skipped or failed", "error", err)
+			slog.DebugContext(ctx, "model configure via API skipped or failed", "error", err)
 		}
 	}
 
-	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
+	slog.DebugContext(ctx, "DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
 
 	return &Client{
 		Config: base.Config{
@@ -155,7 +155,7 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 // CreateChatCompletionStream creates a streaming chat completion request
 // It returns a stream that can be iterated over to get completion chunks
 func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat.Message, requestTools []tools.Tool) (chat.MessageStream, error) {
-	slog.Debug("Creating DMR chat completion stream",
+	slog.DebugContext(ctx, "Creating DMR chat completion stream",
 		"model", c.ModelConfig.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools),
@@ -163,7 +163,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 	)
 
 	if len(messages) == 0 {
-		slog.Error("DMR stream creation failed", "error", "at least one message is required")
+		slog.ErrorContext(ctx, "DMR stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
 	}
 
@@ -192,22 +192,22 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	if c.ModelConfig.MaxTokens != nil {
 		params.MaxTokens = openai.Int(*c.ModelConfig.MaxTokens)
-		slog.Debug("DMR request configured with max tokens", "max_tokens", *c.ModelConfig.MaxTokens)
+		slog.DebugContext(ctx, "DMR request configured with max tokens", "max_tokens", *c.ModelConfig.MaxTokens)
 	}
 
 	if len(requestTools) > 0 {
-		slog.Debug("Adding tools to DMR request", "tool_count", len(requestTools))
+		slog.DebugContext(ctx, "Adding tools to DMR request", "tool_count", len(requestTools))
 		toolsParam := make([]openai.ChatCompletionToolUnionParam, len(requestTools))
 		for i, tool := range requestTools {
 			parameters, err := ConvertParametersToSchema(tool.Parameters)
 			if err != nil {
-				slog.Error("Failed to convert tool parameters to DMR schema", "error", err, "tool", tool.Name)
+				slog.ErrorContext(ctx, "Failed to convert tool parameters to DMR schema", "error", err, "tool", tool.Name)
 				return nil, fmt.Errorf("failed to convert tool parameters to DMR schema for tool %s: %w", tool.Name, err)
 			}
 
 			paramsMap, ok := parameters.(map[string]any)
 			if !ok {
-				slog.Error("Converted parameters is not a map", "tool", tool.Name)
+				slog.ErrorContext(ctx, "Converted parameters is not a map", "tool", tool.Name)
 				return nil, fmt.Errorf("converted parameters is not a map for tool %s", tool.Name)
 			}
 
@@ -247,7 +247,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 		extraFields["chat_template_kwargs"] = map[string]any{"enable_thinking": false}
 		if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens < noThinkingMinOutputTokens {
 			params.MaxTokens = openai.Int(noThinkingMinOutputTokens)
-			slog.Debug("DMR NoThinking: bumped max_tokens floor",
+			slog.DebugContext(ctx, "DMR NoThinking: bumped max_tokens floor",
 				"from", *c.ModelConfig.MaxTokens, "to", noThinkingMinOutputTokens)
 		}
 	}
@@ -261,18 +261,18 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	if len(extraFields) > 0 {
 		params.SetExtraFields(extraFields)
-		slog.Debug("DMR extra request fields applied", "fields", extraFields)
+		slog.DebugContext(ctx, "DMR extra request fields applied", "fields", extraFields)
 	}
 
 	// Log the request in JSON format for debugging
 	if requestJSON, err := json.Marshal(params); err == nil {
-		slog.Debug("DMR chat completion request", "request", string(requestJSON))
+		slog.DebugContext(ctx, "DMR chat completion request", "request", string(requestJSON))
 	} else {
-		slog.Error("Failed to marshal DMR request to JSON", "error", err)
+		slog.ErrorContext(ctx, "Failed to marshal DMR request to JSON", "error", err)
 	}
 
 	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
-		slog.Debug("Adding structured output to DMR request", "name", structuredOutput.Name, "strict", structuredOutput.Strict)
+		slog.DebugContext(ctx, "Adding structured output to DMR request", "name", structuredOutput.Name, "strict", structuredOutput.Strict)
 
 		params.ResponseFormat.OfJSONSchema = &openai.ResponseFormatJSONSchemaParam{
 			JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
@@ -286,7 +286,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	stream := c.client.Chat.Completions.NewStreaming(ctx, params)
 
-	slog.Debug("DMR chat completion stream created successfully", "model", c.ModelConfig.Model, "base_url", c.baseURL)
+	slog.DebugContext(ctx, "DMR chat completion stream created successfully", "model", c.ModelConfig.Model, "base_url", c.baseURL)
 	return newStreamAdapter(stream, trackUsage), nil
 }
 

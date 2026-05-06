@@ -43,7 +43,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 		return &base.BatchEmbeddingResult{Embeddings: [][]float64{}}, nil
 	}
 
-	slog.Debug("Creating DMR embeddings", "model", c.ModelConfig.Model, "batch_size", len(texts), "base_url", c.baseURL)
+	slog.DebugContext(ctx, "Creating DMR embeddings", "model", c.ModelConfig.Model, "batch_size", len(texts), "base_url", c.baseURL)
 
 	response, err := c.client.Embeddings.New(ctx, openai.EmbeddingNewParams{
 		Input: openai.EmbeddingNewParamsInputUnion{OfArrayOfStrings: texts},
@@ -64,7 +64,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 		embeddings[i] = vec
 	}
 
-	slog.Debug("DMR embeddings created",
+	slog.DebugContext(ctx, "DMR embeddings created",
 		"batch_size", len(embeddings),
 		"dimension", len(embeddings[0]),
 		"input_tokens", response.Usage.PromptTokens,
@@ -119,7 +119,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	startTime := time.Now()
 
 	if criteria != "" {
-		slog.Warn("DMR reranking does not support custom criteria", "model", c.ModelConfig.Model)
+		slog.WarnContext(ctx, "DMR reranking does not support custom criteria", "model", c.ModelConfig.Model)
 	}
 
 	documentStrings := make([]string, len(documents))
@@ -142,7 +142,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		return nil, fmt.Errorf("failed to marshal rerank request: %w", err)
 	}
 
-	slog.Debug("DMR reranking", "model", c.ModelConfig.Model, "url", rerankURL, "num_documents", len(documents))
+	slog.DebugContext(ctx, "DMR reranking", "model", c.ModelConfig.Model, "url", rerankURL, "num_documents", len(documents))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rerankURL, bytes.NewReader(reqData))
 	if err != nil {
@@ -180,7 +180,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		scores[result.Index] = sigmoid(result.RelevanceScore)
 	}
 
-	slog.Debug("DMR reranking complete",
+	slog.DebugContext(ctx, "DMR reranking complete",
 		"model", c.ModelConfig.Model,
 		"num_scores", len(scores),
 		"prompt_tokens", rerankResp.Usage.PromptTokens,

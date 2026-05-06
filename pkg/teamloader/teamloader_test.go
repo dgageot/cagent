@@ -196,7 +196,7 @@ func TestOverrideModel(t *testing.T) {
 				require.NoError(t, err)
 				rootAgent, err := team.Agent("root")
 				require.NoError(t, err)
-				require.Equal(t, test.expected, rootAgent.Model().ID())
+				require.Equal(t, test.expected, rootAgent.Model(t.Context()).ID())
 			}
 		})
 	}

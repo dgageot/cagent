@@ -21,7 +21,7 @@ func runCommand(ctx context.Context, logLabel, name string, args ...string) (str
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		slog.Debug("Failed to find secret in "+logLabel, "error", err)
+		slog.DebugContext(ctx, "Failed to find secret in "+logLabel, "error", err)
 		return "", false
 	}
 

@@ -167,7 +167,7 @@ func (e *Executor) Dispatch(ctx context.Context, event EventType, input *Input) 
 		input.Cwd = e.workingDir
 	}
 
-	slog.Debug("Executing hooks", "event", event, "session_id", input.SessionID, "count", len(hooks))
+	slog.DebugContext(ctx, "Executing hooks", "event", event, "session_id", input.SessionID, "count", len(hooks))
 
 	inputJSON, err := input.ToJSON()
 	if err != nil {

@@ -92,7 +92,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	}
 
 	if err := srv.Serve(ln); err != nil && ctx.Err() == nil {
-		slog.Error("Failed to start server", "error", err)
+		slog.ErrorContext(ctx, "Failed to start server", "error", err)
 		return err
 	}
 

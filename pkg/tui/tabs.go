@@ -37,13 +37,13 @@ func (m *appModel) persistFreshTab(ctx context.Context, sessionID, workingDir st
 		return
 	}
 	if err := m.tuiStore.ClearTabs(ctx); err != nil {
-		slog.Warn("Failed to clear tabs", "error", err)
+		slog.WarnContext(ctx, "Failed to clear tabs", "error", err)
 	}
 	if err := m.tuiStore.AddTab(ctx, sessionID, workingDir); err != nil {
-		slog.Warn("Failed to persist initial tab", "error", err)
+		slog.WarnContext(ctx, "Failed to persist initial tab", "error", err)
 	}
 	if err := m.tuiStore.SetActiveTab(ctx, sessionID); err != nil {
-		slog.Warn("Failed to set active tab", "error", err)
+		slog.WarnContext(ctx, "Failed to set active tab", "error", err)
 	}
 }
 
@@ -81,7 +81,7 @@ func (m *appModel) restoreTabs(
 		// Validate the saved session still exists.
 		if sessionStore != nil && saved.SessionID != "" {
 			if _, err := sessionStore.GetSession(ctx, saved.SessionID); err != nil {
-				slog.Warn("Saved session no longer exists, removing stale tab",
+				slog.WarnContext(ctx, "Saved session no longer exists, removing stale tab",
 					"session_id", saved.SessionID, "error", err)
 				_ = ts.RemoveTab(ctx, saved.SessionID)
 				continue
@@ -96,7 +96,7 @@ func (m *appModel) restoreTabs(
 		} else {
 			a, newSess, spawnCleanup, err := spawner(ctx, saved.WorkingDir)
 			if err != nil {
-				slog.Warn("Failed to restore tab", "working_dir", saved.WorkingDir, "error", err)
+				slog.WarnContext(ctx, "Failed to restore tab", "working_dir", saved.WorkingDir, "error", err)
 				_ = ts.RemoveTab(ctx, saved.SessionID)
 				continue
 			}

@@ -145,13 +145,13 @@ func TestModelOverride(t *testing.T) {
 	a := New("root", "test", WithModel(defaultModel))
 
 	// Initially should return the default model
-	assert.Equal(t, "openai/gpt-4o", a.Model().ID())
+	assert.Equal(t, "openai/gpt-4o", a.Model(t.Context()).ID())
 	assert.False(t, a.HasModelOverride())
 
 	// Set an override
 	a.SetModelOverride(overrideModel)
 	assert.True(t, a.HasModelOverride())
-	assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model().ID())
+	assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model(t.Context()).ID())
 
 	// ConfiguredModels still reflects the originally configured models
 	configuredModels := a.ConfiguredModels()
@@ -161,7 +161,7 @@ func TestModelOverride(t *testing.T) {
 	// Clear the override
 	a.SetModelOverride(nil)
 	assert.False(t, a.HasModelOverride())
-	assert.Equal(t, "openai/gpt-4o", a.Model().ID())
+	assert.Equal(t, "openai/gpt-4o", a.Model(t.Context()).ID())
 }
 
 func TestSetModelOverride_ReturnsSnapshotOfStoredValue(t *testing.T) {
@@ -187,12 +187,12 @@ func TestSetModelOverride_ReturnsSnapshotOfStoredValue(t *testing.T) {
 	// Simulate a concurrent caller storing a different override _after_ we
 	// stored ours but _before_ a hypothetical post-store SnapshotModelOverride.
 	a.SetModelOverride(othersModel)
-	require.Equal(t, "others", a.Model().ID())
+	require.Equal(t, "others", a.Model(t.Context()).ID())
 
 	// The deferred restore must be a no-op because oursSnap holds the
 	// pointer we stored, not the current pointer.
 	a.RestoreModelOverride(prev, oursSnap)
-	assert.Equal(t, "others", a.Model().ID(),
+	assert.Equal(t, "others", a.Model(t.Context()).ID(),
 		"concurrent override must be preserved; the snapshot returned by SetModelOverride captures the stored pointer")
 }
 
@@ -228,11 +228,11 @@ func TestSnapshotAndRestoreModelOverride(t *testing.T) {
 		prev := a.SnapshotModelOverride()
 		a.SetModelOverride(skillModel)
 		ours := a.SnapshotModelOverride()
-		assert.Equal(t, "openai/gpt-4o-mini", a.Model().ID())
+		assert.Equal(t, "openai/gpt-4o-mini", a.Model(t.Context()).ID())
 
 		a.RestoreModelOverride(prev, ours)
 		assert.False(t, a.HasModelOverride())
-		assert.Equal(t, "openai/gpt-4o", a.Model().ID())
+		assert.Equal(t, "openai/gpt-4o", a.Model(t.Context()).ID())
 	})
 
 	t.Run("restores back to a pre-existing override", func(t *testing.T) {
@@ -243,10 +243,10 @@ func TestSnapshotAndRestoreModelOverride(t *testing.T) {
 		prev := a.SnapshotModelOverride()
 		a.SetModelOverride(skillModel)
 		ours := a.SnapshotModelOverride()
-		assert.Equal(t, "openai/gpt-4o-mini", a.Model().ID())
+		assert.Equal(t, "openai/gpt-4o-mini", a.Model(t.Context()).ID())
 
 		a.RestoreModelOverride(prev, ours)
-		assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model().ID())
+		assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model(t.Context()).ID())
 	})
 
 	t.Run("keeps a concurrent change instead of restoring", func(t *testing.T) {
@@ -266,7 +266,7 @@ func TestSnapshotAndRestoreModelOverride(t *testing.T) {
 
 		a.RestoreModelOverride(prev, ours)
 		require.True(t, a.HasModelOverride(), "user's model choice must be preserved")
-		assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model().ID())
+		assert.Equal(t, "anthropic/claude-sonnet-4-0", a.Model(t.Context()).ID())
 	})
 
 	t.Run("keeps a concurrent clear instead of restoring", func(t *testing.T) {
@@ -303,7 +303,7 @@ func TestModel_LogsSelection(t *testing.T) {
 	a := New("scanner", "test", WithModel(model1), WithModel(model2))
 
 	// Verify basic selection logging
-	selected := a.Model()
+	selected := a.Model(t.Context())
 	logOutput := buf.String()
 
 	assert.Contains(t, logOutput, "Model selected")
@@ -316,7 +316,7 @@ func TestModel_LogsSelection(t *testing.T) {
 	override := &mockProvider{id: "google/gemini-2.0-flash"}
 	a.SetModelOverride(override)
 
-	selected = a.Model()
+	selected = a.Model(t.Context())
 	logOutput = buf.String()
 
 	assert.Equal(t, "google/gemini-2.0-flash", selected.ID())
@@ -347,7 +347,7 @@ func TestModelOverride_ConcurrentAccess(t *testing.T) {
 	// Reader goroutine
 	go func() {
 		for range 100 {
-			_ = a.Model()
+			_ = a.Model(t.Context())
 			_ = a.HasModelOverride()
 		}
 		done <- true

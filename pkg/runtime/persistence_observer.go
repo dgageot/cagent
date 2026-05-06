@@ -61,7 +61,7 @@ func (p *PersistenceObserver) OnRunStart(ctx context.Context, sess *session.Sess
 		return
 	}
 	if err := p.store.UpdateSession(ctx, sess); err != nil {
-		slog.Warn("Failed to persist initial session", "session_id", sess.ID, "error", err)
+		slog.WarnContext(ctx, "Failed to persist initial session", "session_id", sess.ID, "error", err)
 	}
 }
 
@@ -92,7 +92,7 @@ func (p *PersistenceObserver) OnEvent(ctx context.Context, sess *session.Session
 	case *UserMessageEvent:
 		p.streaming = streamingState{}
 		if _, err := p.store.AddMessage(ctx, e.SessionID, session.UserMessage(e.Message, e.MultiContent...)); err != nil {
-			slog.Warn("Failed to persist user message", "session_id", e.SessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to persist user message", "session_id", e.SessionID, "error", err)
 		}
 
 	case *MessageAddedEvent:
@@ -105,7 +105,7 @@ func (p *PersistenceObserver) OnEvent(ctx context.Context, sess *session.Session
 			_, err = p.store.AddMessage(ctx, e.SessionID, e.Message)
 		}
 		if err != nil {
-			slog.Warn("Failed to persist message",
+			slog.WarnContext(ctx, "Failed to persist message",
 				"session_id", e.SessionID, "message_id", p.streaming.messageID, "error", err)
 		}
 		p.streaming = streamingState{}
@@ -113,25 +113,25 @@ func (p *PersistenceObserver) OnEvent(ctx context.Context, sess *session.Session
 	case *SubSessionCompletedEvent:
 		if subSess, ok := e.SubSession.(*session.Session); ok {
 			if err := p.store.AddSubSession(ctx, e.ParentSessionID, subSess); err != nil {
-				slog.Warn("Failed to persist sub-session", "parent_id", e.ParentSessionID, "error", err)
+				slog.WarnContext(ctx, "Failed to persist sub-session", "parent_id", e.ParentSessionID, "error", err)
 			}
 		}
 
 	case *SessionSummaryEvent:
 		if err := p.store.AddSummary(ctx, e.SessionID, e.Summary, e.FirstKeptEntry); err != nil {
-			slog.Warn("Failed to persist summary", "session_id", e.SessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to persist summary", "session_id", e.SessionID, "error", err)
 		}
 
 	case *TokenUsageEvent:
 		if e.Usage != nil {
 			if err := p.store.UpdateSessionTokens(ctx, sess.ID, e.Usage.InputTokens, e.Usage.OutputTokens, e.Usage.Cost); err != nil {
-				slog.Warn("Failed to persist token usage", "session_id", sess.ID, "error", err)
+				slog.WarnContext(ctx, "Failed to persist token usage", "session_id", sess.ID, "error", err)
 			}
 		}
 
 	case *SessionTitleEvent:
 		if err := p.store.UpdateSessionTitle(ctx, sess.ID, e.Title); err != nil {
-			slog.Warn("Failed to persist session title", "session_id", sess.ID, "error", err)
+			slog.WarnContext(ctx, "Failed to persist session title", "session_id", sess.ID, "error", err)
 		}
 	}
 }
@@ -154,17 +154,17 @@ func (p *PersistenceObserver) persistStreamingContent(ctx context.Context, sessi
 	if p.streaming.messageID == 0 {
 		id, err := p.store.AddMessage(ctx, sessionID, msg)
 		if err != nil {
-			slog.Warn("Failed to create streaming message", "session_id", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to create streaming message", "session_id", sessionID, "error", err)
 			return
 		}
 		p.streaming.messageID = id
-		slog.Debug("[PERSIST] Created streaming message",
+		slog.DebugContext(ctx, "[PERSIST] Created streaming message",
 			"session_id", sessionID, "message_id", id, "agent", p.streaming.agentName)
 		return
 	}
 
 	if err := p.store.UpdateMessage(ctx, p.streaming.messageID, msg); err != nil {
-		slog.Warn("Failed to update streaming message",
+		slog.WarnContext(ctx, "Failed to update streaming message",
 			"session_id", sessionID, "message_id", p.streaming.messageID, "error", err)
 	}
 }

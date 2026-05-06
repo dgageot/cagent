@@ -121,7 +121,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	} else {
 		// Fail fast if Docker Desktop's auth token isn't available
 		if token, _ := env.Get(ctx, environment.DockerDesktopTokenEnv); token == "" {
-			slog.Error("Gemini client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			slog.ErrorContext(ctx, "Gemini client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
@@ -164,7 +164,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 	}
 
-	slog.Debug("Gemini client created successfully", "model", cfg.Model)
+	slog.DebugContext(ctx, "Gemini client created successfully", "model", cfg.Model)
 
 	return &Client{
 		Config: base.Config{
@@ -562,7 +562,7 @@ func (c *Client) CreateChatCompletionStream(
 	if len(requestTools) > 0 {
 		allTools, err := convertToolsToGemini(requestTools)
 		if err != nil {
-			slog.Error("Failed to convert tools to Gemini format", "error", err)
+			slog.ErrorContext(ctx, "Failed to convert tools to Gemini format", "error", err)
 			return nil, err
 		}
 
@@ -581,10 +581,10 @@ func (c *Client) CreateChatCompletionStream(
 		}
 
 		// Debug: Log the tools we're sending
-		slog.Debug("Gemini tools config", "tools", config.Tools)
+		slog.DebugContext(ctx, "Gemini tools config", "tools", config.Tools)
 		for _, tool := range config.Tools {
 			for _, fn := range tool.FunctionDeclarations {
-				slog.Debug("Function", "name", fn.Name, "desc", fn.Description, "params", fn.Parameters)
+				slog.DebugContext(ctx, "Function", "name", fn.Name, "desc", fn.Description, "params", fn.Parameters)
 			}
 		}
 	}
@@ -592,14 +592,14 @@ func (c *Client) CreateChatCompletionStream(
 	contents := convertMessagesToGemini(messages)
 
 	// Debug: Log the messages we're sending
-	slog.Debug("Gemini messages", "count", len(contents))
+	slog.DebugContext(ctx, "Gemini messages", "count", len(contents))
 	for i, content := range contents {
-		slog.Debug("Message", "index", i, "role", content.Role)
+		slog.DebugContext(ctx, "Message", "index", i, "role", content.Role)
 	}
 
 	client, err := c.clientFn(ctx)
 	if err != nil {
-		slog.Error("Failed to create Gemini client", "error", err)
+		slog.ErrorContext(ctx, "Failed to create Gemini client", "error", err)
 		return nil, err
 	}
 
@@ -615,11 +615,11 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	const logPrefix = "Gemini reranking request"
 
 	if len(documents) == 0 {
-		slog.Debug(logPrefix, "model", c.ModelConfig.Model, "num_documents", 0)
+		slog.DebugContext(ctx, logPrefix, "model", c.ModelConfig.Model, "num_documents", 0)
 		return []float64{}, nil
 	}
 
-	slog.Debug(logPrefix,
+	slog.DebugContext(ctx, logPrefix,
 		"model", c.ModelConfig.Model,
 		"query_length", len(query),
 		"num_documents", len(documents),
@@ -627,7 +627,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 
 	client, err := c.clientFn(ctx)
 	if err != nil {
-		slog.Error("Failed to create Gemini client for reranking", "error", err)
+		slog.ErrorContext(ctx, "Failed to create Gemini client for reranking", "error", err)
 		return nil, err
 	}
 
@@ -685,7 +685,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 
 	resp, err := client.Models.GenerateContent(ctx, c.ModelConfig.Model, []*genai.Content{content}, cfg)
 	if err != nil {
-		slog.Error("Gemini rerank request failed", "error", err)
+		slog.ErrorContext(ctx, "Gemini rerank request failed", "error", err)
 		return nil, fmt.Errorf("gemini rerank request failed: %w", err)
 	}
 
@@ -696,17 +696,17 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 
 	rawJSON, err := extractGeminiStructuredJSON(resp)
 	if err != nil {
-		slog.Error("Failed to extract Gemini structured JSON", "error", err)
+		slog.ErrorContext(ctx, "Failed to extract Gemini structured JSON", "error", err)
 		return nil, err
 	}
 
 	scores, err := parseRerankScoresStrict(rawJSON, len(documents))
 	if err != nil {
-		slog.Error("Failed to parse Gemini rerank scores", "error", err)
+		slog.ErrorContext(ctx, "Failed to parse Gemini rerank scores", "error", err)
 		return nil, err
 	}
 
-	slog.Debug("Gemini reranking complete",
+	slog.DebugContext(ctx, "Gemini reranking complete",
 		"model", c.ModelConfig.Model,
 		"num_scores", len(scores))
 

@@ -147,7 +147,7 @@ func newOpenAIClient(ctx context.Context, cfg *latest.ModelConfig, env environme
 	baseURL := "https://" + location + "-aiplatform.googleapis.com/v1beta1/projects/" +
 		url.PathEscape(project) + "/locations/" + url.PathEscape(location) + "/endpoints/openapi"
 
-	slog.Debug("Creating Vertex AI Model Garden client",
+	slog.DebugContext(ctx, "Creating Vertex AI Model Garden client",
 		"publisher", publisher(cfg),
 		"project", project,
 		"location", location,
@@ -213,7 +213,7 @@ func (e *tokenEnv) Get(ctx context.Context, name string) (string, bool) {
 
 	tok, err := e.ts.Token()
 	if err != nil {
-		slog.Warn("Failed to refresh GCP access token, using cached", "error", err)
+		slog.WarnContext(ctx, "Failed to refresh GCP access token, using cached", "error", err)
 		return e.tok, true
 	}
 	e.tok = tok.AccessToken

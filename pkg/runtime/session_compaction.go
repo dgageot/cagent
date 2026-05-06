@@ -58,14 +58,14 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 	// before_compaction: hooks can veto or supply a custom summary.
 	pre := r.executeBeforeCompactionHooks(ctx, sess, a, reason, contextLimit, events)
 	if pre != nil && !pre.Allowed {
-		slog.Info("Session compaction skipped by before_compaction hook",
+		slog.InfoContext(ctx, "Session compaction skipped by before_compaction hook",
 			"session_id", sess.ID, "agent", a.Name(), "reason", reason,
 			"hook_message", pre.Message,
 		)
 		return
 	}
 
-	slog.Debug("Generating summary for session", "session_id", sess.ID, "reason", reason)
+	slog.DebugContext(ctx, "Generating summary for session", "session_id", sess.ID, "reason", reason)
 	events <- SessionCompaction(sess.ID, "started", a.Name())
 	defer func() {
 		events <- SessionCompaction(sess.ID, "completed", a.Name())
@@ -76,7 +76,7 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 	result := summaryFromHook(sess, a, pre)
 	if result == nil {
 		if contextLimit <= 0 {
-			slog.Error("Failed to generate session summary",
+			slog.ErrorContext(ctx, "Failed to generate session summary",
 				"error", "model definition unavailable")
 			events <- Error("Failed to get model definition")
 			return
@@ -91,7 +91,7 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 			RunAgent:         r.runCompactionAgent,
 		})
 		if err != nil {
-			slog.Error("Failed to generate session summary", "error", err)
+			slog.ErrorContext(ctx, "Failed to generate session summary", "error", err)
 			events <- Error(err.Error())
 			return
 		}
@@ -118,7 +118,7 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 	})
 	_ = r.sessionStore.UpdateSession(ctx, sess)
 
-	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(result.Summary))
+	slog.DebugContext(ctx, "Generated session summary", "session_id", sess.ID, "summary_length", len(result.Summary))
 	events <- SessionSummary(sess.ID, result.Summary, a.Name(), result.FirstKeptEntry)
 
 	// after_compaction: observational. Fired only when a summary was
@@ -163,10 +163,10 @@ func summaryFromHook(sess *session.Session, a *agent.Agent, pre *hooks.Result) *
 // hook may supply its own summary and never need the model definition.
 // The LLM strategy itself enforces ContextLimit > 0.
 func (r *LocalRuntime) compactionContextLimit(ctx context.Context, a *agent.Agent) int64 {
-	if a == nil || a.Model() == nil {
+	if a == nil || a.Model(ctx) == nil {
 		return 0
 	}
-	summaryModel := provider.CloneWithOptions(ctx, a.Model(),
+	summaryModel := provider.CloneWithOptions(ctx, a.Model(ctx),
 		options.WithStructuredOutput(nil),
 		options.WithMaxTokens(compactor.MaxSummaryTokens),
 	)

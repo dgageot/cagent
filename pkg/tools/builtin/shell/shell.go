@@ -215,7 +215,7 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 		)
 	}
 
-	slog.Debug("Executing native shell command", "command", params.Cmd, "cwd", cwd)
+	slog.DebugContext(ctx, "Executing native shell command", "command", params.Cmd, "cwd", cwd)
 
 	return h.runNativeCommand(timeoutCtx, ctx, params.Cmd, cwd, timeout), nil
 }

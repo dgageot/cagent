@@ -451,13 +451,13 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 	}
 
 	if !t.tokenCoversConfiguredScopes(token) {
-		slog.Debug("Stored token scopes no longer cover configured scopes; discarding to force re-auth",
+		slog.DebugContext(ctx, "Stored token scopes no longer cover configured scopes; discarding to force re-auth",
 			"url", t.baseURL,
 			"stored", token.RequestedScopes,
 			"configured", configuredScopes(t.oauthConfig),
 		)
 		if err := t.tokenStore.RemoveToken(t.baseURL); err != nil {
-			slog.Debug("Failed to remove stale token", "url", t.baseURL, "error", err)
+			slog.DebugContext(ctx, "Failed to remove stale token", "url", t.baseURL, "error", err)
 		}
 		return nil
 	}
@@ -479,7 +479,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 		return nil
 	}
 
-	slog.Debug("Attempting silent token refresh", "url", t.baseURL)
+	slog.DebugContext(ctx, "Attempting silent token refresh", "url", t.baseURL)
 
 	// Wrap the refresh path in a span so the latency and failure
 	// rate of silent OAuth token refreshes are visible — the user
@@ -504,7 +504,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 	authServer := cmp.Or(token.AuthServer, t.baseURL)
 	metadata, err := o.getAuthorizationServerMetadata(ctx, authServer)
 	if err != nil {
-		slog.Debug("Failed to fetch auth server metadata for refresh", "auth_server", authServer, "error", err)
+		slog.DebugContext(ctx, "Failed to fetch auth server metadata for refresh", "auth_server", authServer, "error", err)
 		refreshSpan.RecordError(err)
 		refreshSpan.SetStatus(codes.Error, "metadata fetch failed")
 		refreshSpan.SetAttributes(attribute.String("error.type", "metadata"))
@@ -513,7 +513,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 
 	newToken, err := RefreshAccessToken(ctx, metadata.TokenEndpoint, token.RefreshToken, token.ClientID, token.ClientSecret)
 	if err != nil {
-		slog.Debug("Token refresh failed, will require interactive auth", "error", err)
+		slog.DebugContext(ctx, "Token refresh failed, will require interactive auth", "error", err)
 		refreshSpan.RecordError(err)
 		refreshSpan.SetStatus(codes.Error, "refresh failed")
 		refreshSpan.SetAttributes(attribute.String("error.type", "refresh_token"))
@@ -530,10 +530,10 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 	t.mu.Unlock()
 
 	if err := t.tokenStore.StoreToken(t.baseURL, newToken); err != nil {
-		slog.Warn("Failed to store refreshed token", "error", err)
+		slog.WarnContext(ctx, "Failed to store refreshed token", "error", err)
 	}
 
-	slog.Debug("Token refreshed successfully", "url", t.baseURL)
+	slog.DebugContext(ctx, "Token refreshed successfully", "url", t.baseURL)
 	return newToken
 }
 
@@ -614,7 +614,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 }
 
 func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
-	slog.Debug("Starting OAuth flow for server", "url", t.baseURL)
+	slog.DebugContext(ctx, "Starting OAuth flow for server", "url", t.baseURL)
 	span := trace.SpanFromContext(ctx)
 
 	resourceURL := cmp.Or(resourceMetadataFromWWWAuth(wwwAuth), authServer+"/.well-known/oauth-protected-resource")
@@ -642,7 +642,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	}
 
 	if len(resourceMetadata.AuthorizationServers) == 0 {
-		slog.Debug("No authorization servers in resource metadata, using auth server from WWW-Authenticate header")
+		slog.DebugContext(ctx, "No authorization servers in resource metadata, using auth server from WWW-Authenticate header")
 		resourceMetadata.AuthorizationServers = []string{authServer}
 	}
 
@@ -653,7 +653,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		return fmt.Errorf("failed to fetch authorization server metadata: %w", err)
 	}
 
-	slog.Debug("Creating OAuth callback server")
+	slog.DebugContext(ctx, "Creating OAuth callback server")
 	var callbackPort int
 	if t.oauthConfig != nil {
 		callbackPort = t.oauthConfig.CallbackPort
@@ -666,7 +666,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := callbackServer.Shutdown(shutdownCtx); err != nil {
-			slog.Error("Failed to shutdown callback server", "error", err)
+			slog.ErrorContext(ctx, "Failed to shutdown callback server", "error", err)
 		}
 	}()
 
@@ -675,7 +675,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	}
 
 	redirectURI := callbackServer.resolveRedirectURI(callbackRedirectURLFrom(t.oauthConfig))
-	slog.Debug("Using redirect URI", "uri", redirectURI)
+	slog.DebugContext(ctx, "Using redirect URI", "uri", redirectURI)
 
 	var clientID string
 	var clientSecret string
@@ -684,16 +684,16 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	switch {
 	case t.oauthConfig != nil && t.oauthConfig.ClientID != "":
 		// Use explicit credentials from config
-		slog.Debug("Using explicit OAuth credentials from config")
+		slog.DebugContext(ctx, "Using explicit OAuth credentials from config")
 		clientID = t.oauthConfig.ClientID
 		clientSecret = t.oauthConfig.ClientSecret
 		scopes = t.oauthConfig.Scopes
 	case authServerMetadata.RegistrationEndpoint != "":
-		slog.Debug("Attempting dynamic client registration")
+		slog.DebugContext(ctx, "Attempting dynamic client registration")
 		span.AddEvent("oauth.step", trace.WithAttributes(attribute.String("cagent.oauth.step", "dynamic_client_registration")))
 		clientID, clientSecret, err = RegisterClient(ctx, authServerMetadata, redirectURI, nil)
 		if err != nil {
-			slog.Debug("Dynamic registration failed", "error", err)
+			slog.DebugContext(ctx, "Dynamic registration failed", "error", err)
 			// TODO(rumpl): fall back to requesting client ID from user
 			return err
 		}
@@ -732,13 +732,13 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		return fmt.Errorf("failed to send elicitation request: %w", err)
 	}
 
-	slog.Debug("Elicitation response received", "result", result)
+	slog.DebugContext(ctx, "Elicitation response received", "result", result)
 
 	if result.Action != tools.ElicitationActionAccept {
 		return errors.New("user declined OAuth authorization")
 	}
 
-	slog.Debug("Requesting authorization code", "url", authURL)
+	slog.DebugContext(ctx, "Requesting authorization code", "url", authURL)
 	span.AddEvent("oauth.step", trace.WithAttributes(attribute.String("cagent.oauth.step", "request_authorization_code")))
 
 	code, receivedState, err := RequestAuthorizationCode(ctx, authURL, callbackServer, state)
@@ -750,7 +750,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		return errors.New("state mismatch in authorization response")
 	}
 
-	slog.Debug("Exchanging authorization code for token")
+	slog.DebugContext(ctx, "Exchanging authorization code for token")
 	span.AddEvent("oauth.step", trace.WithAttributes(attribute.String("cagent.oauth.step", "token_exchange")))
 	token, err := ExchangeCodeForToken(
 		ctx,
@@ -777,14 +777,14 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	// Notify the runtime that the OAuth flow was successful
 	t.client.oauthSuccess()
 
-	slog.Debug("OAuth flow completed successfully")
+	slog.DebugContext(ctx, "OAuth flow completed successfully")
 	return nil
 }
 
 // handleUnmanagedOAuthFlow performs the OAuth flow for remote/unmanaged scenarios
 // where the client handles the OAuth interaction instead of us
 func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
-	slog.Debug("Starting unmanaged OAuth flow for server", "url", t.baseURL)
+	slog.DebugContext(ctx, "Starting unmanaged OAuth flow for server", "url", t.baseURL)
 	span := trace.SpanFromContext(ctx)
 
 	// Extract resource URL from WWW-Authenticate header
@@ -813,7 +813,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	}
 
 	if len(resourceMetadata.AuthorizationServers) == 0 {
-		slog.Debug("No authorization servers in resource metadata, using auth server from WWW-Authenticate header")
+		slog.DebugContext(ctx, "No authorization servers in resource metadata, using auth server from WWW-Authenticate header")
 		resourceMetadata.AuthorizationServers = []string{authServer}
 	}
 
@@ -824,7 +824,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 		return fmt.Errorf("failed to fetch authorization server metadata: %w", err)
 	}
 
-	slog.Debug("Sending OAuth elicitation request to client")
+	slog.DebugContext(ctx, "Sending OAuth elicitation request to client")
 
 	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{
 		Message:         "OAuth authorization required for " + t.baseURL,
@@ -841,7 +841,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 		return fmt.Errorf("failed to send elicitation request: %w", err)
 	}
 
-	slog.Debug("Received elicitation response from client", "action", result.Action)
+	slog.DebugContext(ctx, "Received elicitation response from client", "action", result.Action)
 
 	if result.Action != tools.ElicitationActionAccept {
 		return errors.New("OAuth flow declined or cancelled by client")
@@ -883,6 +883,6 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	// Notify the runtime that the OAuth flow was successful
 	t.client.oauthSuccess()
 
-	slog.Debug("Managed OAuth flow completed successfully")
+	slog.DebugContext(ctx, "Managed OAuth flow completed successfully")
 	return nil
 }

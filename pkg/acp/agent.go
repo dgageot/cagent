@@ -65,7 +65,7 @@ func (a *Agent) Stop(ctx context.Context) {
 	defer a.mu.Unlock()
 	if a.team != nil {
 		if err := a.team.StopToolSets(ctx); err != nil {
-			slog.Error("Failed to stop tool sets", "error", err)
+			slog.ErrorContext(ctx, "Failed to stop tool sets", "error", err)
 		}
 	}
 }
@@ -77,7 +77,7 @@ func (a *Agent) SetAgentConnection(conn *acp.AgentSideConnection) {
 
 // Initialize implements [acp.Agent]
 func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (acp.InitializeResponse, error) {
-	slog.Debug("ACP Initialize called", "client_version", params.ProtocolVersion)
+	slog.DebugContext(ctx, "ACP Initialize called", "client_version", params.ProtocolVersion)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -86,7 +86,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}
 	a.team = t
-	slog.Debug("Teams loaded successfully", "source", a.agentSource.Name(), "agent_count", t.Size())
+	slog.DebugContext(ctx, "Teams loaded successfully", "source", a.agentSource.Name(), "agent_count", t.Size())
 
 	agentTitle := "docker agent"
 	return acp.InitializeResponse{
@@ -113,11 +113,11 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 
 // NewSession implements [acp.Agent]
 func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (acp.NewSessionResponse, error) {
-	slog.Debug("ACP NewSession called", "cwd", params.Cwd)
+	slog.DebugContext(ctx, "ACP NewSession called", "cwd", params.Cwd)
 
 	// Log warning if MCP servers are provided (not yet supported)
 	if len(params.McpServers) > 0 {
-		slog.Warn("MCP servers provided by client are not yet supported", "count", len(params.McpServers))
+		slog.WarnContext(ctx, "MCP servers provided by client are not yet supported", "count", len(params.McpServers))
 	}
 
 	// Validate and normalize working directory
@@ -172,7 +172,7 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 		return acp.NewSessionResponse{}, fmt.Errorf("failed to persist session: %w", err)
 	}
 
-	slog.Debug("ACP session created", "session_id", sess.ID)
+	slog.DebugContext(ctx, "ACP session created", "session_id", sess.ID)
 
 	a.mu.Lock()
 	a.sessions[sess.ID] = &Session{
@@ -255,7 +255,7 @@ func (a *Agent) Cancel(_ context.Context, params acp.CancelNotification) error {
 // Prompt implements [acp.Agent]
 func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
 	sid := string(params.SessionId)
-	slog.Debug("ACP Prompt called", "session_id", sid)
+	slog.DebugContext(ctx, "ACP Prompt called", "session_id", sid)
 
 	a.mu.Lock()
 	acpSess, ok := a.sessions[sid]
@@ -315,7 +315,7 @@ func (a *Agent) buildUserContent(ctx context.Context, sessionID string, prompt [
 		case content.ResourceLink != nil:
 			// Try to read the file content via ACP client
 			rl := content.ResourceLink
-			slog.Debug("Processing resource link", "uri", rl.Uri, "name", rl.Name)
+			slog.DebugContext(ctx, "Processing resource link", "uri", rl.Uri, "name", rl.Name)
 
 			// Attempt to read file content if it's a file URI
 			if fileContent := a.readResourceLink(ctx, sessionID, rl); fileContent != "" {
@@ -329,21 +329,21 @@ func (a *Agent) buildUserContent(ctx context.Context, sessionID string, prompt [
 			// Embedded resource - extract content directly
 			res := content.Resource.Resource
 			if res.TextResourceContents != nil {
-				slog.Debug("Processing embedded text resource", "uri", res.TextResourceContents.Uri)
+				slog.DebugContext(ctx, "Processing embedded text resource", "uri", res.TextResourceContents.Uri)
 				parts = append(parts, fmt.Sprintf("\n\n--- Resource: %s ---\n%s\n--- End Resource ---\n",
 					res.TextResourceContents.Uri, res.TextResourceContents.Text))
 			} else if res.BlobResourceContents != nil {
-				slog.Debug("Processing embedded blob resource", "uri", res.BlobResourceContents.Uri)
+				slog.DebugContext(ctx, "Processing embedded blob resource", "uri", res.BlobResourceContents.Uri)
 				parts = append(parts, fmt.Sprintf("\n[Binary resource: %s (type: %s)]\n",
 					res.BlobResourceContents.Uri, stringOrDefault(res.BlobResourceContents.MimeType, "unknown")))
 			}
 
 		case content.Image != nil:
-			slog.Debug("Image content received but not yet fully supported")
+			slog.DebugContext(ctx, "Image content received but not yet fully supported")
 			parts = append(parts, "[Image content provided]")
 
 		case content.Audio != nil:
-			slog.Debug("Audio content received but not yet supported")
+			slog.DebugContext(ctx, "Audio content received but not yet supported")
 			parts = append(parts, "[Audio content provided]")
 		}
 	}
@@ -378,7 +378,7 @@ func (a *Agent) readResourceLink(
 	// Basic hardening: block absolute paths and path traversal
 	// This prevents access outside the intended working directory.
 	if filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
-		slog.Warn("Blocked unsafe file resource link", "path", path)
+		slog.WarnContext(ctx, "Blocked unsafe file resource link", "path", path)
 		return ""
 	}
 
@@ -388,7 +388,7 @@ func (a *Agent) readResourceLink(
 		Path:      clean,
 	})
 	if err != nil {
-		slog.Debug("Failed to read resource link", "path", clean, "error", err)
+		slog.DebugContext(ctx, "Failed to read resource link", "path", clean, "error", err)
 		return ""
 	}
 
@@ -411,13 +411,13 @@ func (a *Agent) SetSessionMode(context.Context, acp.SetSessionModeRequest) (acp.
 
 // runAgent runs a single agent loop and streams updates to the ACP client
 func (a *Agent) runAgent(ctx context.Context, acpSess *Session) error {
-	slog.Debug("Running agent turn", "session_id", acpSess.id)
+	slog.DebugContext(ctx, "Running agent turn", "session_id", acpSess.id)
 
 	ctx = withSessionID(ctx, acpSess.id)
 
 	// Emit available commands at start of first turn
 	if err := a.emitAvailableCommands(ctx, acpSess); err != nil {
-		slog.Debug("Failed to emit available commands", "error", err)
+		slog.DebugContext(ctx, "Failed to emit available commands", "error", err)
 		// Don't fail the turn, this is not critical
 	}
 

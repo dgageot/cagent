@@ -88,7 +88,7 @@ func (b *elicitationBridge) send(ev Event) error {
 // elicitation request. Returns an error if no elicitation is in progress
 // or if the context is cancelled before the response can be delivered.
 func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
-	slog.Debug("Resuming runtime with elicitation response", "agent", r.CurrentAgentName(), "action", action)
+	slog.DebugContext(ctx, "Resuming runtime with elicitation response", "agent", r.CurrentAgentName(), "action", action)
 
 	result := ElicitationResult{
 		Action:  action,
@@ -97,13 +97,13 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 
 	select {
 	case <-ctx.Done():
-		slog.Debug("Context cancelled while sending elicitation response")
+		slog.DebugContext(ctx, "Context cancelled while sending elicitation response")
 		return ctx.Err()
 	case r.elicitationRequestCh <- result:
-		slog.Debug("Elicitation response sent successfully", "action", action)
+		slog.DebugContext(ctx, "Elicitation response sent successfully", "action", action)
 		return nil
 	default:
-		slog.Debug("Elicitation channel not ready")
+		slog.DebugContext(ctx, "Elicitation channel not ready")
 		return errors.New("no elicitation request in progress")
 	}
 }
@@ -113,12 +113,12 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 // active stream's events channel and waits for the embedder's response on
 // elicitationRequestCh.
 func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitParams) (tools.ElicitationResult, error) {
-	slog.Debug("Elicitation request received from MCP server", "message", req.Message)
+	slog.DebugContext(ctx, "Elicitation request received from MCP server", "message", req.Message)
 
 	// In non-interactive mode (e.g., MCP serve), there is no user to respond
 	// to elicitation requests. Decline immediately instead of blocking forever.
 	if r.nonInteractive {
-		slog.Debug("Declining elicitation in non-interactive mode", "message", req.Message)
+		slog.DebugContext(ctx, "Declining elicitation in non-interactive mode", "message", req.Message)
 		return tools.ElicitationResult{
 			Action: tools.ElicitationActionDecline,
 		}, nil
@@ -126,12 +126,12 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 
 	r.executeOnUserInputHooks(ctx, "", "elicitation")
 
-	slog.Debug("Sending elicitation request event to client",
+	slog.DebugContext(ctx, "Sending elicitation request event to client",
 		"message", req.Message,
 		"mode", req.Mode,
 		"requested_schema", req.RequestedSchema,
 		"url", req.URL)
-	slog.Debug("Elicitation request meta", "meta", req.Meta)
+	slog.DebugContext(ctx, "Elicitation request meta", "meta", req.Meta)
 
 	if err := r.elicitation.send(
 		ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.CurrentAgentName()),
@@ -147,7 +147,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 			Content: result.Content,
 		}, nil
 	case <-ctx.Done():
-		slog.Debug("Context cancelled while waiting for elicitation response")
+		slog.DebugContext(ctx, "Context cancelled while waiting for elicitation response")
 		return tools.ElicitationResult{}, ctx.Err()
 	}
 }

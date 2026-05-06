@@ -233,7 +233,7 @@ func (fm *FileManager) upload(ctx context.Context, filePath, contentHash, mimeTy
 
 	filename := filepath.Base(filePath)
 
-	slog.Debug("Uploading file to Anthropic Files API",
+	slog.DebugContext(ctx, "Uploading file to Anthropic Files API",
 		"filename", filename,
 		"mime_type", mimeType,
 		"size", fileSize)
@@ -259,7 +259,7 @@ func (fm *FileManager) upload(ctx context.Context, filePath, contentHash, mimeTy
 		ContentHash: contentHash,
 	}
 
-	slog.Info("File uploaded to Anthropic",
+	slog.InfoContext(ctx, "File uploaded to Anthropic",
 		"file_id", upload.FileID,
 		"filename", upload.Filename,
 		"size", upload.SizeBytes)
@@ -283,7 +283,7 @@ func (fm *FileManager) Delete(ctx context.Context, fileID string) error {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
-	slog.Debug("Deleted file from Anthropic", "file_id", fileID)
+	slog.DebugContext(ctx, "Deleted file from Anthropic", "file_id", fileID)
 	return nil
 }
 
@@ -305,7 +305,7 @@ func (fm *FileManager) Cleanup(ctx context.Context, ttl time.Duration) error {
 	for key, upload := range fm.uploads {
 		if upload.UploadedAt.Before(cutoff) {
 			if err := fm.deleteUnlocked(ctx, upload.FileID); err != nil {
-				slog.Warn("Failed to delete expired file", "file_id", upload.FileID, "error", err)
+				slog.WarnContext(ctx, "Failed to delete expired file", "file_id", upload.FileID, "error", err)
 				errs = append(errs, err)
 				continue
 			}
@@ -347,7 +347,7 @@ func (fm *FileManager) CleanupAll(ctx context.Context) error {
 
 	for key, upload := range fm.uploads {
 		if err := fm.deleteUnlocked(ctx, upload.FileID); err != nil {
-			slog.Warn("Failed to delete file during cleanup", "file_id", upload.FileID, "error", err)
+			slog.WarnContext(ctx, "Failed to delete file during cleanup", "file_id", upload.FileID, "error", err)
 			errs = append(errs, err)
 			continue
 		}

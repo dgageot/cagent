@@ -51,7 +51,7 @@ func (r *LocalRuntime) stripUnsupportedModalitiesTransform(
 	msgs []chat.Message,
 ) ([]chat.Message, error) {
 	if in == nil || in.ModelID == "" {
-		slog.Debug("strip_unsupported_modalities: skipping, no ModelID on input")
+		slog.DebugContext(ctx, "strip_unsupported_modalities: skipping, no ModelID on input")
 		return msgs, nil
 	}
 	m, err := r.modelsStore.GetModel(ctx, in.ModelID)
@@ -59,7 +59,7 @@ func (r *LocalRuntime) stripUnsupportedModalitiesTransform(
 		// Unknown model: keep the previous (inline) behavior of
 		// passing messages through untouched. The model call will
 		// surface any modality mismatch as a provider error.
-		slog.Debug("strip_unsupported_modalities: skipping, model definition unavailable",
+		slog.DebugContext(ctx, "strip_unsupported_modalities: skipping, model definition unavailable",
 			"model_id", in.ModelID, "error", err)
 		return msgs, nil
 	}

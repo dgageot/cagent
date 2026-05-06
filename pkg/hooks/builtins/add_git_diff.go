@@ -37,7 +37,7 @@ func addGitDiff(ctx context.Context, in *hooks.Input, args []string) (*hooks.Out
 
 	out, err := gitOutput(ctx, in.Cwd, gitArgs...)
 	if err != nil {
-		slog.Debug("add_git_diff: git diff failed; skipping", "cwd", in.Cwd, "error", err)
+		slog.DebugContext(ctx, "add_git_diff: git diff failed; skipping", "cwd", in.Cwd, "error", err)
 		return nil, nil
 	}
 	if out == "" {

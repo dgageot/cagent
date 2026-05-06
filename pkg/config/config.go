@@ -76,7 +76,7 @@ func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 	missing, err := gatherMissingEnvVars(ctx, cfg, modelsGateway, env)
 	if err != nil {
 		// If there's a tool preflight error, log it but continue
-		slog.Warn("Failed to preflight toolset environment variables; continuing", "error", err)
+		slog.WarnContext(ctx, "Failed to preflight toolset environment variables; continuing", "error", err)
 	}
 
 	// Return error if there are missing environment variables

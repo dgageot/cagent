@@ -104,7 +104,7 @@ func configureModel(ctx context.Context, httpClient *http.Client, baseURL, model
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	slog.Debug("Sending model configure request",
+	slog.DebugContext(ctx, "Sending model configure request",
 		"model", model,
 		"url", configureURL,
 		"context_size", derefInt32(backend.ContextSize),
@@ -127,7 +127,7 @@ func configureModel(ctx context.Context, httpClient *http.Client, baseURL, model
 		return fmt.Errorf("configure request failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	slog.Debug("Model configure completed", "model", model)
+	slog.DebugContext(ctx, "Model configure completed", "model", model)
 	return nil
 }
 

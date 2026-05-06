@@ -105,7 +105,7 @@ func (t *Tool) fetchSpec(ctx context.Context) (*v3.Document, error) {
 	if buildErr != nil {
 		// Log validation issues but don't fail — some valid OpenAPI 3.1
 		// features may not be fully supported by the validator.
-		slog.Warn("OpenAPI spec validation reported issues; proceeding anyway", "url", t.specURL, "error", buildErr)
+		slog.WarnContext(ctx, "OpenAPI spec validation reported issues; proceeding anyway", "url", t.specURL, "error", buildErr)
 	}
 
 	if model == nil {

@@ -58,7 +58,7 @@ func NewVertexClient(ctx context.Context, cfg *latest.ModelConfig, env environme
 		return nil, fmt.Errorf("failed to obtain GCP credentials for Vertex AI: %w (run 'gcloud auth application-default login')", err)
 	}
 
-	slog.Debug("Creating Anthropic client for Vertex AI",
+	slog.DebugContext(ctx, "Creating Anthropic client for Vertex AI",
 		"project", project,
 		"location", location,
 		"model", cfg.Model,
@@ -96,6 +96,6 @@ func NewVertexClient(ctx context.Context, cfg *latest.ModelConfig, env environme
 	// but the FileManager is lazy and harmless if unused.
 	anthropicClient.fileManager = NewFileManager(anthropicClient.clientFn)
 
-	slog.Debug("Anthropic (Vertex AI) client created successfully", "model", cfg.Model)
+	slog.DebugContext(ctx, "Anthropic (Vertex AI) client created successfully", "model", cfg.Model)
 	return anthropicClient, nil
 }

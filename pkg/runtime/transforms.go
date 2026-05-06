@@ -91,7 +91,7 @@ func (r *LocalRuntime) applyBeforeLLMCallTransforms(
 	for _, t := range r.transforms {
 		out, err := t.fn(ctx, in, msgs)
 		if err != nil {
-			slog.Warn("Message transform failed; continuing with previous messages",
+			slog.WarnContext(ctx, "Message transform failed; continuing with previous messages",
 				"transform", t.name, "agent", a.Name(), "error", err)
 			continue
 		}

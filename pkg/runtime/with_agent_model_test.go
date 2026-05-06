@@ -70,7 +70,7 @@ func TestWithAgentModel(t *testing.T) {
 		userPick := &mockProvider{id: "user/pick"}
 		root := agent.New("root", "test", agent.WithModel(&mockProvider{id: "default/model"}))
 		root.SetModelOverride(userPick)
-		require.Equal(t, "user/pick", root.Model().ID())
+		require.Equal(t, "user/pick", root.Model(t.Context()).ID())
 
 		tm := team.New(team.WithAgents(root))
 		r := &LocalRuntime{
@@ -86,12 +86,12 @@ func TestWithAgentModel(t *testing.T) {
 
 		// Inside the scope: override is cleared.
 		assert.False(t, root.HasModelOverride())
-		assert.Equal(t, "default/model", root.Model().ID())
+		assert.Equal(t, "default/model", root.Model(t.Context()).ID())
 
 		// After restore: user's pick is back.
 		restore()
 		assert.True(t, root.HasModelOverride())
-		assert.Equal(t, "user/pick", root.Model().ID())
+		assert.Equal(t, "user/pick", root.Model(t.Context()).ID())
 	})
 
 	t.Run("restore is idempotent", func(t *testing.T) {
@@ -110,10 +110,10 @@ func TestWithAgentModel(t *testing.T) {
 		require.NoError(t, err)
 
 		restore()
-		assert.Equal(t, "user/pick", root.Model().ID())
+		assert.Equal(t, "user/pick", root.Model(t.Context()).ID())
 		// Second call is a CAS no-op (the state is already restored).
 		assert.NotPanics(t, restore)
-		assert.Equal(t, "user/pick", root.Model().ID())
+		assert.Equal(t, "user/pick", root.Model(t.Context()).ID())
 	})
 
 	t.Run("concurrent change is preserved by restore", func(t *testing.T) {
@@ -140,6 +140,6 @@ func TestWithAgentModel(t *testing.T) {
 		// Restore must be a no-op because the override changed.
 		restore()
 		require.True(t, root.HasModelOverride(), "concurrent change must be preserved")
-		assert.Equal(t, "user/pick", root.Model().ID())
+		assert.Equal(t, "user/pick", root.Model(t.Context()).ID())
 	})
 }

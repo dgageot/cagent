@@ -46,7 +46,7 @@ func ResolveCommand(ctx context.Context, rt Runtime, userInput string) string {
 	// which would be a security vulnerability (injection).
 	agentTools, err := rt.CurrentAgentTools(ctx)
 	if err != nil {
-		slog.Warn("Failed to get agent tools for JS expression execution", "error", err)
+		slog.WarnContext(ctx, "Failed to get agent tools for JS expression execution", "error", err)
 	} else {
 		evaluator := js.NewEvaluator(agentTools)
 		instruction = evaluator.Evaluate(ctx, instruction, args)
@@ -191,7 +191,7 @@ func executeToolCommands(ctx context.Context, rt Runtime, instruction string) st
 
 	agentTools, err := rt.CurrentAgentTools(ctx)
 	if err != nil {
-		slog.Warn("Failed to get agent tools for command execution", "error", err)
+		slog.WarnContext(ctx, "Failed to get agent tools for command execution", "error", err)
 		return instruction
 	}
 
@@ -213,21 +213,21 @@ func executeToolCommands(ctx context.Context, rt Runtime, instruction string) st
 
 // executeSingleToolCommand executes a single tool command and returns the output.
 func executeSingleToolCommand(ctx context.Context, toolMap map[string]tools.Tool, toolName, argsStr string) string {
-	slog.Debug("Executing tool command", "tool", toolName, "args", argsStr)
+	slog.DebugContext(ctx, "Executing tool command", "tool", toolName, "args", argsStr)
 
 	tool, exists := toolMap[toolName]
 	if !exists {
-		slog.Warn("Tool not found for command execution", "tool", toolName)
+		slog.WarnContext(ctx, "Tool not found for command execution", "tool", toolName)
 		return "Error: tool '" + toolName + "' not found"
 	}
 	if tool.Handler == nil {
-		slog.Warn("Tool has no handler", "tool", toolName)
+		slog.WarnContext(ctx, "Tool has no handler", "tool", toolName)
 		return "Error: tool '" + toolName + "' has no handler"
 	}
 
 	argsJSON, err := json.Marshal(parseToolArgs(argsStr))
 	if err != nil {
-		slog.Warn("Failed to marshal tool arguments", "tool", toolName, "error", err)
+		slog.WarnContext(ctx, "Failed to marshal tool arguments", "tool", toolName, "error", err)
 		return "Error: failed to marshal arguments for '" + toolName + "'"
 	}
 
@@ -245,12 +245,12 @@ func executeSingleToolCommand(ctx context.Context, toolMap map[string]tools.Tool
 
 	result, err := tool.Handler(toolCtx, toolCall)
 	if err != nil {
-		slog.Warn("Tool execution failed", "tool", toolName, "error", err)
+		slog.WarnContext(ctx, "Tool execution failed", "tool", toolName, "error", err)
 		return "Error executing '" + toolName + "': " + err.Error()
 	}
 
 	output := strings.TrimSpace(result.Output)
-	slog.Debug("Tool command output", "tool", toolName, "output_length", len(output))
+	slog.DebugContext(ctx, "Tool command output", "tool", toolName, "output_length", len(output))
 	return output
 }
 

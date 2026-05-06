@@ -57,8 +57,7 @@ func (r *LocalRuntime) enforceMaxIterations(
 		return runtimeMaxIterations, iterationContinue
 	}
 
-	slog.Debug(
-		"Maximum iterations reached",
+	slog.DebugContext(ctx, "Maximum iterations reached",
 		"agent", a.Name(),
 		"iterations", iteration,
 		"max", runtimeMaxIterations,
@@ -85,7 +84,7 @@ func (r *LocalRuntime) enforceMaxIterations(
 	// In non-interactive mode (e.g. MCP server), auto-stop instead of
 	// blocking forever waiting for user input.
 	if sess.NonInteractive {
-		slog.Debug("Auto-stopping after max iterations (non-interactive)", "agent", a.Name())
+		slog.DebugContext(ctx, "Auto-stopping after max iterations (non-interactive)", "agent", a.Name())
 		appendStopMsg()
 		return runtimeMaxIterations, iterationStop
 	}
@@ -94,18 +93,17 @@ func (r *LocalRuntime) enforceMaxIterations(
 	select {
 	case req := <-r.resumeChan:
 		if req.Type == ResumeTypeApprove {
-			slog.Debug("User chose to continue after max iterations", "agent", a.Name())
+			slog.DebugContext(ctx, "User chose to continue after max iterations", "agent", a.Name())
 			newMax := iteration + 10
 			r.executeOnSessionResumeHooks(ctx, a, sess.ID, runtimeMaxIterations, newMax)
 			return newMax, iterationContinue
 		}
-		slog.Debug("User rejected continuation", "agent", a.Name())
+		slog.DebugContext(ctx, "User rejected continuation", "agent", a.Name())
 		appendStopMsg()
 		return runtimeMaxIterations, iterationStop
 
 	case <-ctx.Done():
-		slog.Debug(
-			"Context cancelled while waiting for resume confirmation",
+		slog.DebugContext(ctx, "Context cancelled while waiting for resume confirmation",
 			"agent", a.Name(),
 			"session_id", sess.ID,
 		)
@@ -154,7 +152,7 @@ func (r *LocalRuntime) handleStreamError(
 ) streamErrorOutcome {
 	// Treat context cancellation as a graceful stop.
 	if errors.Is(err, context.Canceled) {
-		slog.Debug("Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
+		slog.DebugContext(ctx, "Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
 		return streamErrorFatal
 	}
 
@@ -165,7 +163,7 @@ func (r *LocalRuntime) handleStreamError(
 	// loop when compaction cannot reduce the context enough.
 	if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction && *overflowCompactions < r.maxOverflowCompactions {
 		*overflowCompactions++
-		slog.Warn("Context window overflow detected, attempting auto-compaction",
+		slog.WarnContext(ctx, "Context window overflow detected, attempting auto-compaction",
 			"agent", a.Name(),
 			"session_id", sess.ID,
 			"input_tokens", sess.InputTokens,
@@ -183,7 +181,7 @@ func (r *LocalRuntime) handleStreamError(
 
 	streamSpan.RecordError(err)
 	streamSpan.SetStatus(codes.Error, "error handling stream")
-	slog.Error("All models failed", "agent", a.Name(), "error", err)
+	slog.ErrorContext(ctx, "All models failed", "agent", a.Name(), "error", err)
 	r.telemetry.RecordError(ctx, err.Error())
 	errMsg := modelerrors.FormatError(err)
 	events <- Error(errMsg)

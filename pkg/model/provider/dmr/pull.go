@@ -18,7 +18,7 @@ import (
 
 func pullDockerModelIfNeeded(ctx context.Context, model string) error {
 	if modelExists(ctx, model) {
-		slog.Debug("Model already exists, skipping pull", "model", model)
+		slog.DebugContext(ctx, "Model already exists, skipping pull", "model", model)
 		return nil
 	}
 
@@ -26,7 +26,7 @@ func pullDockerModelIfNeeded(ctx context.Context, model string) error {
 		return err
 	}
 
-	slog.Info("Pulling DMR model", "model", model)
+	slog.InfoContext(ctx, "Pulling DMR model", "model", model)
 	fmt.Printf("Pulling model %s...\n", model)
 
 	cmd := exec.CommandContext(ctx, "docker", "model", "pull", model)
@@ -36,7 +36,7 @@ func pullDockerModelIfNeeded(ctx context.Context, model string) error {
 		return fmt.Errorf("failed to pull model %s: %w", model, err)
 	}
 
-	slog.Info("Model pulled successfully", "model", model)
+	slog.InfoContext(ctx, "Model pulled successfully", "model", model)
 	fmt.Printf("Model %s pulled successfully.\n", model)
 
 	return nil
@@ -46,7 +46,7 @@ func pullDockerModelIfNeeded(ctx context.Context, model string) error {
 // In non-interactive mode (e.g. devcontainers, CI), it proceeds automatically.
 func confirmModelPull(ctx context.Context, model string) error {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		slog.Info("Model not found locally, pulling automatically (non-interactive mode)", "model", model)
+		slog.InfoContext(ctx, "Model not found locally, pulling automatically (non-interactive mode)", "model", model)
 		return nil
 	}
 
@@ -72,7 +72,7 @@ func modelExists(ctx context.Context, model string) bool {
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		slog.Debug("Model does not exist", "model", model, "error", strings.TrimSpace(stderr.String()))
+		slog.DebugContext(ctx, "Model does not exist", "model", model, "error", strings.TrimSpace(stderr.String()))
 		return false
 	}
 	return true

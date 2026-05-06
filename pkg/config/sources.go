@@ -136,7 +136,7 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	// the artifact locally, serve it directly without any network call.
 	if remote.IsDigestReference(a.reference) {
 		if data, loadErr := loadArtifact(store, storeKey); loadErr == nil {
-			slog.Debug("Serving digest-pinned OCI artifact from cache", "ref", a.reference)
+			slog.DebugContext(ctx, "Serving digest-pinned OCI artifact from cache", "ref", a.reference)
 			return data, nil
 		}
 	}
@@ -149,7 +149,7 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 		if !hasLocal {
 			return nil, fmt.Errorf("failed to pull OCI image %s: %w", a.reference, pullErr)
 		}
-		slog.Debug("Failed to check for OCI reference updates, using cached version",
+		slog.DebugContext(ctx, "Failed to check for OCI reference updates, using cached version",
 			"ref", a.reference, "error", pullErr)
 	}
 
@@ -164,7 +164,7 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to load agent from OCI source %s: %w", a.reference, err)
 	}
 
-	slog.Warn("Local OCI store corrupted, forcing re-pull", "ref", a.reference)
+	slog.WarnContext(ctx, "Local OCI store corrupted, forcing re-pull", "ref", a.reference)
 	if _, pullErr := remote.Pull(ctx, a.reference, true); pullErr != nil {
 		return nil, fmt.Errorf("failed to force re-pull OCI image %s: %w", a.reference, pullErr)
 	}
@@ -264,7 +264,7 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		// Network error - try to use cached version
 		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
-			slog.Debug("Network error fetching URL, using cached version", "url", a.url, "error", err)
+			slog.DebugContext(ctx, "Network error fetching URL, using cached version", "url", a.url, "error", err)
 			return cachedData, nil
 		}
 		return nil, fmt.Errorf("fetching %s: %w", a.url, err)
@@ -274,7 +274,7 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	// 304 Not Modified - return cached content
 	if resp.StatusCode == http.StatusNotModified {
 		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
-			slog.Debug("URL not modified, using cached version", "url", a.url)
+			slog.DebugContext(ctx, "URL not modified, using cached version", "url", a.url)
 			return cachedData, nil
 		}
 		// Cache file missing despite 304, fall through to fetch again
@@ -283,7 +283,7 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		// HTTP error - try to use cached version
 		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
-			slog.Debug("HTTP error fetching URL, using cached version", "url", a.url, "status", resp.Status)
+			slog.DebugContext(ctx, "HTTP error fetching URL, using cached version", "url", a.url, "status", resp.Status)
 			return cachedData, nil
 		}
 		return nil, fmt.Errorf("fetching %s: %s", a.url, resp.Status)
@@ -297,13 +297,13 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	// Cache the response
 	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
 		if err := os.WriteFile(cachePath, data, 0o644); err != nil {
-			slog.Debug("Failed to cache URL content", "url", a.url, "error", err)
+			slog.DebugContext(ctx, "Failed to cache URL content", "url", a.url, "error", err)
 		}
 
 		// Save ETag if present
 		if etag := resp.Header.Get("ETag"); etag != "" {
 			if err := os.WriteFile(etagPath, []byte(etag), 0o644); err != nil {
-				slog.Debug("Failed to cache ETag", "url", a.url, "error", err)
+				slog.DebugContext(ctx, "Failed to cache ETag", "url", a.url, "error", err)
 			}
 		} else {
 			// Remove stale ETag file if server no longer provides ETag
@@ -350,7 +350,7 @@ func (a urlSource) addGitHubAuth(ctx context.Context, req *http.Request) {
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
-	slog.Debug("Added GitHub token authorization to request", "url", a.url)
+	slog.DebugContext(ctx, "Added GitHub token authorization to request", "url", a.url)
 }
 
 // hashURL creates a safe filename from a URL.

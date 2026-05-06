@@ -54,7 +54,7 @@ type Client struct {
 // The cfg parameter should have Routing rules configured. The provider/model
 // fields of cfg define the fallback model that is used when no routing rule matches.
 func NewClient(ctx context.Context, cfg *latest.ModelConfig, models map[string]latest.ModelConfig, env environment.Provider, providerFactory ProviderFactory, opts ...options.Opt) (*Client, error) {
-	slog.Debug("Creating rule-based router", "provider", cfg.Provider, "model", cfg.Model)
+	slog.DebugContext(ctx, "Creating rule-based router", "provider", cfg.Provider, "model", cfg.Model)
 
 	if len(cfg.Routing) == 0 {
 		return nil, errors.New("no routing rules configured")
@@ -171,7 +171,7 @@ func (c *Client) CreateChatCompletionStream(
 	c.mu.Lock()
 	c.lastSelectedID = selectedID
 	c.mu.Unlock()
-	slog.Debug("Rule-based router selected model",
+	slog.DebugContext(ctx, "Rule-based router selected model",
 		"router", c.ID(),
 		"selected_model", selectedID,
 		"message_count", len(messages),

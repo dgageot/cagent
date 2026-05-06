@@ -157,7 +157,7 @@ func (f *debugFlags) runDebugTitleCommand(cmd *cobra.Command, args []string) (co
 		return err
 	}
 
-	model := agent.Model()
+	model := agent.Model(ctx)
 	if model == nil {
 		return fmt.Errorf("agent %q has no model configured", agent.Name())
 	}

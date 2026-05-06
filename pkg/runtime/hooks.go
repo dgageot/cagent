@@ -88,7 +88,7 @@ func (r *LocalRuntime) dispatchHook(
 		events <- HookFinished(event, input.SessionID, result, err, time.Since(started), a.Name())
 	}
 	if err != nil {
-		slog.Warn("Hook execution failed", "event", event, "agent", a.Name(), "error", err)
+		slog.WarnContext(ctx, "Hook execution failed", "event", event, "agent", a.Name(), "error", err)
 		return nil
 	}
 
@@ -396,7 +396,7 @@ func (r *LocalRuntime) executeOnUserInputHooks(ctx context.Context, sessionID, l
 	if a == nil {
 		return
 	}
-	slog.Debug("Executing on-user-input hooks", "context", logContext)
+	slog.DebugContext(ctx, "Executing on-user-input hooks", "context", logContext)
 	r.dispatchHook(ctx, a, hooks.EventOnUserInput, &hooks.Input{
 		SessionID: sessionID,
 	}, nil)

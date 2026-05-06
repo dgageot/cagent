@@ -325,7 +325,7 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 					// Inline content attachment (e.g. pasted text).
 					a.processInlineAttachment(att, &textBuilder)
 				default:
-					slog.Debug("skipping attachment with no file path or content", "name", att.Name)
+					slog.DebugContext(ctx, "skipping attachment with no file path or content", "name", att.Name)
 				}
 			}
 
@@ -382,20 +382,20 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 		default:
 			reason = fmt.Sprintf("cannot access file: %v", err)
 		}
-		slog.Warn("skipping attachment", "path", absPath, "reason", reason)
+		slog.WarnContext(ctx, "skipping attachment", "path", absPath, "reason", reason)
 		a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: %s", att.Name, reason), ""))
 		return false
 	}
 
 	if !fi.Mode().IsRegular() {
-		slog.Warn("skipping attachment: not a regular file", "path", absPath, "mode", fi.Mode().String())
+		slog.WarnContext(ctx, "skipping attachment: not a regular file", "path", absPath, "mode", fi.Mode().String())
 		a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: not a regular file", att.Name), ""))
 		return false
 	}
 
 	const maxAttachmentSize = 100 * 1024 * 1024 // 100MB
 	if fi.Size() > maxAttachmentSize {
-		slog.Warn("skipping attachment: file too large", "path", absPath, "size", fi.Size(), "max", maxAttachmentSize)
+		slog.WarnContext(ctx, "skipping attachment: file too large", "path", absPath, "size", fi.Size(), "max", maxAttachmentSize)
 		a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: file too large (max 100MB)", att.Name), ""))
 		return true
 	}
@@ -405,13 +405,13 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 	switch {
 	case chat.IsTextFile(absPath):
 		if fi.Size() > chat.MaxInlineFileSize {
-			slog.Warn("skipping attachment: text file too large to inline", "path", absPath, "size", fi.Size(), "max", chat.MaxInlineFileSize)
+			slog.WarnContext(ctx, "skipping attachment: text file too large to inline", "path", absPath, "size", fi.Size(), "max", chat.MaxInlineFileSize)
 			a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: text file too large to inline (max 5MB)", att.Name), ""))
 			return true
 		}
 		content, err := chat.ReadFileForInline(absPath)
 		if err != nil {
-			slog.Warn("skipping attachment: failed to read file", "path", absPath, "error", err)
+			slog.WarnContext(ctx, "skipping attachment: failed to read file", "path", absPath, "error", err)
 			a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: failed to read file", att.Name), ""))
 			return true
 		}
@@ -424,14 +424,14 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 			// This works across all providers (not just Anthropic's File API).
 			imgData, readErr := os.ReadFile(absPath)
 			if readErr != nil {
-				slog.Warn("skipping attachment: failed to read image", "path", absPath, "error", readErr)
+				slog.WarnContext(ctx, "skipping attachment: failed to read image", "path", absPath, "error", readErr)
 				a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: failed to read image", att.Name), ""))
 				return true
 			}
 			resized, resizeErr := chat.ResizeImage(imgData, mimeType)
 			if resizeErr != nil {
 				// Don't bypass security checks - reject the file if resize failed
-				slog.Warn("skipping attachment: image resize failed", "path", absPath, "error", resizeErr)
+				slog.WarnContext(ctx, "skipping attachment: image resize failed", "path", absPath, "error", resizeErr)
 				a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: %s", att.Name, resizeErr), ""))
 				return true
 			}
@@ -458,7 +458,7 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 		}
 
 	default:
-		slog.Warn("skipping attachment: unsupported file type", "path", absPath, "mime_type", mimeType)
+		slog.WarnContext(ctx, "skipping attachment: unsupported file type", "path", absPath, "mime_type", mimeType)
 		a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: unsupported file type", att.Name), ""))
 	}
 
@@ -701,14 +701,14 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 	if modelRef == "" {
 		// Clear the override - remove from map
 		delete(a.session.AgentModelOverrides, agentName)
-		slog.Debug("Cleared model override from session", "session_id", a.session.ID, "agent", agentName)
+		slog.DebugContext(ctx, "Cleared model override from session", "session_id", a.session.ID, "agent", agentName)
 	} else {
 		// Set the override
 		if a.session.AgentModelOverrides == nil {
 			a.session.AgentModelOverrides = make(map[string]string)
 		}
 		a.session.AgentModelOverrides[agentName] = modelRef
-		slog.Debug("Set model override in session", "session_id", a.session.ID, "agent", agentName, "model", modelRef)
+		slog.DebugContext(ctx, "Set model override in session", "session_id", a.session.ID, "agent", agentName, "model", modelRef)
 
 		// Track custom models (inline provider/model format) in the session
 		if strings.Contains(modelRef, "/") {
@@ -721,7 +721,7 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 		if err := store.UpdateSession(ctx, a.session); err != nil {
 			return fmt.Errorf("failed to persist model override: %w", err)
 		}
-		slog.Debug("Persisted session with model override", "session_id", a.session.ID, "overrides", a.session.AgentModelOverrides)
+		slog.DebugContext(ctx, "Persisted session with model override", "session_id", a.session.ID, "overrides", a.session.AgentModelOverrides)
 	}
 
 	// Re-emit startup info so the sidebar updates with the new model
@@ -891,25 +891,25 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 // applySessionModelOverrides applies any stored model overrides from a loaded session.
 func (a *App) applySessionModelOverrides(ctx context.Context, sess *session.Session) {
 	if len(sess.AgentModelOverrides) == 0 {
-		slog.Debug("No model overrides to apply from session", "session_id", sess.ID)
+		slog.DebugContext(ctx, "No model overrides to apply from session", "session_id", sess.ID)
 		return
 	}
 
 	// Check if runtime supports model switching
 	modelSwitcher, ok := a.runtime.(runtime.ModelSwitcher)
 	if !ok {
-		slog.Debug("Runtime does not support model switching, skipping overrides")
+		slog.DebugContext(ctx, "Runtime does not support model switching, skipping overrides")
 		return
 	}
 
-	slog.Debug("Applying model overrides from session", "session_id", sess.ID, "overrides", sess.AgentModelOverrides)
+	slog.DebugContext(ctx, "Applying model overrides from session", "session_id", sess.ID, "overrides", sess.AgentModelOverrides)
 	for agentName, modelRef := range sess.AgentModelOverrides {
 		if err := modelSwitcher.SetAgentModel(ctx, agentName, modelRef); err != nil {
 			// Log but don't fail - the session can still be used with default models
-			slog.Warn("Failed to apply model override from session", "agent", agentName, "model", modelRef, "error", err)
+			slog.WarnContext(ctx, "Failed to apply model override from session", "agent", agentName, "model", modelRef, "error", err)
 			a.events <- runtime.Warning(fmt.Sprintf("Failed to apply model override for agent %q: %v", agentName, err), agentName)
 		} else {
-			slog.Info("Applied model override from session", "agent", agentName, "model", modelRef)
+			slog.InfoContext(ctx, "Applied model override from session", "agent", agentName, "model", modelRef)
 		}
 	}
 }
@@ -1107,7 +1107,7 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 	defer a.titleGenerating.Store(false)
 
 	if a.titleGen == nil {
-		slog.Debug("No title generator available, skipping title generation")
+		slog.DebugContext(ctx, "No title generator available, skipping title generation")
 		// Emit empty title event so the UI clears any title-generation spinner
 		select {
 		case a.events <- runtime.SessionTitle(a.session.ID, ""):
@@ -1118,7 +1118,7 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 
 	title, err := a.titleGen.Generate(ctx, a.session.ID, userMessages)
 	if err != nil {
-		slog.Error("Failed to generate session title", "session_id", a.session.ID, "error", err)
+		slog.ErrorContext(ctx, "Failed to generate session title", "session_id", a.session.ID, "error", err)
 		// Emit empty title event so the UI clears any title-generation spinner
 		select {
 		case a.events <- runtime.SessionTitle(a.session.ID, ""):
@@ -1138,7 +1138,7 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 
 	// Persist the title
 	if err := a.runtime.UpdateSessionTitle(ctx, a.session, title); err != nil {
-		slog.Error("Failed to persist title", "session_id", a.session.ID, "error", err)
+		slog.ErrorContext(ctx, "Failed to persist title", "session_id", a.session.ID, "error", err)
 	}
 
 	// Emit the title event to update the UI
@@ -1178,6 +1178,6 @@ func (a *App) RegenerateSessionTitle(ctx context.Context) error {
 
 	// For remote runtime, title regeneration is not yet supported
 	// (the server would need to implement this)
-	slog.Debug("Title regeneration not available for remote runtime", "session_id", a.session.ID)
+	slog.DebugContext(ctx, "Title regeneration not available for remote runtime", "session_id", a.session.ID)
 	return errors.New("title regeneration not available")
 }

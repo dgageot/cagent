@@ -28,7 +28,7 @@ func addGitStatus(ctx context.Context, in *hooks.Input, _ []string) (*hooks.Outp
 	}
 	out, err := gitOutput(ctx, in.Cwd, "status", "--short", "--branch")
 	if err != nil {
-		slog.Debug("add_git_status: git status failed; skipping", "cwd", in.Cwd, "error", err)
+		slog.DebugContext(ctx, "add_git_status: git status failed; skipping", "cwd", in.Cwd, "error", err)
 		return nil, nil
 	}
 	if out == "" {

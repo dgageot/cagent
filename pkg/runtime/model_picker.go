@@ -73,13 +73,13 @@ func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string,
 	if a, err := r.team.Agent(currentName); err == nil {
 		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
 	} else {
-		slog.Warn("Failed to retrieve agent after model change; UI may not reflect the update", "agent", currentName, "error", err)
+		slog.WarnContext(ctx, "Failed to retrieve agent after model change; UI may not reflect the update", "agent", currentName, "error", err)
 	}
 
 	if modelRef == "" {
-		slog.Info("Model reverted via model_picker tool", "agent", currentName)
+		slog.InfoContext(ctx, "Model reverted via model_picker tool", "agent", currentName)
 		return tools.ResultSuccess("Model reverted to the agent's default model"), nil
 	}
-	slog.Info("Model changed via model_picker tool", "agent", currentName, "model", modelRef)
+	slog.InfoContext(ctx, "Model changed via model_picker tool", "agent", currentName, "model", modelRef)
 	return tools.ResultSuccess("Model changed to " + modelRef), nil
 }

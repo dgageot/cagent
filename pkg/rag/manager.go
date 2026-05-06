@@ -166,7 +166,7 @@ func (m *Manager) Initialize(ctx context.Context) (err error) {
 		span.End()
 	}()
 
-	slog.Debug("[RAG Manager] Starting initialization",
+	slog.DebugContext(ctx, "[RAG Manager] Starting initialization",
 		"rag_name", m.name,
 		"num_strategies", len(m.strategies))
 
@@ -182,7 +182,7 @@ func (m *Manager) Initialize(ctx context.Context) (err error) {
 		strategyCfg := m.strategyConfigs[strategyName]
 
 		go func() {
-			slog.Debug("[RAG Manager] Initializing strategy",
+			slog.DebugContext(ctx, "[RAG Manager] Initializing strategy",
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"num_docs", len(strategyCfg.Docs),
@@ -194,17 +194,17 @@ func (m *Manager) Initialize(ctx context.Context) (err error) {
 			start := time.Now()
 			err := strategyImpl.Initialize(ctx, strategyCfg.Docs, strategyCfg.Chunking)
 			indexDuration := time.Since(start)
-			slog.Debug("[RAG Manager] Strategy indexing duration",
+			slog.DebugContext(ctx, "[RAG Manager] Strategy indexing duration",
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"duration", indexDuration)
 			if err != nil {
-				slog.Error("[RAG Manager] Strategy initialization failed",
+				slog.ErrorContext(ctx, "[RAG Manager] Strategy initialization failed",
 					"rag_name", m.name,
 					"strategy", strategyName,
 					"error", err)
 			} else {
-				slog.Info("[RAG Manager] Strategy initialized successfully",
+				slog.InfoContext(ctx, "[RAG Manager] Strategy initialized successfully",
 					"rag_name", m.name,
 					"strategy", strategyName)
 			}
@@ -225,7 +225,7 @@ func (m *Manager) Initialize(ctx context.Context) (err error) {
 		return fmt.Errorf("one or more strategies failed to initialize: %w", firstError)
 	}
 
-	slog.Info("[RAG Manager] Initialization complete",
+	slog.InfoContext(ctx, "[RAG Manager] Initialization complete",
 		"rag_name", m.name)
 
 	return nil
@@ -247,7 +247,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 		retSpan.End()
 	}()
 
-	slog.Debug("[RAG Manager] Starting query",
+	slog.DebugContext(ctx, "[RAG Manager] Starting query",
 		"rag_name", m.name,
 		"num_strategies", len(m.strategies),
 		"query_length", len(query))
@@ -257,7 +257,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 		for strategyName, strategyImpl := range m.strategies {
 			strategyCfg := m.strategyConfigs[strategyName]
 
-			slog.Debug("[RAG Manager] Single strategy query",
+			slog.DebugContext(ctx, "[RAG Manager] Single strategy query",
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"strategy_limit", strategyCfg.Limit,
@@ -269,14 +269,14 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 			// `return X, Y` form below with a bare `return`.
 			results, err = strategyImpl.Query(ctx, query, strategyCfg.Limit, strategyCfg.Threshold)
 			if err != nil {
-				slog.Error("[RAG Manager] Strategy query failed",
+				slog.ErrorContext(ctx, "[RAG Manager] Strategy query failed",
 					"rag_name", m.name,
 					"strategy", strategyName,
 					"error", err)
 				return nil, err
 			}
 
-			slog.Debug("[RAG Manager] Single strategy results",
+			slog.DebugContext(ctx, "[RAG Manager] Single strategy results",
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"num_results", len(results))
@@ -284,21 +284,21 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 			// Apply reranking if configured
 			if m.reranker != nil {
 				beforeCount := len(results)
-				slog.Debug("[RAG Manager] Applying reranking to single-strategy results",
+				slog.DebugContext(ctx, "[RAG Manager] Applying reranking to single-strategy results",
 					"rag_name", m.name,
 					"strategy", strategyName,
 					"result_count_before", beforeCount)
 
 				rerankedResults, rerankErr := m.reranker.Rerank(ctx, query, results)
 				if rerankErr != nil {
-					slog.Warn("[RAG Manager] Reranking failed, using original results",
+					slog.WarnContext(ctx, "[RAG Manager] Reranking failed, using original results",
 						"rag_name", m.name,
 						"strategy", strategyName,
 						"error", rerankErr)
 					// Continue with original results rather than failing completely
 				} else {
 					results = rerankedResults
-					slog.Debug("[RAG Manager] Reranked single-strategy results",
+					slog.DebugContext(ctx, "[RAG Manager] Reranked single-strategy results",
 						"rag_name", m.name,
 						"strategy", strategyName,
 						"result_count_before", beforeCount,
@@ -308,7 +308,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 			}
 
 			if limit := m.config.Results.Limit; limit > 0 && len(results) > limit {
-				slog.Debug("[RAG Manager] Truncating to global result limit",
+				slog.DebugContext(ctx, "[RAG Manager] Truncating to global result limit",
 					"rag_name", m.name,
 					"strategy", strategyName,
 					"before", len(results),
@@ -323,7 +323,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 
 			if m.config.Results.Deduplicate {
 				results = m.deduplicateResults(results)
-				slog.Debug("[RAG Manager] Deduplicated single-strategy results",
+				slog.DebugContext(ctx, "[RAG Manager] Deduplicated single-strategy results",
 					"rag_name", m.name,
 					"strategy", strategyName,
 					"num_results", len(results))
@@ -334,7 +334,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 	}
 
 	// Multi-strategy - query all in parallel with per-strategy limits, then fuse results
-	slog.Debug("[RAG Manager] Multi-strategy query (hybrid)",
+	slog.DebugContext(ctx, "[RAG Manager] Multi-strategy query (hybrid)",
 		"rag_name", m.name,
 		"strategies", getStrategyNames(m.strategies))
 
@@ -350,7 +350,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 	for strategyName, strategyImpl := range m.strategies {
 		strategyCfg := m.strategyConfigs[strategyName]
 
-		slog.Debug("[RAG Manager] Launching parallel query for strategy",
+		slog.DebugContext(ctx, "[RAG Manager] Launching parallel query for strategy",
 			"rag_name", m.name,
 			"strategy", strategyName,
 			"strategy_limit", strategyCfg.Limit,
@@ -372,14 +372,14 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 		result := <-resultsChan
 
 		if result.err != nil {
-			slog.Error("[RAG Manager] Strategy query failed",
+			slog.ErrorContext(ctx, "[RAG Manager] Strategy query failed",
 				"rag_name", m.name,
 				"strategy", result.name,
 				"error", result.err)
 			return nil, fmt.Errorf("strategy %s failed: %w", result.name, result.err)
 		}
 
-		slog.Debug("[RAG Manager] Strategy returned results",
+		slog.DebugContext(ctx, "[RAG Manager] Strategy returned results",
 			"rag_name", m.name,
 			"strategy", result.name,
 			"num_results", len(result.results),
@@ -389,7 +389,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 	}
 
 	// Fuse results from all strategies
-	slog.Debug("[RAG Manager] Starting fusion",
+	slog.DebugContext(ctx, "[RAG Manager] Starting fusion",
 		"rag_name", m.name,
 		"num_strategies", len(strategyResults))
 
@@ -400,13 +400,13 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 
 	fusedResults, err := m.fusion.Fuse(strategyResults)
 	if err != nil {
-		slog.Error("[RAG Manager] Fusion failed",
+		slog.ErrorContext(ctx, "[RAG Manager] Fusion failed",
 			"rag_name", m.name,
 			"error", err)
 		return nil, fmt.Errorf("failed to fuse results: %w", err)
 	}
 
-	slog.Debug("[RAG Manager] Fusion complete",
+	slog.DebugContext(ctx, "[RAG Manager] Fusion complete",
 		"rag_name", m.name,
 		"fused_results", len(fusedResults),
 		"result_limit", m.config.Results.Limit)
@@ -414,19 +414,19 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 	// Apply reranking if configured (before limit and deduplication)
 	if m.reranker != nil {
 		beforeCount := len(fusedResults)
-		slog.Debug("[RAG Manager] Applying reranking to fused results",
+		slog.DebugContext(ctx, "[RAG Manager] Applying reranking to fused results",
 			"rag_name", m.name,
 			"result_count_before", beforeCount)
 
 		rerankedResults, rerankErr := m.reranker.Rerank(ctx, query, fusedResults)
 		if rerankErr != nil {
-			slog.Warn("[RAG Manager] Reranking failed, using original fused results",
+			slog.WarnContext(ctx, "[RAG Manager] Reranking failed, using original fused results",
 				"rag_name", m.name,
 				"error", rerankErr)
 			// Continue with original fused results rather than failing completely
 		} else {
 			fusedResults = rerankedResults
-			slog.Debug("[RAG Manager] Reranked fused results",
+			slog.DebugContext(ctx, "[RAG Manager] Reranked fused results",
 				"rag_name", m.name,
 				"result_count_before", beforeCount,
 				"result_count_after", len(fusedResults),
@@ -436,7 +436,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 
 	// Apply result limit if configured
 	if limit := m.config.Results.Limit; limit > 0 && len(fusedResults) > limit {
-		slog.Debug("[RAG Manager] Truncating to result limit",
+		slog.DebugContext(ctx, "[RAG Manager] Truncating to result limit",
 			"rag_name", m.name,
 			"before", len(fusedResults),
 			"after", limit)
@@ -452,7 +452,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 	// (full documents or chunks).
 	if m.config.Results.Deduplicate {
 		fusedResults = m.deduplicateResults(fusedResults)
-		slog.Debug("[RAG Manager] Deduplicated fused results",
+		slog.DebugContext(ctx, "[RAG Manager] Deduplicated fused results",
 			"rag_name", m.name,
 			"num_results", len(fusedResults))
 	}

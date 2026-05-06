@@ -141,27 +141,27 @@ func (w *SandboxTokenWriter) Stop() {
 func (w *SandboxTokenWriter) writeOnce(ctx context.Context) {
 	token, ok := w.provider.Get(ctx, DockerDesktopTokenEnv)
 	if !ok {
-		slog.Debug("No DOCKER_TOKEN available to write to sandbox tokens file")
+		slog.DebugContext(ctx, "No DOCKER_TOKEN available to write to sandbox tokens file")
 		return
 	}
 
 	tokens := sandboxTokens{DockerToken: token}
 	data, err := json.Marshal(tokens)
 	if err != nil {
-		slog.Debug("Failed to marshal sandbox tokens", "error", err)
+		slog.DebugContext(ctx, "Failed to marshal sandbox tokens", "error", err)
 		return
 	}
 
 	// Ensure the parent directory exists.
 	if err := os.MkdirAll(filepath.Dir(w.path), 0o700); err != nil {
-		slog.Debug("Failed to create sandbox tokens directory", "path", w.path, "error", err)
+		slog.DebugContext(ctx, "Failed to create sandbox tokens directory", "path", w.path, "error", err)
 		return
 	}
 
 	if err := atomic.WriteFile(w.path, bytes.NewReader(data)); err != nil {
-		slog.Debug("Failed to rename sandbox tokens file", "to", w.path, "error", err)
+		slog.DebugContext(ctx, "Failed to rename sandbox tokens file", "to", w.path, "error", err)
 		return
 	}
 
-	slog.Debug("Wrote sandbox tokens file", "path", w.path)
+	slog.DebugContext(ctx, "Wrote sandbox tokens file", "path", w.path)
 }

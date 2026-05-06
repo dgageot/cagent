@@ -142,7 +142,7 @@ func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b f
 
 // Initialize indexes all documents for BM25 retrieval
 func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
-	slog.Info("Starting BM25 strategy initialization",
+	slog.InfoContext(ctx, "Starting BM25 strategy initialization",
 		"name", s.name,
 		"doc_paths", docPaths,
 		"chunk_size", chunking.Size,
@@ -150,13 +150,13 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 		"respect_word_boundaries", chunking.RespectWordBoundaries)
 
 	// Load existing file hashes
-	slog.Debug("Loading existing file hashes", "strategy", s.name)
+	slog.DebugContext(ctx, "Loading existing file hashes", "strategy", s.name)
 	if err := s.loadExistingHashes(ctx); err != nil {
-		slog.Warn("Failed to load existing file hashes", "strategy", s.name, "error", err)
+		slog.WarnContext(ctx, "Failed to load existing file hashes", "strategy", s.name, "error", err)
 	}
 
 	// Collect all files
-	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
+	slog.DebugContext(ctx, "Collecting files", "strategy", s.name, "paths", docPaths)
 	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
@@ -175,11 +175,11 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 	}
 
 	if err := s.cleanupOrphanedDocuments(ctx, seenFilesForCleanup); err != nil {
-		slog.Error("Failed to cleanup orphaned documents", "error", err)
+		slog.ErrorContext(ctx, "Failed to cleanup orphaned documents", "error", err)
 	}
 
 	if len(files) == 0 {
-		slog.Warn("No files found for BM25 strategy", "name", s.name)
+		slog.WarnContext(ctx, "No files found for BM25 strategy", "name", s.name)
 		return nil
 	}
 
@@ -205,7 +205,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
 		if err != nil {
-			slog.Error("Failed to check if file needs indexing", "path", filePath, "error", err)
+			slog.ErrorContext(ctx, "Failed to check if file needs indexing", "path", filePath, "error", err)
 			fileStatuses = append(fileStatuses, fileStatus{path: filePath, needsIndexing: false})
 			continue
 		}
@@ -217,7 +217,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 	}
 
 	if filesToIndex == 0 {
-		slog.Info("All files up to date, no indexing needed", "name", s.name)
+		slog.InfoContext(ctx, "All files up to date, no indexing needed", "name", s.name)
 		return nil
 	}
 
@@ -246,23 +246,23 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 		})
 
 		if err := s.indexFile(ctx, status.path); err != nil {
-			slog.Error("Failed to index file", "path", status.path, "error", err)
+			slog.ErrorContext(ctx, "Failed to index file", "path", status.path, "error", err)
 			continue
 		}
 	}
 
 	if err := s.cleanupOrphanedDocuments(ctx, seenFiles); err != nil {
-		slog.Error("Failed to cleanup orphaned documents", "error", err)
+		slog.ErrorContext(ctx, "Failed to cleanup orphaned documents", "error", err)
 	}
 
 	// Calculate average document length for BM25
 	if err := s.calculateAvgDocLength(ctx); err != nil {
-		slog.Error("Failed to calculate average document length", "error", err)
+		slog.ErrorContext(ctx, "Failed to calculate average document length", "error", err)
 	}
 
 	s.emitEvent(types.Event{Type: types.EventTypeIndexingComplete})
 
-	slog.Info("BM25 strategy initialization completed",
+	slog.InfoContext(ctx, "BM25 strategy initialization completed",
 		"name", s.name,
 		"indexed", indexed)
 
@@ -356,25 +356,25 @@ func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
 		if err != nil {
-			slog.Error("Failed to check if file needs indexing", "path", filePath, "error", err)
+			slog.ErrorContext(ctx, "Failed to check if file needs indexing", "path", filePath, "error", err)
 			continue
 		}
 
 		if needsIndexing {
-			slog.Info("File changed, re-indexing", "path", filePath)
+			slog.InfoContext(ctx, "File changed, re-indexing", "path", filePath)
 			if err := s.indexFile(ctx, filePath); err != nil {
-				slog.Error("Failed to re-index file", "path", filePath, "error", err)
+				slog.ErrorContext(ctx, "Failed to re-index file", "path", filePath, "error", err)
 			}
 		}
 	}
 
 	if err := s.cleanupOrphanedDocuments(ctx, seenFiles); err != nil {
-		slog.Error("Failed to cleanup orphaned documents", "error", err)
+		slog.ErrorContext(ctx, "Failed to cleanup orphaned documents", "error", err)
 	}
 
 	// Recalculate average document length
 	if err := s.calculateAvgDocLength(ctx); err != nil {
-		slog.Error("Failed to recalculate average document length", "error", err)
+		slog.ErrorContext(ctx, "Failed to recalculate average document length", "error", err)
 	}
 
 	return nil
@@ -393,14 +393,14 @@ func (s *BM25Strategy) StartFileWatcher(ctx context.Context, docPaths []string, 
 
 	for _, docPath := range docPaths {
 		if err := s.addPathToWatcher(ctx, docPath); err != nil {
-			slog.Warn("Failed to watch path", "strategy", s.name, "path", docPath, "error", err)
+			slog.WarnContext(ctx, "Failed to watch path", "strategy", s.name, "path", docPath, "error", err)
 			continue
 		}
 	}
 
 	go s.watchLoop(ctx, docPaths)
 
-	slog.Info("File watcher started", "strategy", s.name)
+	slog.InfoContext(ctx, "File watcher started", "strategy", s.name)
 	return nil
 }
 
@@ -510,7 +510,7 @@ func (s *BM25Strategy) calculateAvgDocLength(ctx context.Context) error {
 	}
 
 	s.avgDocLength = float64(totalLength) / float64(len(docs))
-	slog.Debug("Calculated average document length",
+	slog.DebugContext(ctx, "Calculated average document length",
 		"strategy", s.name,
 		"avgLength", s.avgDocLength,
 		"docCount", len(docs))
@@ -598,7 +598,7 @@ func (s *BM25Strategy) indexFile(ctx context.Context, filePath string) error {
 	}
 
 	s.fileHashes[filePath] = fileHash
-	slog.Debug("Indexed file with BM25", "path", filePath, "chunks", storedChunks)
+	slog.DebugContext(ctx, "Indexed file with BM25", "path", filePath, "chunks", storedChunks)
 	return nil
 }
 
@@ -618,12 +618,12 @@ func (s *BM25Strategy) cleanupOrphanedDocuments(ctx context.Context, seenFiles m
 
 		if !seenFiles[meta.SourcePath] {
 			if err := s.db.DeleteDocumentsByPath(ctx, meta.SourcePath); err != nil {
-				slog.Error("Failed to delete orphaned documents", "path", meta.SourcePath, "error", err)
+				slog.ErrorContext(ctx, "Failed to delete orphaned documents", "path", meta.SourcePath, "error", err)
 				continue
 			}
 
 			if err := s.db.DeleteFileMetadata(ctx, meta.SourcePath); err != nil {
-				slog.Error("Failed to delete orphaned metadata", "path", meta.SourcePath, "error", err)
+				slog.ErrorContext(ctx, "Failed to delete orphaned metadata", "path", meta.SourcePath, "error", err)
 				continue
 			}
 
@@ -710,7 +710,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			// Check if the file matches any of the configured document paths/patterns
 			matches, matchErr := fsx.Matches(file, docPaths)
 			if matchErr != nil {
-				slog.Error("Failed to match path", "file", file, "error", matchErr)
+				slog.ErrorContext(ctx, "Failed to match path", "file", file, "error", matchErr)
 				continue
 			}
 			if !matches {
@@ -718,7 +718,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			}
 			// Check if the file should be ignored (e.g., gitignore)
 			if s.shouldIgnore != nil && s.shouldIgnore(file) {
-				slog.Debug("File changed but is ignored by filter, skipping", "path", file)
+				slog.DebugContext(ctx, "File changed but is ignored by filter, skipping", "path", file)
 				continue
 			}
 
@@ -727,9 +727,9 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 				continue
 			}
 
-			slog.Debug("Indexing file", "path", file, "strategy", s.name)
+			slog.DebugContext(ctx, "Indexing file", "path", file, "strategy", s.name)
 			if err := s.indexFile(ctx, file); err != nil {
-				slog.Error("Failed to re-index file", "path", file, "error", err)
+				slog.ErrorContext(ctx, "Failed to re-index file", "path", file, "error", err)
 			}
 		}
 
@@ -784,7 +784,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			if !ok {
 				return
 			}
-			slog.Error("File watcher error", "strategy", s.name, "error", err)
+			slog.ErrorContext(ctx, "File watcher error", "strategy", s.name, "error", err)
 		}
 	}
 }

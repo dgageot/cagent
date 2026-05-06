@@ -148,7 +148,7 @@ func loadDatabase(ctx context.Context, cacheFile string) (*Database, error) {
 	if fetchErr != nil {
 		// If API fetch fails but we have cached data, use it regardless of age.
 		if cached != nil {
-			slog.Debug("API fetch failed, using stale cache", "error", fetchErr)
+			slog.DebugContext(ctx, "API fetch failed, using stale cache", "error", fetchErr)
 			return &cached.Database, nil
 		}
 		return nil, fmt.Errorf("failed to fetch from API and no cached data available: %w", fetchErr)
@@ -159,14 +159,14 @@ func loadDatabase(ctx context.Context, cacheFile string) (*Database, error) {
 		// Bump LastRefresh so we don't re-check until the next interval.
 		cached.LastRefresh = time.Now()
 		if saveErr := saveToCache(cacheFile, &cached.Database, cached.ETag); saveErr != nil {
-			slog.Warn("Failed to update cache timestamp", "error", saveErr)
+			slog.WarnContext(ctx, "Failed to update cache timestamp", "error", saveErr)
 		}
 		return &cached.Database, nil
 	}
 
 	// Save the fresh data to cache.
 	if saveErr := saveToCache(cacheFile, database, newETag); saveErr != nil {
-		slog.Warn("Failed to save to cache", "error", saveErr)
+		slog.WarnContext(ctx, "Failed to save to cache", "error", saveErr)
 	}
 
 	return database, nil
@@ -192,7 +192,7 @@ func fetchFromAPI(ctx context.Context, etag string) (*Database, string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		slog.Debug("models.dev data not modified (304)")
+		slog.DebugContext(ctx, "models.dev data not modified (304)")
 		return nil, etag, nil
 	}
 

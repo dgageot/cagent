@@ -64,7 +64,7 @@ func (t *Team) AgentsInfo() []AgentInfo {
 			Description: a.Description(),
 			Commands:    a.Commands(),
 		}
-		if model := a.Model(); model != nil {
+		if model := a.Model(context.TODO()); model != nil {
 			modelID := model.ID()
 			if prov, modelName, found := strings.Cut(modelID, "/"); found {
 				info.Provider = prov

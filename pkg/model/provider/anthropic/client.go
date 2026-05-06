@@ -42,17 +42,17 @@ type Client struct {
 // NewClient creates a new Anthropic client from the provided configuration
 func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
-		slog.Error("Anthropic client creation failed", "error", "model configuration is required")
+		slog.ErrorContext(ctx, "Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Provider != "anthropic" {
-		slog.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Provider)
+		slog.ErrorContext(ctx, "Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
 	if env == nil {
-		slog.Error("Anthropic client creation failed", "error", "environment provider is required")
+		slog.ErrorContext(ctx, "Anthropic client creation failed", "error", "environment provider is required")
 		return nil, errors.New("environment provider is required")
 	}
 
@@ -77,7 +77,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 		}
 
-		slog.Debug("Anthropic API key found, creating client")
+		slog.DebugContext(ctx, "Anthropic API key found, creating client")
 		requestOptions := []option.RequestOption{
 			option.WithAPIKey(authToken),
 			option.WithHTTPClient(httpclient.NewHTTPClient(ctx)),
@@ -92,7 +92,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	} else {
 		// Fail fast if Docker Desktop's auth token isn't available
 		if token, _ := env.Get(ctx, environment.DockerDesktopTokenEnv); token == "" {
-			slog.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			slog.ErrorContext(ctx, "Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
@@ -133,7 +133,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 	}
 
-	slog.Debug("Anthropic client created successfully", "model", cfg.Model)
+	slog.DebugContext(ctx, "Anthropic client created successfully", "model", cfg.Model)
 
 	// Initialize FileManager for file uploads
 	anthropicClient.fileManager = NewFileManager(anthropicClient.clientFn)
@@ -160,7 +160,7 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
-	slog.Debug("Creating Anthropic chat completion stream",
+	slog.DebugContext(ctx, "Creating Anthropic chat completion stream",
 		"model", c.ModelConfig.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
@@ -178,7 +178,7 @@ func (c *Client) CreateChatCompletionStream(
 
 	client, err := c.clientFn(ctx)
 	if err != nil {
-		slog.Error("Failed to create Anthropic client", "error", err)
+		slog.ErrorContext(ctx, "Failed to create Anthropic client", "error", err)
 		return nil, err
 	}
 
@@ -196,13 +196,13 @@ func (c *Client) CreateChatCompletionStream(
 
 	allTools, err := convertTools(requestTools)
 	if err != nil {
-		slog.Error("Failed to convert tools for Anthropic request", "error", err)
+		slog.ErrorContext(ctx, "Failed to convert tools for Anthropic request", "error", err)
 		return nil, err
 	}
 
 	converted, err := c.convertMessages(ctx, messages)
 	if err != nil {
-		slog.Error("Failed to convert messages for Anthropic request", "error", err)
+		slog.ErrorContext(ctx, "Failed to convert messages for Anthropic request", "error", err)
 		return nil, err
 	}
 	if len(converted) == 0 {
@@ -231,21 +231,21 @@ func (c *Client) CreateChatCompletionStream(
 			params.TopP = param.NewOpt(*c.ModelConfig.TopP)
 		}
 	} else if c.ModelConfig.Temperature != nil || c.ModelConfig.TopP != nil {
-		slog.Debug("Anthropic extended thinking enabled, ignoring temperature/top_p settings")
+		slog.DebugContext(ctx, "Anthropic extended thinking enabled, ignoring temperature/top_p settings")
 	}
 
 	// Forward top_k from provider_opts (Anthropic natively supports it)
 	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
 		params.TopK = param.NewOpt(topK)
-		slog.Debug("Anthropic provider_opts: set top_k", "value", topK)
+		slog.DebugContext(ctx, "Anthropic provider_opts: set top_k", "value", topK)
 	}
 
 	if len(requestTools) > 0 {
-		slog.Debug("Adding tools to Anthropic request", "tool_count", len(requestTools))
+		slog.DebugContext(ctx, "Adding tools to Anthropic request", "tool_count", len(requestTools))
 	}
 
 	// Log the request details for debugging
-	slog.Debug("Anthropic chat completion stream request",
+	slog.DebugContext(ctx, "Anthropic chat completion stream request",
 		"model", params.Model,
 		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
@@ -253,9 +253,9 @@ func (c *Client) CreateChatCompletionStream(
 	if slog.Default().Enabled(ctx, slog.LevelDebug) {
 		b, err := json.Marshal(params)
 		if err != nil {
-			slog.Error("Failed to marshal Anthropic request", "error", err)
+			slog.ErrorContext(ctx, "Failed to marshal Anthropic request", "error", err)
 		}
-		slog.Debug("Request", "request", string(b))
+		slog.DebugContext(ctx, "Request", "request", string(b))
 	}
 
 	// Add fine-grained tool streaming beta header
@@ -269,21 +269,21 @@ func (c *Client) CreateChatCompletionStream(
 	ad.retryFn = func() *ssestream.Stream[anthropic.MessageStreamEventUnion] {
 		used, err := countAnthropicTokens(ctx, client, c.ModelConfig.Model, converted, sys, allTools)
 		if err != nil {
-			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
+			slog.WarnContext(ctx, "Failed to count tokens for retry, skipping", "error", err)
 			return nil
 		}
 		newMaxTokens := clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
 		if newMaxTokens >= maxTokens {
-			slog.Warn("Token count does not require clamping, not retrying")
+			slog.WarnContext(ctx, "Token count does not require clamping, not retrying")
 			return nil
 		}
-		slog.Warn("Retrying with clamped max_tokens after context length error", "original max_tokens", maxTokens, "clamped max_tokens", newMaxTokens, "used tokens", used)
+		slog.WarnContext(ctx, "Retrying with clamped max_tokens after context length error", "original max_tokens", maxTokens, "clamped max_tokens", newMaxTokens, "used tokens", used)
 		retryParams := params
 		retryParams.MaxTokens = newMaxTokens
 		return client.Messages.NewStreaming(ctx, retryParams, betaHeader)
 	}
 
-	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
+	slog.DebugContext(ctx, "Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
 	return ad, nil
 }
 

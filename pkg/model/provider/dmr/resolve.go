@@ -62,19 +62,19 @@ func testDMRConnectivity(ctx context.Context, httpClient *http.Client, baseURL s
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, http.NoBody)
 	if err != nil {
-		slog.Debug("DMR connectivity check: failed to create request", "url", healthURL, "error", err)
+		slog.DebugContext(ctx, "DMR connectivity check: failed to create request", "url", healthURL, "error", err)
 		return false
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		slog.Debug("DMR connectivity check: request failed", "url", healthURL, "error", err)
+		slog.DebugContext(ctx, "DMR connectivity check: request failed", "url", healthURL, "error", err)
 		return false
 	}
 	defer resp.Body.Close()
 
 	// Any response (even 4xx/5xx) means the server is reachable
-	slog.Debug("DMR connectivity check: success", "url", healthURL, "status", resp.StatusCode)
+	slog.DebugContext(ctx, "DMR connectivity check: success", "url", healthURL, "status", resp.StatusCode)
 	return true
 }
 
@@ -112,12 +112,12 @@ func getDMRFallbackURLs(containerized bool) []string {
 func resolveDMRBaseURL(ctx context.Context, cfg *latest.ModelConfig, endpoint string) (string, []option.RequestOption, *http.Client) {
 	// Explicit configuration — return immediately without fallback testing.
 	if cfg != nil && cfg.BaseURL != "" {
-		slog.Debug("DMR using explicitly configured BaseURL", "url", cfg.BaseURL)
+		slog.DebugContext(ctx, "DMR using explicitly configured BaseURL", "url", cfg.BaseURL)
 		return cfg.BaseURL, nil, nil
 	}
 	if host := os.Getenv("MODEL_RUNNER_HOST"); host != "" {
 		baseURL := strings.TrimRight(host, "/") + dmrInferencePrefix + "/v1/"
-		slog.Debug("DMR using MODEL_RUNNER_HOST", "url", baseURL)
+		slog.DebugContext(ctx, "DMR using MODEL_RUNNER_HOST", "url", baseURL)
 		return baseURL, nil, nil
 	}
 
@@ -129,23 +129,23 @@ func resolveDMRBaseURL(ctx context.Context, cfg *latest.ModelConfig, endpoint st
 	containerized := inContainer()
 
 	if !testDMRConnectivity(ctx, testClient, baseURL) {
-		slog.Debug("DMR primary endpoint unreachable, trying fallbacks", "primary_url", baseURL, "in_container", containerized)
+		slog.DebugContext(ctx, "DMR primary endpoint unreachable, trying fallbacks", "primary_url", baseURL, "in_container", containerized)
 
 		for _, fallbackURL := range getDMRFallbackURLs(containerized) {
 			if fallbackURL == baseURL {
 				continue
 			}
-			slog.Debug("DMR trying fallback endpoint", "url", fallbackURL)
+			slog.DebugContext(ctx, "DMR trying fallback endpoint", "url", fallbackURL)
 			if testDMRConnectivity(ctx, &http.Client{}, fallbackURL) {
-				slog.Info("DMR using fallback endpoint", "fallback_url", fallbackURL, "original_url", baseURL)
+				slog.InfoContext(ctx, "DMR using fallback endpoint", "fallback_url", fallbackURL, "original_url", baseURL)
 				return fallbackURL, nil, nil
 			}
 		}
 		// All endpoints unreachable — continue with primary URL.
 		// The client will fail on first actual use, providing a better error.
-		slog.Error("DMR all endpoints currently unreachable, will fail on first use", "primary_url", baseURL, "in_container", containerized)
+		slog.ErrorContext(ctx, "DMR all endpoints currently unreachable, will fail on first use", "primary_url", baseURL, "in_container", containerized)
 	} else {
-		slog.Debug("DMR primary endpoint reachable", "url", baseURL)
+		slog.DebugContext(ctx, "DMR primary endpoint reachable", "url", baseURL)
 	}
 
 	return baseURL, clientOptions, httpClient

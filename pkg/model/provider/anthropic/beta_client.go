@@ -38,13 +38,13 @@ func (c *Client) createBetaStream(
 
 	allTools, err := convertBetaTools(requestTools)
 	if err != nil {
-		slog.Error("Failed to convert tools for Anthropic Beta request", "error", err)
+		slog.ErrorContext(ctx, "Failed to convert tools for Anthropic Beta request", "error", err)
 		return nil, err
 	}
 
 	converted, err := c.convertBetaMessages(ctx, messages)
 	if err != nil {
-		slog.Error("Failed to convert messages for Anthropic Beta request", "error", err)
+		slog.ErrorContext(ctx, "Failed to convert messages for Anthropic Beta request", "error", err)
 		return nil, err
 	}
 	if len(converted) == 0 {
@@ -62,7 +62,7 @@ func (c *Client) createBetaStream(
 	}
 	if needsFilesAPI {
 		betas = append(betas, filesAPIBeta)
-		slog.Debug("Anthropic Beta API: Including files-api beta header for file attachments")
+		slog.DebugContext(ctx, "Anthropic Beta API: Including files-api beta header for file attachments")
 	}
 
 	params := anthropic.BetaMessageNewParams{
@@ -76,7 +76,7 @@ func (c *Client) createBetaStream(
 
 	// Apply structured output configuration
 	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
-		slog.Debug("Anthropic Beta API using structured output", "name", structuredOutput.Name)
+		slog.DebugContext(ctx, "Anthropic Beta API using structured output", "name", structuredOutput.Name)
 
 		// Add structured outputs beta header
 		params.Betas = append(params.Betas, "structured-outputs-2025-11-13")
@@ -98,10 +98,10 @@ func (c *Client) createBetaStream(
 	configureTaskBudget(&params, c.ModelConfig.TaskBudget)
 
 	if len(requestTools) > 0 {
-		slog.Debug("Anthropic Beta API: Adding tools to request", "tool_count", len(requestTools))
+		slog.DebugContext(ctx, "Anthropic Beta API: Adding tools to request", "tool_count", len(requestTools))
 	}
 
-	slog.Debug("Anthropic Beta API chat completion stream request",
+	slog.DebugContext(ctx, "Anthropic Beta API chat completion stream request",
 		"model", params.Model,
 		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
@@ -109,7 +109,7 @@ func (c *Client) createBetaStream(
 	// Forward top_k from provider_opts (Anthropic natively supports it)
 	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
 		params.TopK = param.NewOpt(topK)
-		slog.Debug("Anthropic Beta provider_opts: set top_k", "value", topK)
+		slog.DebugContext(ctx, "Anthropic Beta provider_opts: set top_k", "value", topK)
 	}
 
 	stream := client.Beta.Messages.NewStreaming(ctx, params)
@@ -120,21 +120,21 @@ func (c *Client) createBetaStream(
 	ad.retryFn = func() *ssestream.Stream[anthropic.BetaRawMessageStreamEventUnion] {
 		used, err := countAnthropicTokensBeta(ctx, client, c.ModelConfig.Model, converted, sys, allTools)
 		if err != nil {
-			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
+			slog.WarnContext(ctx, "Failed to count tokens for retry, skipping", "error", err)
 			return nil
 		}
 		newMaxTokens := clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
 		if newMaxTokens >= maxTokens {
-			slog.Warn("Token count does not require clamping, not retrying")
+			slog.WarnContext(ctx, "Token count does not require clamping, not retrying")
 			return nil
 		}
-		slog.Warn("Retrying with clamped max_tokens after context length error", "original", maxTokens, "clamped", newMaxTokens, "used", used)
+		slog.WarnContext(ctx, "Retrying with clamped max_tokens after context length error", "original", maxTokens, "clamped", newMaxTokens, "used", used)
 		retryParams := params
 		retryParams.MaxTokens = newMaxTokens
 		return client.Beta.Messages.NewStreaming(ctx, retryParams)
 	}
 
-	slog.Debug("Anthropic Beta API chat completion stream created successfully", "model", c.ModelConfig.Model)
+	slog.DebugContext(ctx, "Anthropic Beta API chat completion stream created successfully", "model", c.ModelConfig.Model)
 	return ad, nil
 }
 
@@ -183,11 +183,11 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	const logPrefix = "Anthropic reranking request"
 
 	if len(documents) == 0 {
-		slog.Debug(logPrefix, "model", c.ModelConfig.Model, "num_documents", 0)
+		slog.DebugContext(ctx, logPrefix, "model", c.ModelConfig.Model, "num_documents", 0)
 		return []float64{}, nil
 	}
 
-	slog.Debug(logPrefix,
+	slog.DebugContext(ctx, logPrefix,
 		"model", c.ModelConfig.Model,
 		"query_length", len(query),
 		"num_documents", len(documents),
@@ -195,7 +195,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 
 	client, err := c.clientFn(ctx)
 	if err != nil {
-		slog.Error("Failed to create Anthropic client for reranking", "error", err)
+		slog.ErrorContext(ctx, "Failed to create Anthropic client for reranking", "error", err)
 		return nil, err
 	}
 
@@ -264,7 +264,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	// Forward top_k from provider_opts (Anthropic natively supports it)
 	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
 		params.TopK = param.NewOpt(topK)
-		slog.Debug("Anthropic Beta provider_opts: set top_k", "value", topK)
+		slog.DebugContext(ctx, "Anthropic Beta provider_opts: set top_k", "value", topK)
 	}
 
 	// Use streaming API to avoid timeout errors for operations that may take longer than 10 minutes
@@ -273,23 +273,23 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	// Accumulate the full response from the stream
 	resp, err := accumulateBetaStreamResponse(stream)
 	if err != nil {
-		slog.Error("Anthropic rerank streaming request failed", "error", err)
+		slog.ErrorContext(ctx, "Anthropic rerank streaming request failed", "error", err)
 		return nil, fmt.Errorf("anthropic rerank request failed: %w", err)
 	}
 
 	rawJSON, err := extractAnthropicStructuredOutputJSON(resp)
 	if err != nil {
-		slog.Error("Failed to extract Anthropic structured output JSON", "error", err)
+		slog.ErrorContext(ctx, "Failed to extract Anthropic structured output JSON", "error", err)
 		return nil, err
 	}
 
 	scores, err := parseRerankScoresAnthropic(rawJSON, len(documents))
 	if err != nil {
-		slog.Error("Failed to parse Anthropic rerank scores", "error", err)
+		slog.ErrorContext(ctx, "Failed to parse Anthropic rerank scores", "error", err)
 		return nil, err
 	}
 
-	slog.Debug("Anthropic reranking complete",
+	slog.DebugContext(ctx, "Anthropic reranking complete",
 		"model", c.ModelConfig.Model,
 		"num_scores", len(scores))
 

@@ -49,7 +49,7 @@ func NewHandler[T any](fn func(context.Context, T) (*ToolCallResult, error)) Too
 			// the repair-layer's complaint about a synthesised payload.
 			return nil, err
 		}
-		slog.Info("tool_input_repaired",
+		slog.InfoContext(ctx, "tool_input_repaired",
 			"tool", toolCall.Function.Name,
 			"repairs", kinds,
 		)

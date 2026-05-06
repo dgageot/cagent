@@ -252,7 +252,7 @@ func (c *sessionClient) GetPrompt(ctx context.Context, request *gomcp.GetPromptP
 // server to the registered handler. It is used as the gomcp ElicitationHandler
 // callback for both stdio and remote clients.
 func (c *sessionClient) handleElicitationRequest(ctx context.Context, req *gomcp.ElicitRequest) (*gomcp.ElicitResult, error) {
-	slog.Debug("Received elicitation request from MCP server", "message", req.Params.Message)
+	slog.DebugContext(ctx, "Received elicitation request from MCP server", "message", req.Params.Message)
 
 	c.mu.RLock()
 	handler := c.elicitationHandler
@@ -300,7 +300,7 @@ func (c *sessionClient) requestElicitation(ctx context.Context, req *gomcp.Elici
 	c.mu.RUnlock()
 
 	if handler == nil {
-		slog.Debug("OAuth flow requested elicitation before the runtime wired up a handler; deferring")
+		slog.DebugContext(ctx, "OAuth flow requested elicitation before the runtime wired up a handler; deferring")
 		return tools.ElicitationResult{}, &AuthorizationRequiredError{}
 	}
 

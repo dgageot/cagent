@@ -23,7 +23,7 @@ func ResolveModelAliases(ctx context.Context, cfg *latest.Config, store *modelsd
 		// Skip alias resolution for models with custom base_url (direct or via provider)
 		// Custom endpoints like Azure Foundry use alias names as deployment names
 		if hasCustomBaseURL(&modelCfg, cfg.Providers) {
-			slog.Debug("Skipping model alias resolution for model with custom base_url",
+			slog.DebugContext(ctx, "Skipping model alias resolution for model with custom base_url",
 				"model_name", name, "provider", modelCfg.Provider, "model", modelCfg.Model)
 			continue
 		}

@@ -24,7 +24,7 @@ type GatewayToolset struct {
 var _ tools.ToolSet = (*GatewayToolset)(nil)
 
 func NewGatewayToolset(ctx context.Context, name, mcpServerName string, secrets []gateway.Secret, config any, envProvider environment.Provider, cwd string) (*GatewayToolset, error) {
-	slog.Debug("Creating MCP Gateway toolset", "name", mcpServerName)
+	slog.DebugContext(ctx, "Creating MCP Gateway toolset", "name", mcpServerName)
 
 	// Make sure all the required secrets are available in the environment.
 	// TODO(dga): Ideally, the MCP gateway would use the same provider that we have.
@@ -65,7 +65,7 @@ func (t *GatewayToolset) Stop(ctx context.Context) error {
 
 	cleanUpErr := t.cleanUp()
 	if cleanUpErr != nil {
-		slog.Warn("Failed to clean up MCP Gateway temp files", "error", cleanUpErr)
+		slog.WarnContext(ctx, "Failed to clean up MCP Gateway temp files", "error", cleanUpErr)
 	}
 
 	return errors.Join(stopErr, cleanUpErr)

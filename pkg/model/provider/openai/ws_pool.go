@@ -81,7 +81,7 @@ func (p *wsPool) Stream(
 
 	// Close stale connections.
 	if p.conn != nil && p.conn.isExpired() {
-		slog.Debug("Closing expired WebSocket connection",
+		slog.DebugContext(ctx, "Closing expired WebSocket connection",
 			"age", time.Since(p.conn.createdAt))
 		p.closeLocked()
 	}
@@ -95,7 +95,7 @@ func (p *wsPool) Stream(
 	stream, err := sendOnExisting(p.conn.conn, params)
 	if err != nil {
 		// Connection is broken; tear down and reconnect once.
-		slog.Warn("Existing WebSocket connection failed, reconnecting", "error", err)
+		slog.WarnContext(ctx, "Existing WebSocket connection failed, reconnecting", "error", err)
 		p.closeLocked()
 		return p.dialLocked(ctx, params)
 	}

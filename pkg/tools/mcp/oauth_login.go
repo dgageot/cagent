@@ -66,7 +66,7 @@ func PerformOAuthLogin(ctx context.Context, serverURL string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := callbackServer.Shutdown(shutdownCtx); err != nil {
-			slog.Error("Failed to shutdown callback server", "error", err)
+			slog.ErrorContext(ctx, "Failed to shutdown callback server", "error", err)
 		}
 	}()
 

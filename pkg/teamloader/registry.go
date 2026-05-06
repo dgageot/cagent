@@ -409,7 +409,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		// and let mcp.Toolset.Start() retry on each conversation turn.
 		resolvedCommand, err := toolinstall.EnsureCommand(ctx, toolset.Command, toolset.Version)
 		if err != nil {
-			slog.Warn("MCP command not yet available, will retry on next turn",
+			slog.WarnContext(ctx, "MCP command not yet available, will retry on next turn",
 				"command", toolset.Command, "error", err)
 			resolvedCommand = toolset.Command
 		}

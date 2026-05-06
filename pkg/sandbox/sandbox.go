@@ -104,13 +104,13 @@ func (b *Backend) Ensure(ctx context.Context, wd, extra, template, configDir str
 	if existing != nil &&
 		(extra == "" || existing.HasWorkspace(extra)) &&
 		existing.HasWorkspace(configDir) {
-		slog.Debug("Reusing existing sandbox", "name", existing.Name)
+		slog.DebugContext(ctx, "Reusing existing sandbox", "name", existing.Name)
 		return existing.Name, nil
 	}
 
 	// Remove a stale sandbox whose mounts don't match.
 	if existing != nil {
-		slog.Debug("Removing existing sandbox to change workspace mounts", "name", existing.Name)
+		slog.DebugContext(ctx, "Removing existing sandbox to change workspace mounts", "name", existing.Name)
 		rmCmd := exec.CommandContext(ctx, b.program, b.args("rm", existing.Name)...)
 		b.applyEnv(rmCmd)
 		_ = rmCmd.Run()
@@ -129,7 +129,7 @@ func (b *Backend) Ensure(ctx context.Context, wd, extra, template, configDir str
 	createExtra = append(createExtra, configDir+":ro")
 
 	createArgs := b.args("create", createExtra...)
-	slog.Debug("Creating sandbox", "args", createArgs)
+	slog.DebugContext(ctx, "Creating sandbox", "args", createArgs)
 
 	createCmd := exec.CommandContext(ctx, b.program, createArgs...)
 	b.applyEnv(createCmd)
@@ -220,7 +220,7 @@ func EnvForAgent(ctx context.Context, agentRef string, env environment.Provider)
 
 	names, err := gatherAgentEnvVars(ctx, agentRef, env)
 	if err != nil {
-		slog.Debug("Failed to gather agent env vars for sandbox", "error", err)
+		slog.DebugContext(ctx, "Failed to gather agent env vars for sandbox", "error", err)
 		return nil, nil
 	}
 
@@ -257,7 +257,7 @@ func gatherAgentEnvVars(ctx context.Context, agentRef string, env environment.Pr
 
 	toolNames, err := config.GatherEnvVarsForTools(ctx, cfg)
 	if err != nil {
-		slog.Debug("Failed to gather tool env vars", "error", err)
+		slog.DebugContext(ctx, "Failed to gather tool env vars", "error", err)
 	}
 	names = append(names, toolNames...)
 

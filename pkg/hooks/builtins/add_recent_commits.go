@@ -40,13 +40,13 @@ func addRecentCommits(ctx context.Context, in *hooks.Input, args []string) (*hoo
 		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
 			limit = n
 		} else {
-			slog.Debug("add_recent_commits: ignoring invalid limit arg", "arg", args[0], "error", err)
+			slog.DebugContext(ctx, "add_recent_commits: ignoring invalid limit arg", "arg", args[0], "error", err)
 		}
 	}
 
 	out, err := gitOutput(ctx, in.Cwd, "log", "--oneline", "-n", strconv.Itoa(limit))
 	if err != nil {
-		slog.Debug("add_recent_commits: git log failed; skipping", "cwd", in.Cwd, "error", err)
+		slog.DebugContext(ctx, "add_recent_commits: git log failed; skipping", "cwd", in.Cwd, "error", err)
 		return nil, nil
 	}
 	if out == "" {

@@ -162,7 +162,7 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 // the response, executes any tool calls, and loops until the model signals stop
 // or the iteration limit is reached.
 func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
-	slog.Debug("Starting runtime stream", "agent", r.CurrentAgentName(), "session_id", sess.ID)
+	slog.DebugContext(ctx, "Starting runtime stream", "agent", r.CurrentAgentName(), "session_id", sess.ID)
 	events := make(chan Event, defaultEventChannelCapacity)
 
 	go r.runStreamLoop(ctx, sess, events)
@@ -261,7 +261,7 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 		if lastMsg.Role == chat.MessageRoleUser {
 			stop, msg, ctxMsgs := r.executeUserPromptSubmitHooks(ctx, sess, a, lastMsg.Content, events)
 			if stop {
-				slog.Warn("user_prompt_submit hook signalled run termination",
+				slog.WarnContext(ctx, "user_prompt_submit hook signalled run termination",
 					"agent", a.Name(), "session_id", sess.ID, "reason", msg)
 				r.emitHookDrivenShutdown(ctx, a, sess, msg, events)
 				return
@@ -356,21 +356,21 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 
 		// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
 		if err := ctx.Err(); err != nil {
-			slog.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
+			slog.DebugContext(ctx, "Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
 			return
 		}
-		slog.Debug("Starting conversation loop iteration", "agent", a.Name())
+		slog.DebugContext(ctx, "Starting conversation loop iteration", "agent", a.Name())
 
-		model := a.Model()
+		model := a.Model(ctx)
 
 		// Per-tool model routing: use a cheaper model for this turn
 		// if the previous tool calls specified one, then reset.
 		if toolModelOverride != "" {
 			if overrideModel, err := r.resolveModelRef(ctx, toolModelOverride); err != nil {
-				slog.Warn("Failed to resolve per-tool model override; using agent default",
+				slog.WarnContext(ctx, "Failed to resolve per-tool model override; using agent default",
 					"model_override", toolModelOverride, "error", err)
 			} else {
-				slog.Info("Using per-tool model override for this turn",
+				slog.InfoContext(ctx, "Using per-tool model override for this turn",
 					"agent", a.Name(), "override", overrideModel.ID(), "primary", model.ID())
 				model = overrideModel
 			}
@@ -384,11 +384,11 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 		// stream once the first chunk arrives.
 		events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
 
-		slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
-		slog.Debug("Getting model definition", "model_id", modelID)
+		slog.DebugContext(ctx, "Using agent", "agent", a.Name(), "model", modelID)
+		slog.DebugContext(ctx, "Getting model definition", "model_id", modelID)
 		m, err := r.modelsStore.GetModel(ctx, modelID)
 		if err != nil {
-			slog.Debug("Failed to get model definition", "error", err)
+			slog.DebugContext(ctx, "Failed to get model definition", "error", err)
 		}
 		// We can only compact if we know the limit.
 		var contextLimit int64
@@ -528,7 +528,7 @@ func (r *LocalRuntime) runTurn(
 	// arch) stays stable — all without bloating the stored history.
 	turnStartMsgs := r.executeTurnStartHooks(ctx, sess, a, events)
 	messages := sess.GetMessages(a, slices.Concat(priorExtras, turnStartMsgs)...)
-	slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
+	slog.DebugContext(ctx, "Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
 	// before_llm_call hooks fire just before the model is invoked.
 	// A terminating verdict (e.g. from the max_iterations builtin)
@@ -542,7 +542,7 @@ func (r *LocalRuntime) runTurn(
 	// silently overridden by a transform later in the chain.
 	stop, msg, rewritten := r.executeBeforeLLMCallHooks(ctx, sess, a, modelID, messages)
 	if stop {
-		slog.Warn("before_llm_call hook signalled run termination",
+		slog.WarnContext(ctx, "before_llm_call hook signalled run termination",
 			"agent", a.Name(), "session_id", sess.ID, "reason", msg)
 		r.emitHookDrivenShutdown(ctx, a, sess, msg, events)
 		endStreamSpan()
@@ -585,7 +585,7 @@ func (r *LocalRuntime) runTurn(
 	r.executeAfterLLMCallHooks(ctx, sess, a, res.Content)
 
 	if usedModel != nil && usedModel.ID() != model.ID() {
-		slog.Info("Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())
+		slog.InfoContext(ctx, "Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())
 		events <- AgentInfo(a.Name(), usedModel.ID(), a.Description(), a.WelcomeMessage())
 	}
 	streamSpan.SetAttributes(
@@ -594,7 +594,7 @@ func (r *LocalRuntime) runTurn(
 		attribute.Bool("stopped", res.Stopped),
 	)
 	endStreamSpan()
-	slog.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(res.Calls), "content_length", len(res.Content), "stopped", res.Stopped)
+	slog.DebugContext(ctx, "Stream processed", "agent", a.Name(), "tool_calls", len(res.Calls), "content_length", len(res.Content), "stopped", res.Stopped)
 
 	msgUsage := r.recordAssistantMessage(sess, a, res, agentTools, modelID, m, events)
 
@@ -629,7 +629,7 @@ func (r *LocalRuntime) runTurn(
 			toolName = res.Calls[0].Function.Name
 		}
 		consecutive := loopDetector.Consecutive()
-		slog.Warn("Repetitive tool call loop detected",
+		slog.WarnContext(ctx, "Repetitive tool call loop detected",
 			"agent", a.Name(), "tool", toolName,
 			"consecutive", consecutive, "session_id", sess.ID)
 		errMsg := fmt.Sprintf(
@@ -658,7 +658,7 @@ func (r *LocalRuntime) runTurn(
 	// runtime fans out the standard Error / notification /
 	// on_error stanzas before exiting.
 	if stopRun {
-		slog.Warn("post_tool_use hook signalled run termination",
+		slog.WarnContext(ctx, "post_tool_use hook signalled run termination",
 			"agent", a.Name(), "session_id", sess.ID, "reason", stopMsg)
 		r.emitHookDrivenShutdown(ctx, a, sess, stopMsg, events)
 		endReason = turnEndReasonHookBlocked
@@ -676,7 +676,7 @@ func (r *LocalRuntime) runTurn(
 	}
 
 	if res.Stopped {
-		slog.Debug("Conversation stopped", "agent", a.Name())
+		slog.DebugContext(ctx, "Conversation stopped", "agent", a.Name())
 		r.executeStopHooks(ctx, sess, a, res.Content, events)
 
 		// Re-check steer queue: closes the race between the mid-loop drain and this stop.
@@ -823,7 +823,7 @@ func (r *LocalRuntime) compactIfNeeded(
 		return
 	}
 
-	slog.Info("Proactive compaction: tool results pushed estimated context past 90%% threshold",
+	slog.InfoContext(ctx, "Proactive compaction: tool results pushed estimated context past 90%% threshold",
 		"agent", a.Name(),
 		"input_tokens", sess.InputTokens,
 		"output_tokens", sess.OutputTokens,
@@ -845,14 +845,14 @@ func (r *LocalRuntime) getTools(ctx context.Context, a *agent.Agent, sessionSpan
 
 	agentTools, err := a.Tools(ctx)
 	if err != nil {
-		slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
+		slog.ErrorContext(ctx, "Failed to get agent tools", "agent", a.Name(), "error", err)
 		sessionSpan.RecordError(err)
 		sessionSpan.SetStatus(codes.Error, "failed to get tools")
 		r.telemetry.RecordError(ctx, err.Error())
 		return nil, err
 	}
 
-	slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
+	slog.DebugContext(ctx, "Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 	return agentTools, nil
 }
 
@@ -947,7 +947,7 @@ func (r *LocalRuntime) reprobe(
 ) {
 	updated, err := r.getTools(ctx, a, sessionSpan, events, false)
 	if err != nil {
-		slog.Warn("reprobe: getTools failed", "agent", a.Name(), "error", err)
+		slog.WarnContext(ctx, "reprobe: getTools failed", "agent", a.Name(), "error", err)
 		return
 	}
 	updated = filterExcludedTools(updated, sess.ExcludedTools)
@@ -972,7 +972,7 @@ func (r *LocalRuntime) reprobe(
 		return
 	}
 
-	slog.Info("New tools available after toolset re-probe",
+	slog.InfoContext(ctx, "New tools available after toolset re-probe",
 		"agent", a.Name(), "added", added)
 
 	// Emit updated tool count to the TUI immediately.

@@ -226,7 +226,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 			case *runtime.ElicitationRequestEvent:
 				serverURL, ok := e.Meta["cagent/server_url"].(string)
 				if !ok || serverURL == "" {
-					slog.Warn("Skipping elicitation: missing or invalid server_url (non-interactive session?)")
+					slog.WarnContext(ctx, "Skipping elicitation: missing or invalid server_url (non-interactive session?)")
 					_ = rt.ResumeElicitation(ctx, "decline", nil)
 					return nil
 				}

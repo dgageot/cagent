@@ -80,7 +80,7 @@ func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider,
 // NewWithModels creates a new provider from a model config with access to the full models map.
 // The models map is used to resolve model references in routing rules.
 func NewWithModels(ctx context.Context, cfg *latest.ModelConfig, models map[string]latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
-	slog.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
+	slog.DebugContext(ctx, "Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 
 	// Check if this model has routing rules - if so, create a rule-based router
 	if len(cfg.Routing) > 0 {

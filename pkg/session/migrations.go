@@ -405,7 +405,7 @@ func getAllMigrations() []Migration {
 
 // migrateMessagesToSessionItems migrates data from the messages JSON column to the session_items table
 func migrateMessagesToSessionItems(ctx context.Context, db *sql.DB) error {
-	slog.Info("Starting migration of messages to session_items")
+	slog.InfoContext(ctx, "Starting migration of messages to session_items")
 
 	// Get all sessions that have messages but no items yet
 	rows, err := db.QueryContext(ctx, `
@@ -440,17 +440,17 @@ func migrateMessagesToSessionItems(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("iterating sessions: %w", err)
 	}
 
-	slog.Info("Found sessions to migrate", "count", len(sessionsToMigrate))
+	slog.InfoContext(ctx, "Found sessions to migrate", "count", len(sessionsToMigrate))
 
 	// Migrate each session
 	for _, sess := range sessionsToMigrate {
 		if err := migrateSessionMessages(ctx, db, sess.id, sess.messages, ""); err != nil {
-			slog.Warn("Failed to migrate session, skipping", "session_id", sess.id, "error", err)
+			slog.WarnContext(ctx, "Failed to migrate session, skipping", "session_id", sess.id, "error", err)
 			continue
 		}
 	}
 
-	slog.Info("Completed migration of messages to session_items")
+	slog.InfoContext(ctx, "Completed migration of messages to session_items")
 	return nil
 }
 

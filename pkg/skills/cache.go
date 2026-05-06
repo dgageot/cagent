@@ -86,7 +86,7 @@ func (c *diskCache) Get(baseURL, skillName, filePath string) (string, bool) {
 // FetchAndStore downloads a file from the given URL and stores it in the cache.
 // It respects Cache-Control headers to determine expiry.
 func (c *diskCache) FetchAndStore(ctx context.Context, baseURL, skillName, filePath, fileURL string) (string, error) {
-	slog.Debug("Fetching remote skill file", "url", fileURL)
+	slog.DebugContext(ctx, "Fetching remote skill file", "url", fileURL)
 
 	resp, err := httpGet(ctx, fileURL)
 	if err != nil {
@@ -125,7 +125,7 @@ func (c *diskCache) FetchAndStore(ctx context.Context, baseURL, skillName, fileP
 	metaJSON, _ := json.Marshal(meta)
 	if err := os.WriteFile(metaPath, metaJSON, 0o644); err != nil {
 		// Non-fatal: the content is cached, just the metadata isn't
-		slog.Debug("Failed to write cache metadata", "path", metaPath, "error", err)
+		slog.DebugContext(ctx, "Failed to write cache metadata", "path", metaPath, "error", err)
 	}
 
 	return string(body), nil

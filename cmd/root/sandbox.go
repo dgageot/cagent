@@ -81,7 +81,7 @@ func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runCon
 	envFlags = append(envFlags, genai.InjectSandboxEnv(ctx)...)
 
 	dockerCmd := backend.BuildExecCmd(ctx, name, wd, dockerAgentArgs, envFlags, envVars)
-	slog.Debug("Executing in sandbox", "name", name, "args", dockerCmd.Args)
+	slog.DebugContext(ctx, "Executing in sandbox", "name", name, "args", dockerCmd.Args)
 
 	if err := dockerCmd.Run(); err != nil {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {

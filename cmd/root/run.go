@@ -156,7 +156,7 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) (command
 }
 
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, useTUI bool) error {
-	slog.Debug("Starting agent", "agent", f.agentName)
+	slog.DebugContext(ctx, "Starting agent", "agent", f.agentName)
 
 	// Start profiling if requested
 	stopProfiling, err := profiling.Start(f.cpuProfile, f.memProfile)
@@ -165,7 +165,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 	defer func() {
 		if err := stopProfiling(); err != nil {
-			slog.Error("Profiling cleanup failed", "error", err)
+			slog.ErrorContext(ctx, "Profiling cleanup failed", "error", err)
 		}
 	}()
 
@@ -179,17 +179,17 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	userSettings := userconfig.Get()
 	if userSettings.HideToolResults && !f.hideToolResults {
 		f.hideToolResults = true
-		slog.Debug("Applying user settings", "hide_tool_results", true)
+		slog.DebugContext(ctx, "Applying user settings", "hide_tool_results", true)
 	}
 	if userSettings.YOLO && !f.autoApprove {
 		f.autoApprove = true
-		slog.Debug("Applying user settings", "YOLO", true)
+		slog.DebugContext(ctx, "Applying user settings", "YOLO", true)
 	}
 
 	// Apply alias options if this is an alias reference
 	// Alias options only apply if the flag wasn't explicitly set by the user
 	if alias := config.ResolveAlias(agentFileName); alias != nil {
-		slog.Debug("Applying alias options", "yolo", alias.Yolo, "model", alias.Model, "hide_tool_results", alias.HideToolResults)
+		slog.DebugContext(ctx, "Applying alias options", "yolo", alias.Yolo, "model", alias.Model, "hide_tool_results", alias.HideToolResults)
 		if alias.Yolo && !f.autoApprove {
 			f.autoApprove = true
 		}
@@ -213,7 +213,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 	defer func() {
 		if err := fakeCleanup(); err != nil {
-			slog.Error("Failed to cleanup fake proxy", "error", err)
+			slog.ErrorContext(ctx, "Failed to cleanup fake proxy", "error", err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	if cassettePath != "" {
 		defer func() {
 			if err := recordCleanup(); err != nil {
-				slog.Error("Failed to cleanup recording proxy", "error", err)
+				slog.ErrorContext(ctx, "Failed to cleanup recording proxy", "error", err)
 			}
 		}()
 		out.Println("Recording mode enabled, cassette: " + cassettePath)
@@ -257,7 +257,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 	defer func() {
 		if err := rt.Close(); err != nil {
-			slog.Error("Failed to close runtime", "error", err)
+			slog.ErrorContext(ctx, "Failed to close runtime", "error", err)
 		}
 	}()
 	var initialTeamCleanupOnce sync.Once
@@ -320,7 +320,7 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 		return nil, nil, fmt.Errorf("failed to create remote runtime: %w", err)
 	}
 
-	slog.Debug("Using remote runtime", "address", f.remoteAddress, "agent", f.agentName)
+	slog.DebugContext(ctx, "Using remote runtime", "address", f.remoteAddress, "agent", f.agentName)
 	return remoteRt, sess, nil
 }
 
@@ -390,19 +390,19 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 			if modelSwitcher, ok := localRt.(runtime.ModelSwitcher); ok {
 				for agentName, modelRef := range sess.AgentModelOverrides {
 					if err := modelSwitcher.SetAgentModel(ctx, agentName, modelRef); err != nil {
-						slog.Warn("Failed to apply stored model override", "agent", agentName, "model", modelRef, "error", err)
+						slog.WarnContext(ctx, "Failed to apply stored model override", "agent", agentName, "model", modelRef, "error", err)
 					}
 				}
 			}
 		}
 
-		slog.Debug("Loaded existing session", "session_id", resolvedID, "session_ref", f.sessionID, "agent", agentName)
+		slog.DebugContext(ctx, "Loaded existing session", "session_id", resolvedID, "session_ref", f.sessionID, "agent", agentName)
 	} else {
 		wd, _ := os.Getwd()
 		sess = session.New(f.buildSessionOpts(agt, wd)...)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
-		slog.Debug("Using local runtime", "agent", agentName)
+		slog.DebugContext(ctx, "Using local runtime", "agent", agentName)
 	}
 
 	return localRt, sess, nil

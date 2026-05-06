@@ -83,7 +83,7 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 	)
 	defer span.End()
 
-	slog.Debug("Running skill as sub-agent",
+	slog.DebugContext(ctx, "Running skill as sub-agent",
 		"agent", ca,
 		"skill", prepared.SkillName,
 		"task", prepared.Task,
@@ -98,7 +98,7 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 		restore, err := r.WithAgentModel(ctx, ca, prepared.Model)
 		defer restore()
 		if err != nil {
-			slog.Warn("Failed to apply skill model override; using current model",
+			slog.WarnContext(ctx, "Failed to apply skill model override; using current model",
 				"agent", ca,
 				"skill", prepared.SkillName,
 				"model", prepared.Model,

@@ -83,7 +83,7 @@ func fetchAndCache(ctx context.Context) (Catalog, error) {
 
 	catalog, newETag, err := fetchFromNetwork(ctx, cached.ETag)
 	if err != nil {
-		slog.Debug("Failed to fetch MCP catalog from network, using cache", "error", err)
+		slog.DebugContext(ctx, "Failed to fetch MCP catalog from network, using cache", "error", err)
 		if cached.Catalog != nil {
 			return cached.Catalog, nil
 		}
@@ -92,11 +92,11 @@ func fetchAndCache(ctx context.Context) (Catalog, error) {
 
 	// A nil catalog means 304 Not Modified — the cached copy is still valid.
 	if catalog == nil {
-		slog.Debug("MCP catalog not modified (ETag match)")
+		slog.DebugContext(ctx, "MCP catalog not modified (ETag match)")
 		return cached.Catalog, nil
 	}
 
-	slog.Debug("MCP catalog fetched from network")
+	slog.DebugContext(ctx, "MCP catalog fetched from network")
 	saveToDisk(cacheFile, catalog, newETag)
 
 	return catalog, nil

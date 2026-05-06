@@ -68,7 +68,7 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 
 	factory, ok := providerFactories[providerType]
 	if !ok {
-		slog.Error("Unknown provider type", "type", providerType)
+		slog.ErrorContext(ctx, "Unknown provider type", "type", providerType)
 		return nil, fmt.Errorf("unknown provider type: %s", providerType)
 	}
 	p, err := factory(ctx, enhancedCfg, env, opts...)

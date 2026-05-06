@@ -113,7 +113,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 	semanticPrompt := GetParam(cfg.Params, "semantic_prompt", defaultSemanticPrompt())
 	useASTContext := GetParam(cfg.Params, "ast_context", false)
 	if useASTContext && !cfg.Chunking.CodeAware {
-		slog.Warn("semantic-embeddings ast_context is enabled but chunking.code_aware is false; AST metadata may be unavailable",
+		slog.WarnContext(ctx, "semantic-embeddings ast_context is enabled but chunking.code_aware is false; AST metadata may be unavailable",
 			"rag", buildCtx.RAGName)
 	}
 
@@ -304,7 +304,7 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 
 	if summary == "" {
 		// If the semantic model returns no content, fall back to truncated chunk
-		slog.Warn("Semantic model returned empty summary; falling back to truncated chunk content",
+		slog.WarnContext(ctx, "Semantic model returned empty summary; falling back to truncated chunk content",
 			"path", sourcePath,
 			"chunk_index", ch.Index,
 			"original_length", len(ch.Content))
@@ -312,7 +312,7 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 		fallback := ch.Content
 		if len(fallback) > maxEmbeddingInputLength {
 			fallback = fallback[:maxEmbeddingInputLength] + "..."
-			slog.Debug("Truncated fallback content to fit embedding model limits",
+			slog.DebugContext(ctx, "Truncated fallback content to fit embedding model limits",
 				"original_length", len(ch.Content),
 				"truncated_length", len(fallback))
 		}
@@ -326,7 +326,7 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 
 	// Truncate if embedding input is unexpectedly long
 	if len(embeddingInput) > maxEmbeddingInputLength {
-		slog.Warn("Semantic embedding input exceeds model limits; truncating",
+		slog.WarnContext(ctx, "Semantic embedding input exceeds model limits; truncating",
 			"path", sourcePath,
 			"chunk_index", ch.Index,
 			"original_length", len(embeddingInput),
@@ -334,7 +334,7 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 		embeddingInput = embeddingInput[:maxEmbeddingInputLength] + "..."
 	}
 
-	slog.Debug("Generated semantic embedding input for chunk",
+	slog.DebugContext(ctx, "Generated semantic embedding input for chunk",
 		"path", sourcePath,
 		"chunk_index", ch.Index,
 		"embedding_input", embeddingInput)

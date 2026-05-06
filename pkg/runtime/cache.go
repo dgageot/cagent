@@ -77,9 +77,9 @@ func (r *LocalRuntime) tryReplayCachedResponse(
 		return false
 	}
 
-	slog.Debug("Response cache hit; replaying cached answer",
+	slog.DebugContext(ctx, "Response cache hit; replaying cached answer",
 		"agent", a.Name(), "session_id", sess.ID)
-	modelID := a.Model().ID()
+	modelID := a.Model(ctx).ID()
 	events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
 	addAgentMessage(sess, a, &chat.Message{
 		Role:      chat.MessageRoleAssistant,

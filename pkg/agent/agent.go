@@ -148,7 +148,11 @@ func (a *Agent) HasSubAgents() bool {
 // Model returns the model to use for this agent.
 // If model override(s) are set, it returns one of the overrides (randomly for alloy).
 // Otherwise, it returns a random model from the available models.
-func (a *Agent) Model() provider.Provider {
+//
+// ctx is used for log correlation only — the selection itself is local.
+// Pass [context.TODO] from callers that don't have a request context
+// (configuration validation, debug commands).
+func (a *Agent) Model(ctx context.Context) provider.Provider {
 	var selected provider.Provider
 	var poolSize int
 	// Check for model override first (set via TUI model switching)
@@ -159,7 +163,7 @@ func (a *Agent) Model() provider.Provider {
 		selected = a.models[rand.Intn(len(a.models))]
 		poolSize = len(a.models)
 	}
-	slog.Info("Model selected", "agent", a.name, "model", selected.ID(), "pool_size", poolSize)
+	slog.InfoContext(ctx, "Model selected", "agent", a.name, "model", selected.ID(), "pool_size", poolSize)
 	return selected
 }
 
@@ -300,7 +304,7 @@ func (a *Agent) collectTools(ctx context.Context) ([]tools.Tool, error) {
 		ta, err := toolSet.Tools(ctx)
 		if err != nil {
 			desc := tools.DescribeToolSet(toolSet)
-			slog.Warn("Toolset listing failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
+			slog.WarnContext(ctx, "Toolset listing failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
 			a.AddToolWarning(fmt.Sprintf("%s list failed: %v", desc, err))
 			continue
 		}
@@ -342,10 +346,10 @@ func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
 		}
 		desc := tools.DescribeToolSet(toolSet)
 		if toolSet.ShouldReportFailure() {
-			slog.Warn("Toolset start failed; will retry on next turn", "agent", a.Name(), "toolset", desc, "error", err)
+			slog.WarnContext(ctx, "Toolset start failed; will retry on next turn", "agent", a.Name(), "toolset", desc, "error", err)
 			a.AddToolWarning(fmt.Sprintf("%s start failed: %v", desc, err))
 		} else {
-			slog.Debug("Toolset still unavailable; retrying next turn", "agent", a.Name(), "toolset", desc, "error", err)
+			slog.DebugContext(ctx, "Toolset still unavailable; retrying next turn", "agent", a.Name(), "toolset", desc, "error", err)
 		}
 	}
 }
