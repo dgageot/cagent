@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
 	bgagent "github.com/docker/docker-agent/pkg/tools/builtin/agent"
+	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
 )
 
 func TestLoopDetector(t *testing.T) {
@@ -130,7 +130,7 @@ func TestLoopDetector(t *testing.T) {
 		{
 			name:        "mixed batch with exempt and non exempt tools still counts",
 			threshold:   2,
-			exemptTools: []string{bgagent.ToolNameViewBackgroundAgent, builtin.ToolNameViewBackgroundJob},
+			exemptTools: []string{bgagent.ToolNameViewBackgroundAgent, shell.ToolNameViewBackgroundJob},
 			batches: [][]tools.ToolCall{
 				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`, "read_file", `{"path":"a.txt"}`),
 				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`, "read_file", `{"path":"a.txt"}`),
@@ -141,10 +141,10 @@ func TestLoopDetector(t *testing.T) {
 		{
 			name:        "exempt shell background job polling does not count as a loop",
 			threshold:   2,
-			exemptTools: []string{builtin.ToolNameViewBackgroundJob},
+			exemptTools: []string{shell.ToolNameViewBackgroundJob},
 			batches: [][]tools.ToolCall{
-				makeCalls(builtin.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
-				makeCalls(builtin.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
+				makeCalls(shell.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
+				makeCalls(shell.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
 			},
 			wantTrip:  false,
 			wantCount: 0,

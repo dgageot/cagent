@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
 	"github.com/docker/docker-agent/pkg/tui/types"
 )
@@ -12,7 +12,7 @@ import (
 func TestExtractResult(t *testing.T) {
 	tests := []struct {
 		name     string
-		meta     *builtin.ListDirectoryMeta
+		meta     *filesystem.ListDirectoryMeta
 		expected string
 	}{
 		{
@@ -22,37 +22,37 @@ func TestExtractResult(t *testing.T) {
 		},
 		{
 			name:     "empty directory",
-			meta:     &builtin.ListDirectoryMeta{},
+			meta:     &filesystem.ListDirectoryMeta{},
 			expected: "empty directory",
 		},
 		{
 			name:     "only files",
-			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b", "c"}},
+			meta:     &filesystem.ListDirectoryMeta{Files: []string{"a", "b", "c"}},
 			expected: "3 files",
 		},
 		{
 			name:     "only one file",
-			meta:     &builtin.ListDirectoryMeta{Files: []string{"a"}},
+			meta:     &filesystem.ListDirectoryMeta{Files: []string{"a"}},
 			expected: "1 file",
 		},
 		{
 			name:     "only directories",
-			meta:     &builtin.ListDirectoryMeta{Dirs: []string{"a", "b"}},
+			meta:     &filesystem.ListDirectoryMeta{Dirs: []string{"a", "b"}},
 			expected: "2 directories",
 		},
 		{
 			name:     "only one directory",
-			meta:     &builtin.ListDirectoryMeta{Dirs: []string{"a"}},
+			meta:     &filesystem.ListDirectoryMeta{Dirs: []string{"a"}},
 			expected: "1 directory",
 		},
 		{
 			name:     "mixed files and directories",
-			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b", "c"}, Dirs: []string{"d", "e"}},
+			meta:     &filesystem.ListDirectoryMeta{Files: []string{"a", "b", "c"}, Dirs: []string{"d", "e"}},
 			expected: "3 files and 2 directories",
 		},
 		{
 			name:     "truncated output",
-			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b"}, Dirs: []string{"c"}, Truncated: true},
+			meta:     &filesystem.ListDirectoryMeta{Files: []string{"a", "b"}, Dirs: []string{"c"}, Truncated: true},
 			expected: "2 files and 1 directory (truncated)",
 		},
 	}

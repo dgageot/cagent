@@ -4,7 +4,6 @@ package markdown
 
 import (
 	"cmp"
-	"io"
 	"slices"
 	"strings"
 	"sync"
@@ -1800,8 +1799,11 @@ func (p *parser) renderInlineWithStyleTo(out *strings.Builder, text string, rest
 			start := i
 			origStart := i // Track original start to detect no-progress
 			for i < n && !isInlineMarker(text[i]) {
-				// Check for auto-link URLs
-				if (i+8 <= n && text[i:i+8] == "https://") || (i+7 <= n && text[i:i+7] == "http://") {
+				// Auto-link URL detection. URLs we recognize all start with 'h'
+				// ("http://" or "https://"), so a single-byte gate keeps this hot
+				// loop tight on prose: we only pay for slice creation + memequal
+				// on the rare 'h' bytes.
+				if text[i] == 'h' && ((i+8 <= n && text[i:i+8] == "https://") || (i+7 <= n && text[i:i+7] == "http://")) {
 					// First, emit any plain text before the URL
 					if i > start {
 						plainText := text[start:i]
@@ -1924,7 +1926,15 @@ const inlineMarkdownChars = "\\`*_~["
 const urlStopMarkdownChars = "`*~["
 
 // findFirstURL returns the index of the first "https://" or "http://" in s, or -1.
+//
+// Fast path: bail out with a single IndexByte scan when 'h' isn't present at
+// all. Both URL prefixes start with 'h', so the absence of 'h' guarantees no
+// URL — and IndexByte is much cheaper than a substring search on prose that
+// dominates real input (status lines, prompts, code without URLs, etc.).
 func findFirstURL(s string) int {
+	if strings.IndexByte(s, 'h') < 0 {
+		return -1
+	}
 	if idx := strings.Index(s, "https://"); idx != -1 {
 		if httpIdx := strings.Index(s, "http://"); httpIdx != -1 && httpIdx < idx {
 			return httpIdx
@@ -2250,20 +2260,92 @@ func ansiStringWidth(s string) int {
 	return width
 }
 
+// osc8Close is the canonical OSC 8 close sequence (empty URI, BEL terminated).
+const osc8Close = "\x1b]8;;\x07"
+
 // fixHyperlinkWrapping ensures that OSC 8 hyperlink sequences are properly
 // closed before each newline and re-opened after, so that each terminal line
 // is a self-contained clickable link. This is needed because wrapText/breakWord
 // can split a long hyperlinked URL across multiple lines.
+//
+// The implementation is a single-pass scanner: it tracks the most recent OSC 8
+// open sequence, and whenever a '\n' is encountered while a hyperlink is
+// active, it emits a close, then the newline, then re-opens the hyperlink on
+// the next line. This avoids the per-render allocations of a generic ANSI
+// stream rewriter.
 func fixHyperlinkWrapping(s string) string {
-	// Fast path: no hyperlinks, nothing to fix
+	// Fast path: no hyperlinks, nothing to fix.
 	if !strings.Contains(s, "\x1b]8;") {
 		return s
 	}
+	// Fast path: no line breaks => OSC 8 cannot span a wrap.
+	if !strings.Contains(s, "\n") {
+		return s
+	}
+
 	var buf strings.Builder
-	buf.Grow(len(s) + 128) // small overhead for extra OSC sequences
-	w := lipgloss.NewWrapWriter(&buf)
-	_, _ = io.WriteString(w, s)
-	_ = w.Close()
+	buf.Grow(len(s) + 64)
+
+	// activeOpen is the most recent OSC 8 open sequence ("" when not inside a
+	// hyperlink). When a '\n' is seen with an active link, we close-then-reopen.
+	var activeOpen string
+
+	for i := 0; i < len(s); {
+		c := s[i]
+
+		// Detect OSC 8 sequence start: ESC ] 8 ;
+		if c == 0x1b && i+3 < len(s) && s[i+1] == ']' && s[i+2] == '8' && s[i+3] == ';' {
+			// Find the second ';' separating params from URI.
+			second := strings.IndexByte(s[i+4:], ';')
+			if second < 0 {
+				// Malformed; emit the byte and continue.
+				buf.WriteByte(c)
+				i++
+				continue
+			}
+			uriStart := i + 4 + second + 1
+
+			// Find the string terminator: BEL (\x07) or ESC \.
+			j := uriStart
+			for j < len(s) {
+				if s[j] == 0x07 {
+					j++
+					break
+				}
+				if s[j] == 0x1b && j+1 < len(s) && s[j+1] == '\\' {
+					j += 2
+					break
+				}
+				j++
+			}
+			seq := s[i:j]
+			buf.WriteString(seq)
+
+			// A close has an empty URI: the bytes between uriStart and the
+			// terminator are zero (BEL: j == uriStart+1; ESC\\: j == uriStart+2).
+			isClose := (j == uriStart+1 && s[uriStart] == 0x07) ||
+				(j == uriStart+2 && s[uriStart] == 0x1b)
+			if isClose {
+				activeOpen = ""
+			} else {
+				activeOpen = seq
+			}
+			i = j
+			continue
+		}
+
+		if c == '\n' && activeOpen != "" {
+			buf.WriteString(osc8Close)
+			buf.WriteByte('\n')
+			buf.WriteString(activeOpen)
+			i++
+			continue
+		}
+
+		buf.WriteByte(c)
+		i++
+	}
+
 	return buf.String()
 }
 

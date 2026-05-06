@@ -389,7 +389,6 @@ agents:
          cat << 'EOF' | gh issue create \
            --title "$ISSUE_TITLE" \
            --label "automated" \
-           --label "kind/bug" \
            --body-file -
          Issue body content here...
          EOF
@@ -401,11 +400,9 @@ agents:
 
       Title: `[security] Brief title` or `[bug] Brief title` or `[documentation] Brief title`
 
-      Labels (select based on category):
+      Labels:
       - Always add `automated`
-      - `security` category → add `kind/bug` (security issues are bugs)
-      - `bug` category → add `kind/bug`
-      - `documentation` category → add `kind/documentation`
+      - Issue type is set separately via GitHub's native type system, not labels
 
       Body template (use heredoc to handle backticks and special characters):
       ```bash
@@ -414,7 +411,6 @@ agents:
       cat << 'EOF' | gh issue create \
         --title "$ISSUE_TITLE" \
         --label "automated" \
-        --label "kind/bug" \
         --body-file -
       ## 🔴 critical - security
 

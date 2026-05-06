@@ -1,17 +1,17 @@
 ---
 title: "Introduction"
-description: "docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration."
+description: "docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML or HCL configuration."
 permalink: /getting-started/introduction/
 ---
 
 # Introduction
 
-_docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration._
+_docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML or HCL configuration._
 
 ## What is docker-agent?
 
 docker-agent is an open-source tool by Docker that orchestrates AI agents with specialized capabilities and tools.
-Instead of writing code to wire up LLMs, tools, and workflows, you **declare** your agents in YAML —
+Instead of writing code to wire up LLMs, tools, and workflows, you **declare** your agents in YAML or HCL —
 their model, personality, tools, and how they collaborate — and docker-agent handles the rest.
 
 <div class="features-grid">
@@ -58,7 +58,7 @@ their model, personality, tools, and how they collaborate — and docker-agent h
 After spending years building AI agents using various frameworks, the Docker team kept asking the same questions:
 
 - **How do we make building agents less of a hassle?** — Most agents use the same building blocks. docker-agent provides them out of the box.
-- **Can we reuse those building blocks?** — Declarative YAML configs mean you can mix and match agents, models, and tools without rewriting code.
+- **Can we reuse those building blocks?** — Declarative YAML or HCL configs mean you can mix and match agents, models, and tools without rewriting code.
 - **How can we share agents easily?** — Push agents to any OCI registry and run them anywhere with a single command.
 
 docker-agent is built in the open so the community can make use of this work and contribute to its future.
@@ -67,7 +67,7 @@ docker-agent is built in the open so the community can make use of this work and
 
 At its core, docker-agent follows a simple loop:
 
-1. **You define agents** in YAML — their model, instructions, tools, and sub-agents.
+1. **You define agents** in YAML or HCL — their model, instructions, tools, and sub-agents.
 2. **You run an agent** via the TUI, CLI, or API.
 3. **The agent processes your request** — calling tools, delegating to sub-agents, and reasoning step by step.
 4. **Results stream back in real-time** via an event-driven architecture.

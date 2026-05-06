@@ -8,9 +8,17 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
-// OpenDialogMsg is sent to open a new dialog
+// OpenDialogMsg is sent to open a new dialog.
+//
+// OriginatingEvent is an optional runtime event whose presence marks the
+// dialog as a background dialog. Background dialogs do not block the rest of
+// the UI: tab navigation, tab-bar mouse clicks and chat scroll-wheel events
+// keep working. When the user switches away from the tab that opened the
+// dialog, the dialog is closed and OriginatingEvent is re-stashed in the
+// supervisor so the same prompt is re-displayed when the user returns.
 type OpenDialogMsg struct {
-	Model Dialog
+	Model            Dialog
+	OriginatingEvent tea.Msg
 }
 
 // CloseDialogMsg is sent to close the current (topmost) dialog
@@ -32,6 +40,13 @@ type Manager interface {
 	GetLayers() []*lipgloss.Layer
 	Open() bool
 	TopIsExitConfirmation() bool
+	// TopIsBackground reports whether the topmost dialog is a background
+	// dialog (i.e. it should not block tab navigation or chat scrolling).
+	TopIsBackground() bool
+	// TopBackgroundEvent returns the originating event of the topmost
+	// background dialog, or nil if the top dialog is not a background dialog
+	// or the dialog stack is empty.
+	TopBackgroundEvent() tea.Msg
 }
 
 // dialogEntry pairs a dialog with its drag offset so the two stay in sync.
@@ -39,6 +54,10 @@ type dialogEntry struct {
 	dialog  Dialog
 	offsetX int // accumulated horizontal drag displacement
 	offsetY int // accumulated vertical drag displacement
+	// originatingEvent is the runtime event that caused this dialog to open,
+	// when applicable. A non-nil value marks the dialog as a background
+	// dialog (see OpenDialogMsg.OriginatingEvent).
+	originatingEvent tea.Msg
 }
 
 // dragState tracks an in-progress drag operation.
@@ -234,7 +253,10 @@ func (d *manager) adjustMouseMsg(msg tea.Msg) tea.Msg {
 
 // handleOpen processes dialog opening requests and adds to stack
 func (d *manager) handleOpen(msg OpenDialogMsg) (layout.Model, tea.Cmd) {
-	d.stack = append(d.stack, dialogEntry{dialog: msg.Model})
+	d.stack = append(d.stack, dialogEntry{
+		dialog:           msg.Model,
+		originatingEvent: msg.OriginatingEvent,
+	})
 
 	var cmds []tea.Cmd
 	cmd := msg.Model.Init()
@@ -280,6 +302,25 @@ func (d *manager) TopIsExitConfirmation() bool {
 	}
 	_, ok := d.stack[len(d.stack)-1].dialog.(*exitConfirmationDialog)
 	return ok
+}
+
+// TopIsBackground returns true if the topmost dialog is a background dialog
+// (opened with a non-nil OriginatingEvent). See OpenDialogMsg for semantics.
+func (d *manager) TopIsBackground() bool {
+	if len(d.stack) == 0 {
+		return false
+	}
+	return d.stack[len(d.stack)-1].originatingEvent != nil
+}
+
+// TopBackgroundEvent returns the originating event of the topmost background
+// dialog, or nil if the top dialog is not a background dialog or the dialog
+// stack is empty.
+func (d *manager) TopBackgroundEvent() tea.Msg {
+	if len(d.stack) == 0 {
+		return nil
+	}
+	return d.stack[len(d.stack)-1].originatingEvent
 }
 
 func (d *manager) SetSize(width, height int) tea.Cmd {

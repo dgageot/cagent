@@ -74,8 +74,8 @@ agents:
           Fix the lint issues (if any).
 
           Here the result of the linting command:
-          $ mise lint
-          ${shell({cmd: "mise lint"})}
+          $ task lint
+          ${shell({cmd: "task lint"})}
 
           $go_diagnostics
           ${go_diagnostics()}
@@ -96,7 +96,7 @@ agents:
         Create an AGENTS.md file for this project by inspecting the codebase. The AGENTS.md should help AI coding agents understand how to work with this project effectively.
 
         Analyze the project structure and include:
-        1. **Development Commands**: Build, test, lint, and run commands (check Makefile, mise.toml, package.json, Cargo.toml, etc.)
+        1. **Development Commands**: Build, test, lint, and run commands (check Makefile, Taskfile.yml, package.json, Cargo.toml, etc.)
         2. **Architecture Overview**: Key packages/modules, their responsibilities, and how they interact
         3. **Code Style and Conventions**: Patterns used, error handling approaches, naming conventions
         4. **Testing Guidelines**: How to run tests, test patterns used, any special testing setup

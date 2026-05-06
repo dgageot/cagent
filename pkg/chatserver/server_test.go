@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/docker-agent/pkg/chat"
-	"github.com/docker/docker-agent/pkg/session"
 )
 
 func TestBuildSession_RequiresUserMessage(t *testing.T) {
@@ -118,19 +117,6 @@ func TestBuildSession_UnknownRoleTreatedAsUser(t *testing.T) {
 	require.Len(t, all, 1)
 	assert.Equal(t, chat.MessageRoleUser, all[0].Message.Role)
 	assert.Equal(t, "do this", all[0].Message.Content)
-}
-
-func TestSessionUsage_OmitsZero(t *testing.T) {
-	sess := session.New()
-	assert.Nil(t, sessionUsage(sess))
-
-	sess.InputTokens = 5
-	sess.OutputTokens = 7
-	usage := sessionUsage(sess)
-	require.NotNil(t, usage)
-	assert.Equal(t, int64(5), usage.PromptTokens)
-	assert.Equal(t, int64(7), usage.CompletionTokens)
-	assert.Equal(t, int64(12), usage.TotalTokens)
 }
 
 func TestAgentPolicy_Pick(t *testing.T) {
@@ -457,6 +443,18 @@ func TestStopSequences_UnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestChatCompletionRequest_UnmarshalStreamOptions(t *testing.T) {
+	var req ChatCompletionRequest
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"messages": [{"role":"user","content":"hi"}],
+		"stream": true,
+		"stream_options": {"include_usage": true}
+	}`), &req))
+	require.NotNil(t, req.StreamOptions)
+	assert.True(t, req.Stream)
+	assert.True(t, req.StreamOptions.IncludeUsage)
+}
+
 func TestSSEStream_ToolCallDelta(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s := newSSEStream(rec, "chatcmpl-x", "root")
@@ -475,6 +473,20 @@ func TestSSEStream_ToolCallDelta(t *testing.T) {
 	assert.Contains(t, body, `"id":"call_1"`)
 	assert.Contains(t, body, `"name":"search"`)
 	assert.Contains(t, body, `"arguments":"{\"q\":\"docker\"}"`)
+}
+
+func TestSSEStream_SendUsage(t *testing.T) {
+	rec := httptest.NewRecorder()
+	s := newSSEStream(rec, "chatcmpl-x", "root")
+	s.send(ChatCompletionStreamDelta{}, "stop")
+	s.sendUsage(&ChatCompletionUsage{PromptTokens: 5, CompletionTokens: 7, TotalTokens: 12})
+	s.done()
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `"finish_reason":"stop"`)
+	assert.Contains(t, body, `"choices":[]`)
+	assert.Contains(t, body, `"usage":{"prompt_tokens":5,"completion_tokens":7,"total_tokens":12}`)
+	assert.Contains(t, body, "data: [DONE]")
 }
 
 func TestSSEStream_SendError(t *testing.T) {

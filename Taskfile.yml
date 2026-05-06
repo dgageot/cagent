@@ -1,0 +1,116 @@
+# https://taskfile.dev
+version: "3"
+
+vars:
+  GIT_TAG:
+    sh: echo "${GIT_TAG:-$(git describe --tags --exact-match 2>/dev/null || echo dev)}"
+  GIT_COMMIT:
+    sh: echo "${GIT_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo dev)}"
+
+env:
+  GIT_TAG: "{{.GIT_TAG}}"
+  GIT_COMMIT: "{{.GIT_COMMIT}}"
+
+tasks:
+  default:
+    desc: Run lint, test, and build
+    aliases: [dev]
+    deps: [lint, test, build]
+
+  build:
+    desc: Build the application binary
+    aliases: [b]
+    sources:
+      - "**/*.go"
+      - "**/*.template"
+      - "**/*.txt"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - go.mod
+      - go.sum
+    generates:
+      - bin/docker-agent
+    cmds:
+      - ./scripts/build.sh
+
+  deploy-local:
+    desc: Deploy the cli-plugin
+    deps: [build]
+    cmds:
+      - mkdir -p "${HOME}/.docker/cli-plugins"
+      - /bin/ln -sf "$(pwd)/bin/docker-agent" "${HOME}/.docker/cli-plugins/docker-agent"
+
+  lint:
+    desc: Run the linters
+    sources:
+      - "**/*.go"
+      - .golangci.yml
+      - go.mod
+      - go.sum
+    cmds:
+      - golangci-lint run
+      - go run ./lint .
+      - go mod tidy --diff >/dev/null || (echo 'go.mod/go.sum files are not tidy' && exit 1)
+
+  format:
+    desc: Format code
+    sources:
+      - "**/*.go"
+      - .golangci.yml
+    cmds:
+      - golangci-lint fmt
+
+  test:
+    desc: Run tests
+    dotenv: [.env.test]
+    cmds:
+      - go test ./...
+
+  test-binary:
+    desc: Run tests on build binary
+    deps: [deploy-local]
+    dotenv: [.env.test]
+    cmds:
+      - go test -tags=binary_required ./e2e/binary/...
+
+  build-local:
+    desc: Build binaries for local host platform
+    cmds:
+      - docker build --target=local --build-arg GIT_TAG --build-arg GIT_COMMIT --platform local --output=./dist .
+      - |
+        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+          mv ./dist/docker-agent ./dist/docker-agent.exe
+        fi
+
+  cross:
+    desc: Build binaries for multiple platforms
+    cmds:
+      - docker buildx build --target=cross --build-arg GIT_TAG --build-arg GIT_COMMIT --platform linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64 --output=./dist .
+
+  build-image:
+    desc: Build Docker image
+    cmds:
+      - docker build -t docker/docker-agent --build-arg GIT_TAG --build-arg GIT_COMMIT .
+
+  push-image:
+    desc: Build and Push Docker image
+    cmds:
+      - docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/docker-agent --build-arg GIT_TAG --build-arg GIT_COMMIT .
+
+  docs-serve:
+    desc: Preview the Jekyll documentation site locally
+    dir: docs
+    cmds:
+      - docker build -t docker-agent-docs .
+      - docker run --rm -v $(cd .. && pwd)/docs:/srv/jekyll -e JEKYLL_ENV=development -p 4000:4000 docker-agent-docs jekyll serve --host 0.0.0.0 --config _config.yml,_config.dev.yml --livereload
+
+  docs-check-links:
+    desc: Build the documentation site and check for broken links
+    dir: docs
+    cmds:
+      - ../scripts/docs-check-links.sh
+
+  record-demo:
+    desc: Record demo gif
+    cmds:
+      - vhs ./docs/recordings/demo.tape

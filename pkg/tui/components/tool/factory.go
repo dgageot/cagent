@@ -6,7 +6,13 @@
 package tool
 
 import (
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
+	handofftool "github.com/docker/docker-agent/pkg/tools/builtin/handoff"
+	shelltool "github.com/docker/docker-agent/pkg/tools/builtin/shell"
+	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
+	transfertasktool "github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
+	userpromptool "github.com/docker/docker-agent/pkg/tools/builtin/userprompt"
 	"github.com/docker/docker-agent/pkg/tui/components/tool/api"
 	"github.com/docker/docker-agent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/docker-agent/pkg/tui/components/tool/directorytree"
@@ -32,23 +38,23 @@ type builder func(msg *types.Message, sessionState service.SessionStateReader) l
 // builders maps a tool name (or a "category:<name>" key) to its renderer.
 // Tools sharing the same visual representation point at the same builder.
 var builders = map[string]builder{
-	builtin.ToolNameTransferTask:       transfertask.New,
-	builtin.ToolNameHandoff:            handoff.New,
-	builtin.ToolNameEditFile:           editfile.New,
-	builtin.ToolNameWriteFile:          writefile.New,
-	builtin.ToolNameReadFile:           readfile.New,
-	builtin.ToolNameReadMultipleFiles:  readmultiplefiles.New,
-	builtin.ToolNameListDirectory:      listdirectory.New,
-	builtin.ToolNameDirectoryTree:      directorytree.New,
-	builtin.ToolNameSearchFilesContent: searchfilescontent.New,
-	builtin.ToolNameShell:              shell.New,
-	builtin.ToolNameUserPrompt:         userprompt.New,
-	builtin.ToolNameFetch:              api.New,
-	"category:api":                     api.New,
-	builtin.ToolNameCreateTodo:         todotool.New,
-	builtin.ToolNameCreateTodos:        todotool.New,
-	builtin.ToolNameUpdateTodos:        todotool.New,
-	builtin.ToolNameListTodos:          todotool.New,
+	transfertasktool.ToolNameTransferTask: transfertask.New,
+	handofftool.ToolNameHandoff:           handoff.New,
+	filesystem.ToolNameEditFile:           editfile.New,
+	filesystem.ToolNameWriteFile:          writefile.New,
+	filesystem.ToolNameReadFile:           readfile.New,
+	filesystem.ToolNameReadMultipleFiles:  readmultiplefiles.New,
+	filesystem.ToolNameListDirectory:      listdirectory.New,
+	filesystem.ToolNameDirectoryTree:      directorytree.New,
+	filesystem.ToolNameSearchFilesContent: searchfilescontent.New,
+	shelltool.ToolNameShell:               shell.New,
+	userpromptool.ToolNameUserPrompt:      userprompt.New,
+	fetch.ToolNameFetch:                   api.New,
+	"category:api":                        api.New,
+	todo.ToolNameCreateTodo:               todotool.New,
+	todo.ToolNameCreateTodos:              todotool.New,
+	todo.ToolNameUpdateTodos:              todotool.New,
+	todo.ToolNameListTodos:                todotool.New,
 }
 
 // New returns the appropriate tool view for the given message.

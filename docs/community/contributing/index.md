@@ -14,13 +14,13 @@ _docker-agent is open source. Here's how to set up your development environment 
 
 - [Go 1.26](https://go.dev/dl/) or higher
 - API key(s) for your chosen AI provider
-- [mise](https://mise.jdx.dev/getting-started.html)
+- [Task](https://taskfile.dev/installation/)
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/local/)
 
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Platform Support
 </div>
-  <p>macOS and Linux are fully supported for development. On Windows, use <code>mise build-local</code> to build via Docker.</p>
+  <p>macOS and Linux are fully supported for development. On Windows, use <code>task build-local</code> to build via Docker.</p>
 
 </div>
 
@@ -30,7 +30,7 @@ _docker-agent is open source. Here's how to set up your development environment 
 # Clone and build
 git clone https://github.com/docker/docker-agent.git
 cd docker-agent
-mise build
+task build
 
 # Set API keys
 export OPENAI_API_KEY=your_key_here
@@ -44,13 +44,13 @@ export ANTHROPIC_API_KEY=your_key_here
 
 | Command            | Description                                     |
 | ------------------ | ----------------------------------------------- |
-| `mise build`       | Build the binary to `./bin/docker-agent`        |
-| `mise test`        | Run all tests (clears API keys for determinism) |
-| `mise lint`        | Run golangci-lint                               |
-| `mise format`      | Format code                                     |
-| `mise dev`         | Run lint, test, and build in sequence           |
-| `mise build-local` | Build for local platform via Docker             |
-| `mise cross`       | Cross-platform builds (all architectures)       |
+| `task build`       | Build the binary to `./bin/docker-agent`        |
+| `task test`        | Run all tests (clears API keys for determinism) |
+| `task lint`        | Run golangci-lint                               |
+| `task format`      | Format code                                     |
+| `task dev`         | Run lint, test, and build in sequence           |
+| `task build-local` | Build for local platform via Docker             |
+| `task cross`       | Cross-platform builds (all architectures)       |
 
 ## Dogfooding
 
@@ -72,7 +72,7 @@ This agent is an expert Go developer that understands the docker-agent codebase.
 
 ## Code Style
 
-The project uses `golangci-lint` with strict rules. As long as `mise lint` passes, the code is stylistically acceptable.
+The project uses `golangci-lint` with strict rules. As long as `task lint` passes, the code is stylistically acceptable.
 
 Key conventions:
 
@@ -101,7 +101,7 @@ File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent
 
 1. **Fork** the repository and create a branch for your changes
 2. **Write** your code following the style and testing guidelines above
-3. **Test** your changes: run `mise lint` and `mise test`
+3. **Test** your changes: run `task lint` and `task test`
 4. **Sign** your commits with `git commit -s` (DCO required)
 5. **Open a pull request** against the `main` branch
 

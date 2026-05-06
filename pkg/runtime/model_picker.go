@@ -10,19 +10,19 @@ import (
 
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/modelpicker"
 )
 
-// findModelPickerTool returns the ModelPickerTool from the current agent's
+// findModelPickerTool returns the Tool from the current agent's
 // toolsets, or nil if the agent has no model_picker configured.
-func (r *LocalRuntime) findModelPickerTool() *builtin.ModelPickerTool {
+func (r *LocalRuntime) findModelPickerTool() *modelpicker.Tool {
 	currentName := r.CurrentAgentName()
 	a, err := r.team.Agent(currentName)
 	if err != nil {
 		return nil
 	}
 	for _, ts := range a.ToolSets() {
-		if mpt, ok := tools.As[*builtin.ModelPickerTool](ts); ok {
+		if mpt, ok := tools.As[*modelpicker.Tool](ts); ok {
 			return mpt
 		}
 	}
@@ -31,7 +31,7 @@ func (r *LocalRuntime) findModelPickerTool() *builtin.ModelPickerTool {
 
 // handleChangeModel handles the change_model tool call by switching the current agent's model.
 func (r *LocalRuntime) handleChangeModel(ctx context.Context, _ *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error) {
-	var params builtin.ChangeModelArgs
+	var params modelpicker.ChangeModelArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}

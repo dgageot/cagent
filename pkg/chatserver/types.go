@@ -23,9 +23,10 @@ import (
 // declare every field commonly sent by OpenAI clients so they are accepted
 // without surprise. Whether each field is *acted on* is documented inline.
 type ChatCompletionRequest struct {
-	Model    string                  `json:"model"`
-	Messages []ChatCompletionMessage `json:"messages"`
-	Stream   bool                    `json:"stream,omitempty"`
+	Model         string                      `json:"model"`
+	Messages      []ChatCompletionMessage     `json:"messages"`
+	Stream        bool                        `json:"stream,omitempty"`
+	StreamOptions ChatCompletionStreamOptions `json:"stream_options"`
 
 	// Temperature is parsed and range-checked but not yet plumbed through
 	// to the runtime/model layer (no per-request override exists today).
@@ -252,12 +253,19 @@ type ChatCompletionStreamResponse struct {
 	Created int64                        `json:"created"`
 	Model   string                       `json:"model"`
 	Choices []ChatCompletionStreamChoice `json:"choices"`
+	Usage   *ChatCompletionUsage         `json:"usage,omitempty"`
 }
 
 type ChatCompletionStreamChoice struct {
 	Index        int                       `json:"index"`
 	Delta        ChatCompletionStreamDelta `json:"delta"`
 	FinishReason string                    `json:"finish_reason,omitempty"`
+}
+
+// ChatCompletionStreamOptions mirrors the subset of OpenAI's
+// stream_options object we currently support.
+type ChatCompletionStreamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
 type ChatCompletionStreamDelta struct {

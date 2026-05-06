@@ -274,6 +274,8 @@ $ PROJECT_NAME=myapp ENV=production docker agent run agent.yaml /deploy
 
 Commands use JavaScript template literal syntax for environment variable interpolation. Undefined variables expand to empty strings.
 
+The same syntax is also expanded in agent and toolset instructions: `agents.<name>.instruction` and `toolsets[*].instruction` now support `${env.X}` placeholders (with optional `||` defaults and ternary expressions). Note that `agents.<name>.description` and `agents.<name>.welcome_message` already supported this syntax.
+
 ## Complete Example
 
 ```yaml

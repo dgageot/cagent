@@ -83,11 +83,11 @@ agents:
       </code_comments>
 
       <development_commands>
-      For development tasks, the agent uses `mise build` to build the application binary, `mise test` to run Go tests, and `mise lint` to run golangci-lint for code quality checks.
+      For development tasks, the agent uses `task build` to build the application binary, `task test` to run Go tests, and `task lint` to run golangci-lint for code quality checks.
       </development_commands>
 
       <codebase_conventions>
-      Tests are located alongside source files using the `*_test.go` naming convention. The agent always runs `mise test` to execute the full test suite and follows existing patterns found in `pkg/` directories. When adding new features, it implements proper interfaces for providers and tools and adds appropriate configuration support.
+      Tests are located alongside source files using the `*_test.go` naming convention. The agent always runs `task test` to execute the full test suite and follows existing patterns found in `pkg/` directories. When adding new features, it implements proper interfaces for providers and tools and adds appropriate configuration support.
 
       For testing, the agent uses Go's testing package for unit tests and mocks external dependencies for isolated tests. It uses `t.Context()` when needed and relies on `github.com/stretchr/testify/assert` and `github.com/stretchr/testify/require` for assertions.
       </codebase_conventions>

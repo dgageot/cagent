@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
 	"github.com/docker/docker-agent/pkg/tui/components/spinner"
 	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
 	"github.com/docker/docker-agent/pkg/tui/core/layout"
@@ -20,7 +20,7 @@ func New(msg *types.Message, sessionState service.SessionStateReader) layout.Mod
 }
 
 func render(msg *types.Message, _ spinner.Spinner, _ service.SessionStateReader, width, _ int) string {
-	var params builtin.TransferTaskArgs
+	var params transfertask.Args
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &params); err != nil {
 		return ""
 	}

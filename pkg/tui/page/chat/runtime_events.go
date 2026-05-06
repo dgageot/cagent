@@ -286,7 +286,8 @@ func (p *chatPage) handleToolCallConfirmation(msg *runtime.ToolCallConfirmationE
 	spinnerCmd := p.setWorking(false)
 	toolCmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusConfirmation)
 	dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-		Model: dialog.NewToolConfirmationDialog(msg, p.sessionState),
+		Model:            dialog.NewToolConfirmationDialog(msg, p.sessionState),
+		OriginatingEvent: msg,
 	})
 	return tea.Batch(toolCmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
 }
@@ -320,7 +321,8 @@ func (p *chatPage) handleToolCallResponse(msg *runtime.ToolCallResponseEvent) te
 func (p *chatPage) handleMaxIterationsReached(msg *runtime.MaxIterationsReachedEvent) tea.Cmd {
 	spinnerCmd := p.setWorking(false)
 	dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-		Model: dialog.NewMaxIterationsDialog(msg.MaxIterations, p.app),
+		Model:            dialog.NewMaxIterationsDialog(msg.MaxIterations, p.app),
+		OriginatingEvent: msg,
 	})
 	return tea.Batch(spinnerCmd, dialogCmd)
 }
@@ -338,7 +340,8 @@ func (p *chatPage) handleElicitationRequest(msg *runtime.ElicitationRequestEvent
 				serverURL = url
 			}
 			dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-				Model: dialog.NewOAuthAuthorizationDialog(serverURL, p.app),
+				Model:            dialog.NewOAuthAuthorizationDialog(serverURL, p.app),
+				OriginatingEvent: msg,
 			})
 			return tea.Batch(spinnerCmd, dialogCmd)
 		}
@@ -349,14 +352,16 @@ func (p *chatPage) handleElicitationRequest(msg *runtime.ElicitationRequestEvent
 	case "url":
 		// URL-based elicitation - show URL dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewURLElicitationDialog(msg.Message, msg.URL),
+			Model:            dialog.NewURLElicitationDialog(msg.Message, msg.URL),
+			OriginatingEvent: msg,
 		})
 		return tea.Batch(spinnerCmd, dialogCmd)
 
 	default:
 		// Form-based elicitation (default) - show form dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewElicitationDialog(msg.Message, msg.Schema, msg.Meta),
+			Model:            dialog.NewElicitationDialog(msg.Message, msg.Schema, msg.Meta),
+			OriginatingEvent: msg,
 		})
 		return tea.Batch(spinnerCmd, dialogCmd)
 	}

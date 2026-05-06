@@ -396,8 +396,8 @@ if [[ "$TOOL_NAME" == "shell" ]]; then
   fi
 fi
 
-# Allow everything else
-echo '{"decision": "allow"}'
+# Allow everything else (returning {} means "do nothing, continue normally")
+echo '{}'
 exit 0
 ```
 

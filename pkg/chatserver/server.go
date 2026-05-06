@@ -405,7 +405,7 @@ func (s *server) handleChatCompletions(c echo.Context) error {
 	}
 
 	if req.Stream {
-		err := s.streamChatCompletion(c, rt, sess, model)
+		err := s.streamChatCompletion(c, rt, sess, model, req.StreamOptions.IncludeUsage)
 		s.maybeStoreConversation(conversationID, sess)
 		return err
 	}
@@ -479,7 +479,7 @@ func (s *server) chatCompletion(c echo.Context, rt runtime.Runtime, sess *sessio
 // The error return is reserved for future use (e.g. surfacing a write
 // failure to the request logger). Today every error is converted into an
 // in-band SSE error event, so the function always returns nil.
-func (s *server) streamChatCompletion(c echo.Context, rt runtime.Runtime, sess *session.Session, model string) error { //nolint:unparam // see comment
+func (s *server) streamChatCompletion(c echo.Context, rt runtime.Runtime, sess *session.Session, model string, includeUsage bool) error { //nolint:unparam // see comment
 	stream := newSSEStream(c.Response(), newChatID(), model)
 
 	// Initial "role: assistant" delta so clients can start rendering.
@@ -509,8 +509,14 @@ func (s *server) streamChatCompletion(c echo.Context, rt runtime.Runtime, sess *
 		// from a normal completion.
 		stream.sendError(runErr)
 		stream.send(ChatCompletionStreamDelta{}, "error")
+		if includeUsage {
+			stream.sendUsage(sessionUsage(sess))
+		}
 	} else {
 		stream.send(ChatCompletionStreamDelta{}, "stop")
+		if includeUsage {
+			stream.sendUsage(sessionUsage(sess))
+		}
 	}
 	stream.done()
 	return nil
@@ -532,6 +538,28 @@ func newSSEStream(w http.ResponseWriter, id, model string) *sseStream {
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
 	return &sseStream{w: w, id: id, model: model, created: time.Now().Unix()}
+}
+
+func (s *sseStream) sendUsage(usage *ChatCompletionUsage) {
+	if usage == nil {
+		return
+	}
+	chunk := ChatCompletionStreamResponse{
+		ID:      s.id,
+		Object:  "chat.completion.chunk",
+		Created: s.created,
+		Model:   s.model,
+		Choices: []ChatCompletionStreamChoice{},
+		Usage:   usage,
+	}
+	data, err := json.Marshal(chunk)
+	if err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(s.w, "data: %s\n\n", data)
+	if f, ok := s.w.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (s *sseStream) send(delta ChatCompletionStreamDelta, finishReason string) {

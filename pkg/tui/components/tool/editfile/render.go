@@ -15,7 +15,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 	"github.com/docker/docker-agent/pkg/tui/styles"
 	"github.com/docker/docker-agent/pkg/tui/types"
 )
@@ -117,7 +117,7 @@ func renderEditFile(toolCall tools.ToolCall, width int, splitView bool, toolStat
 }
 
 func renderEditFileUncached(toolCall tools.ToolCall, width int, splitView bool, toolStatus types.ToolStatus) string {
-	args, err := builtin.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
+	args, err := filesystem.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
 	if err != nil {
 		return ""
 	}
@@ -168,7 +168,7 @@ func countDiffLines(toolCall tools.ToolCall, _ types.ToolStatus) (added, removed
 }
 
 func countDiffLinesUncached(toolCall tools.ToolCall) (added, removed int) {
-	args, err := builtin.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
+	args, err := filesystem.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
 	if err != nil {
 		return 0, 0
 	}

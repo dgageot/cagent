@@ -446,6 +446,92 @@ agents:
 	}
 }
 
+func TestToolset_Validate_Fetch_Headers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
+		{
+			name: "fetch with headers is accepted",
+			config: `
+version: "8"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: fetch
+        headers:
+          Authorization: "Bearer token"
+          X-Api-Key: "key-123"
+`,
+			wantErr: "",
+		},
+		{
+			name: "openapi with headers is accepted",
+			config: `
+version: "8"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: openapi
+        url: https://api.example.com/openapi.json
+        headers:
+          Authorization: "Bearer token"
+`,
+			wantErr: "",
+		},
+		{
+			name: "a2a with headers is accepted",
+			config: `
+version: "8"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: a2a
+        url: https://a2a.example.com
+        headers:
+          Authorization: "Bearer token"
+`,
+			wantErr: "",
+		},
+		{
+			name: "headers on shell toolset is rejected",
+			config: `
+version: "8"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: shell
+        headers:
+          Authorization: "Bearer token"
+`,
+			wantErr: "headers can only be used with type 'openapi', 'a2a' or 'fetch'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var cfg Config
+			err := yaml.Unmarshal([]byte(tt.config), &cfg)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestToolset_Validate_MCP_RemoteOAuth_CallbackRedirectURL(t *testing.T) {
 	t.Parallel()
 

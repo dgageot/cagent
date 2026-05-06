@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/team"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
 )
 
 func main() {
@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 				"root",
 				"You are an expert hacker",
 				agent.WithModel(llm),
-				agent.WithToolSets(builtin.NewShellTool(os.Environ(), &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})),
+				agent.WithToolSets(shell.NewShellTool(os.Environ(), &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})),
 			),
 		),
 	)

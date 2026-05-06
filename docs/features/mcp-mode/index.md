@@ -57,6 +57,7 @@ $ docker agent serve mcp ./agent.yaml --http --listen 0.0.0.0:9090
 | `-l`, `--listen`       | `127.0.0.1:8081`   | Address to listen on when `--http` is enabled.                                                               |
 | `-a`, `--agent`        | all agents         | Expose a single named agent instead of every agent in the config.                                            |
 | `--tool-name`          | (none)             | Override the MCP tool identifier clients call (defaults to agent name); only valid when exposing one agent.  |
+| `--mcp-keepalive`      | `0`                | Interval between MCP keep-alive pings (e.g. `30s`); `0` disables keep-alive.                                 |
 
 Runtime configuration flags such as `--working-dir`, `--env-from-file`, `--models-gateway`, and hook flags are also available — see the [CLI reference]({{ '/features/cli/' | relative_url }}).
 

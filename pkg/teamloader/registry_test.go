@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/lsp"
 	mcptool "github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
@@ -269,9 +269,9 @@ func TestCreateLSPTool_WorkingDir_ReachesHandler(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rawTool)
 
-	lsp, ok := rawTool.(*builtin.LSPTool)
-	require.True(t, ok, "expected *builtin.LSPTool")
-	assert.Equal(t, customDir, lsp.WorkingDir())
+	lspTool, ok := rawTool.(*lsp.Tool)
+	require.True(t, ok, "expected *lsp.Tool")
+	assert.Equal(t, customDir, lspTool.WorkingDir())
 }
 
 // TestCreateMCPTool_RefRemote_WorkingDir_ReturnsError verifies that when a

@@ -82,6 +82,13 @@ This gives your agent:
 $ docker agent run agent.yaml
 ```
 
+<div class="callout callout-tip" markdown="1">
+<div class="callout-title">💡 Prefer HCL?
+</div>
+  <p>You can write the same config as <code>agent.hcl</code> using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
+
+</div>
+
 ## Try It Out
 
 Once your agent is running, try asking it to:
@@ -152,7 +159,7 @@ agents:
   <a class="card" href="{{ '/configuration/overview/' | relative_url }}">
     <div class="card-icon">📚</div>
     <h3>Configuration Reference</h3>
-    <p>Full reference for all YAML options.</p>
+    <p>Full reference for all YAML and HCL options.</p>
   </a>
   <a class="card" href="{{ '/community/troubleshooting/' | relative_url }}">
     <div class="card-icon">🔧</div>

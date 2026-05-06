@@ -269,6 +269,23 @@ func (s *Supervisor) ConsumePendingEvent(sessionID string) tea.Msg {
 	return event
 }
 
+// SetPendingEvent stores an attention event for the given session so it can
+// be replayed when the user later switches to that tab. Used to re-stash a
+// background dialog's originating event when the user navigates away from
+// the tab that opened it.
+//
+// NeedsAttention is intentionally NOT set here: the user is already aware of
+// the prompt (they just chose to step away from it) and we don't want to
+// flag the tab as if a brand-new event had arrived.
+func (s *Supervisor) SetPendingEvent(sessionID string, event tea.Msg) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if runner, ok := s.runners[sessionID]; ok {
+		runner.PendingEvent = event
+	}
+}
+
 // ActiveRunner returns the currently active session runner.
 func (s *Supervisor) ActiveRunner() *SessionRunner {
 	s.mu.RLock()

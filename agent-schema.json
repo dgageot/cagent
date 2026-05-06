@@ -1454,7 +1454,7 @@
         },
         "headers": {
           "type": "object",
-          "description": "HTTP headers for API requests (supports ${env.VAR} interpolation)",
+          "description": "HTTP headers (supports ${env.VAR} interpolation). Valid for type 'openapi', 'a2a', and 'fetch'. For 'fetch', the headers are sent on every request the toolset issues — typical use is supplying API tokens (e.g. Authorization: Bearer ${env.MY_TOKEN}). Caller-supplied values override the format-driven Accept header and the default User-Agent.",
           "additionalProperties": {
             "type": "string"
           }

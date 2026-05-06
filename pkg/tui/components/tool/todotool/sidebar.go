@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
 	"github.com/docker/docker-agent/pkg/tui/components/tab"
 	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
 	"github.com/docker/docker-agent/pkg/tui/styles"
@@ -14,7 +14,7 @@ import (
 
 // SidebarComponent represents the todo display component for the sidebar
 type SidebarComponent struct {
-	todos []builtin.Todo
+	todos []todo.Todo
 	width int
 }
 
@@ -33,7 +33,7 @@ func (c *SidebarComponent) SetTodos(result *tools.ToolCallResult) error {
 		return nil
 	}
 
-	todos, ok := result.Meta.([]builtin.Todo)
+	todos, ok := result.Meta.([]todo.Todo)
 	if !ok {
 		return nil
 	}
@@ -55,14 +55,14 @@ func (c *SidebarComponent) Render() string {
 	return c.renderTab("TO-DO", strings.Join(lines, "\n"))
 }
 
-func (c *SidebarComponent) renderTodoLine(todo builtin.Todo) string {
-	icon, style := renderTodoIcon(todo.Status)
+func (c *SidebarComponent) renderTodoLine(todoItem todo.Todo) string {
+	icon, style := renderTodoIcon(todoItem.Status)
 
 	prefix := icon + " "
 	prefixWidth := lipgloss.Width(prefix)
 	maxDescWidth := max(1, c.width-prefixWidth)
 
-	wrapped := toolcommon.WrapLinesWords(todo.Description, maxDescWidth)
+	wrapped := toolcommon.WrapLinesWords(todoItem.Description, maxDescWidth)
 	indent := strings.Repeat(" ", prefixWidth)
 
 	var b strings.Builder

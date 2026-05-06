@@ -11,7 +11,7 @@ import (
 	"github.com/coder/acp-go-sdk"
 
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 )
 
 type contextKey string
@@ -29,10 +29,10 @@ func getSessionID(ctx context.Context) (string, bool) {
 	return sid, ok
 }
 
-// FilesystemToolset wraps a standard FilesystemTool and overrides read_file, write_file,
+// FilesystemToolset wraps a standard Tool and overrides read_file, write_file,
 // and edit_file to use the ACP connection for file operations
 type FilesystemToolset struct {
-	*builtin.FilesystemTool
+	*filesystem.Tool
 
 	agent      *Agent
 	workingDir string
@@ -41,28 +41,28 @@ type FilesystemToolset struct {
 var _ tools.ToolSet = (*FilesystemToolset)(nil)
 
 // NewFilesystemToolset creates a new ACP-specific filesystem toolset
-func NewFilesystemToolset(agent *Agent, workingDir string, opts ...builtin.FileSystemOpt) *FilesystemToolset {
+func NewFilesystemToolset(agent *Agent, workingDir string, opts ...filesystem.Opt) *FilesystemToolset {
 	return &FilesystemToolset{
-		FilesystemTool: builtin.NewFilesystemTool(workingDir, opts...),
-		agent:          agent,
-		workingDir:     workingDir,
+		Tool:       filesystem.NewFilesystemTool(workingDir, opts...),
+		agent:      agent,
+		workingDir: workingDir,
 	}
 }
 
 // Tools returns the tool definitions with ACP-specific overrides
 func (t *FilesystemToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	baseTools, err := t.FilesystemTool.Tools(ctx)
+	baseTools, err := t.Tool.Tools(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range baseTools {
 		switch baseTools[i].Name {
-		case builtin.ToolNameReadFile:
+		case filesystem.ToolNameReadFile:
 			baseTools[i].Handler = t.handleReadFile
-		case builtin.ToolNameWriteFile:
+		case filesystem.ToolNameWriteFile:
 			baseTools[i].Handler = t.handleWriteFile
-		case builtin.ToolNameEditFile:
+		case filesystem.ToolNameEditFile:
 			baseTools[i].Handler = t.handleEditFile
 		}
 	}
@@ -133,7 +133,7 @@ func evalSymlinksAllowMissing(path string) (string, error) {
 }
 
 func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args builtin.ReadFileArgs
+	var args filesystem.ReadFileArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}
@@ -160,7 +160,7 @@ func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.T
 }
 
 func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args builtin.WriteFileArgs
+	var args filesystem.WriteFileArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}
@@ -192,7 +192,7 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 	if data == "" {
 		data = "{}"
 	}
-	args, err := builtin.ParseEditFileArgs([]byte(data))
+	args, err := filesystem.ParseEditFileArgs([]byte(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}

@@ -22,8 +22,20 @@ import (
 	"github.com/docker/docker-agent/pkg/toolinstall"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/a2a"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
+	"github.com/docker/docker-agent/pkg/tools/builtin/api"
+	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
+	"github.com/docker/docker-agent/pkg/tools/builtin/lsp"
+	"github.com/docker/docker-agent/pkg/tools/builtin/memory"
+	"github.com/docker/docker-agent/pkg/tools/builtin/modelpicker"
+	"github.com/docker/docker-agent/pkg/tools/builtin/openapi"
+	builtinrag "github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
+	"github.com/docker/docker-agent/pkg/tools/builtin/tasks"
+	"github.com/docker/docker-agent/pkg/tools/builtin/think"
+	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
+	"github.com/docker/docker-agent/pkg/tools/builtin/userprompt"
 	"github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
@@ -172,9 +184,9 @@ func resolveToolsetPath(toolsetPath, parentDir string, runConfig *config.Runtime
 
 func createTodoTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if toolset.Shared {
-		return builtin.NewSharedTodoTool(), nil
+		return todo.NewSharedTodoTool(), nil
 	}
-	return builtin.NewTodoTool(), nil
+	return todo.NewTodoTool(), nil
 }
 
 func createTasksTool(_ context.Context, toolset latest.Toolset, parentDir string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -191,7 +203,7 @@ func createTasksTool(_ context.Context, toolset latest.Toolset, parentDir string
 		return nil, fmt.Errorf("failed to create tasks storage directory: %w", err)
 	}
 
-	return builtin.NewTasksTool(validatedPath), nil
+	return tasks.NewTasksTool(validatedPath), nil
 }
 
 func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir string, runConfig *config.RuntimeConfig, configName string) (tools.ToolSet, error) {
@@ -220,11 +232,11 @@ func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir strin
 		return nil, fmt.Errorf("failed to create memory database: %w", err)
 	}
 
-	return builtin.NewMemoryToolWithPath(db, validatedMemoryPath), nil
+	return memory.NewMemoryToolWithPath(db, validatedMemoryPath), nil
 }
 
 func createThinkTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
-	return builtin.NewThinkTool(), nil
+	return think.NewThinkTool(), nil
 }
 
 func createShellTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -234,7 +246,7 @@ func createShellTool(ctx context.Context, toolset latest.Toolset, _ string, runC
 	}
 	env = append(env, os.Environ()...)
 
-	return builtin.NewShellTool(env, runConfig), nil
+	return shell.NewShellTool(env, runConfig), nil
 }
 
 func createScriptTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -247,7 +259,7 @@ func createScriptTool(ctx context.Context, toolset latest.Toolset, _ string, run
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
-	return builtin.NewScriptShellTool(toolset.Shell, env)
+	return shell.NewScriptShellTool(toolset.Shell, env)
 }
 
 func createFilesystemTool(_ context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -260,37 +272,37 @@ func createFilesystemTool(_ context.Context, toolset latest.Toolset, _ string, r
 		}
 	}
 
-	var opts []builtin.FileSystemOpt
+	var opts []filesystem.Opt
 
 	// Handle ignore_vcs configuration (default to true)
 	ignoreVCS := true
 	if toolset.IgnoreVCS != nil {
 		ignoreVCS = *toolset.IgnoreVCS
 	}
-	opts = append(opts, builtin.WithIgnoreVCS(ignoreVCS))
+	opts = append(opts, filesystem.WithIgnoreVCS(ignoreVCS))
 
 	// Handle allow/deny lists for filesystem operations.
 	// An empty / nil list preserves the default behaviour (no restriction).
 	if len(toolset.AllowList) > 0 {
-		opts = append(opts, builtin.WithAllowList(toolset.AllowList))
+		opts = append(opts, filesystem.WithAllowList(toolset.AllowList))
 	}
 	if len(toolset.DenyList) > 0 {
-		opts = append(opts, builtin.WithDenyList(toolset.DenyList))
+		opts = append(opts, filesystem.WithDenyList(toolset.DenyList))
 	}
 
 	// Handle post-edit commands
 	if len(toolset.PostEdit) > 0 {
-		postEditConfigs := make([]builtin.PostEditConfig, len(toolset.PostEdit))
+		postEditConfigs := make([]filesystem.PostEditConfig, len(toolset.PostEdit))
 		for i, pe := range toolset.PostEdit {
-			postEditConfigs[i] = builtin.PostEditConfig{
+			postEditConfigs[i] = filesystem.PostEditConfig{
 				Path: pe.Path,
 				Cmd:  pe.Cmd,
 			}
 		}
-		opts = append(opts, builtin.WithPostEditCommands(postEditConfigs))
+		opts = append(opts, filesystem.WithPostEditCommands(postEditConfigs))
 	}
 
-	return builtin.NewFilesystemTool(wd, opts...), nil
+	return filesystem.NewFilesystemTool(wd, opts...), nil
 }
 
 func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -302,22 +314,29 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint, nil)
 	toolset.APIConfig.Headers = expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
-	return builtin.NewAPITool(toolset.APIConfig, expander), nil
+	return api.NewAPITool(toolset.APIConfig, expander), nil
 }
 
-func createFetchTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
-	var opts []builtin.FetchToolOption
+func createFetchTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
+	// Expand ${env.X} in headers so secrets (API tokens, ...) can come from
+	// the environment instead of being inlined in YAML — same behaviour as
+	// openapi/a2a/mcp.remote/api headers. ExpandMap and WithHeaders are both
+	// nil-safe, so no guard is needed when the user hasn't configured any.
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	var opts []fetch.ToolOption
 	if toolset.Timeout > 0 {
 		timeout := time.Duration(toolset.Timeout) * time.Second
-		opts = append(opts, builtin.WithTimeout(timeout))
+		opts = append(opts, fetch.WithTimeout(timeout))
 	}
 	if len(toolset.AllowedDomains) > 0 {
-		opts = append(opts, builtin.WithAllowedDomains(toolset.AllowedDomains))
+		opts = append(opts, fetch.WithAllowedDomains(toolset.AllowedDomains))
 	}
 	if len(toolset.BlockedDomains) > 0 {
-		opts = append(opts, builtin.WithBlockedDomains(toolset.BlockedDomains))
+		opts = append(opts, fetch.WithBlockedDomains(toolset.BlockedDomains))
 	}
-	return builtin.NewFetchTool(opts...), nil
+	opts = append(opts, fetch.WithHeaders(expander.ExpandMap(ctx, toolset.Headers)))
+	return fetch.NewFetchTool(opts...), nil
 }
 
 func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -456,7 +475,7 @@ func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		}
 	}
 
-	tool := builtin.NewLSPTool(resolvedCommand, toolset.Args, env, cwd, lifecyclePolicyFromConfig(toolset.Name, toolset.Lifecycle))
+	tool := lsp.NewLSPTool(resolvedCommand, toolset.Args, env, cwd, lifecyclePolicyFromConfig(toolset.Name, toolset.Lifecycle))
 	if len(toolset.FileTypes) > 0 {
 		tool.SetFileTypes(toolset.FileTypes)
 	}
@@ -465,7 +484,7 @@ func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 }
 
 func createUserPromptTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
-	return builtin.NewUserPromptTool(), nil
+	return userprompt.NewUserPromptTool(), nil
 }
 
 func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -474,14 +493,14 @@ func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, ru
 	specURL := expander.Expand(ctx, toolset.URL, nil)
 	headers := expander.ExpandMap(ctx, toolset.Headers)
 
-	return builtin.NewOpenAPITool(specURL, headers), nil
+	return openapi.NewOpenAPITool(specURL, headers), nil
 }
 
 func createModelPickerTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if len(toolset.Models) == 0 {
 		return nil, errors.New("model_picker toolset requires at least one model")
 	}
-	return builtin.NewModelPickerTool(toolset.Models), nil
+	return modelpicker.NewModelPickerTool(toolset.Models), nil
 }
 
 func createBackgroundAgentsTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
@@ -507,5 +526,5 @@ func createRAGTool(ctx context.Context, toolset latest.Toolset, parentDir string
 	}
 
 	toolName := cmp.Or(mgr.ToolName(), ragName)
-	return builtin.NewRAGTool(mgr, toolName), nil
+	return builtinrag.NewRAGTool(mgr, toolName), nil
 }

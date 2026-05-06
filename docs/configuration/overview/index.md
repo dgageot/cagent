@@ -1,16 +1,18 @@
 ---
 title: "Configuration Overview"
-description: "docker-agent uses YAML configuration files to define agents, models, tools, and their relationships."
+description: "docker-agent uses YAML or HCL configuration files to define agents, models, tools, and their relationships."
 permalink: /configuration/overview/
 ---
 
 # Configuration Overview
 
-_docker-agent uses YAML configuration files to define agents, models, tools, and their relationships._
+_docker-agent uses YAML or HCL configuration files to define agents, models, tools, and their relationships._
 
 ## File Structure
 
-A docker-agent YAML config has these main sections:
+A docker-agent config can be written in YAML or HCL. The examples on this page use YAML; see [HCL Configuration]({{ '/configuration/hcl/' | relative_url }}) for the block-based HCL syntax.
+
+A docker-agent config has these main sections:
 
 ```bash
 # 1. Version — configuration schema version (optional but recommended)
@@ -44,7 +46,7 @@ rag:
     docs: ["./docs"]
     strategies:
       - type: chunked-embeddings
-        model: openai/text-embedding-3-small
+        embedding_model: openai/text-embedding-3-small
 
 # 6. MCPs — reusable MCP server definitions (optional)
 mcps:
@@ -79,6 +81,16 @@ agents:
     instruction: You are a helpful assistant.
 ```
 
+The same config in HCL:
+
+```hcl
+agent "root" {
+  model       = "openai/gpt-5-mini"
+  description = "A helpful assistant"
+  instruction = "You are a helpful assistant."
+}
+```
+
 ## Inline vs Named Models
 
 Models can be referenced inline or defined in the `models` section:
@@ -99,6 +111,11 @@ Models can be referenced inline or defined in the `models` section:
 ## Config Sections
 
 <div class="cards">
+  <a class="card" href="{{ '/configuration/hcl/' | relative_url }}">
+    <div class="card-icon">🧱</div>
+    <h3>HCL Configuration</h3>
+    <p>Write the same agent schema in HCL using labeled blocks, heredocs, and block-based tool definitions.</p>
+  </a>
   <a class="card" href="{{ '/configuration/agents/' | relative_url }}">
     <div class="card-icon">🤖</div>
     <h3>Agent Config</h3>
@@ -200,7 +217,7 @@ docker-agent validates your configuration at startup:
 
 ## JSON Schema
 
-For editor autocompletion and validation, use the [Docker Agent JSON Schema](https://github.com/docker/docker-agent/blob/main/agent-schema.json). Add this to the top of your YAML file:
+For YAML editor autocompletion and validation, use the [Docker Agent JSON Schema](https://github.com/docker/docker-agent/blob/main/agent-schema.json). Add this to the top of your YAML file:
 
 ```bash
 # yaml-language-server: $schema=https://raw.githubusercontent.com/docker/docker-agent/main/agent-schema.json

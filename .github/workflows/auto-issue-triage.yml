@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   triage:
-    if: github.event.label.name == 'kind/bug'
+    if: github.event.issue.node_id != '' && github.event.issue.type == 'Bug'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

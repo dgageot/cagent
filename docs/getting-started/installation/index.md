@@ -74,7 +74,7 @@ For the latest features, or to contribute, build from source:
 ### Prerequisites
 
 - [Go 1.26](https://go.dev/dl/) or higher
-- [mise](https://mise.jdx.dev/getting-started.html) (build tool)
+- [Task](https://taskfile.dev/installation/) (build tool)
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/local/) (for linting)
 
 ```bash
@@ -83,7 +83,7 @@ git clone https://github.com/docker/docker-agent.git
 cd docker-agent
 
 # Build the binary
-mise build
+task build
 
 # The binary is at ./bin/docker-agent
 ./bin/docker-agent --help
@@ -92,7 +92,7 @@ mise build
 <div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Building on Windows
 </div>
-  <p>On Windows, use <code>mise build-local</code> instead of <code>mise build</code>. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the <code>./dist</code> directory.</p>
+  <p>On Windows, use <code>task build-local</code> instead of <code>task build</code>. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the <code>./dist</code> directory.</p>
 
 </div>
 

@@ -37,7 +37,7 @@ agents:
       - Use the think tool to reason through complex problems step by step.
       - Use the todo tool to track multi-step tasks and avoid losing context.
       - Prefer tools over guessing. If you need to know something, look it up.
-      - When you don't know the project's build/test/lint commands, look for Makefiles, mise.toml, package.json, Cargo.toml, pyproject.toml, or similar.
+      - When you don't know the project's build/test/lint commands, look for Makefiles, Taskfile.yml, package.json, Cargo.toml, pyproject.toml, or similar.
       - Call multiple tools concurrently when the calls are independent.
       </principles>
 
@@ -92,7 +92,7 @@ agents:
         instruction: |
           Find and fix any lint, type-check, or build errors in this project.
 
-          1. Detect the project type and find the appropriate lint/build commands (check Makefile, mise.toml, package.json, Cargo.toml, pyproject.toml, etc.)
+          1. Detect the project type and find the appropriate lint/build commands (check Makefile, Taskfile.yml, package.json, Cargo.toml, pyproject.toml, etc.)
           2. Run them and analyze the output
           3. Fix every issue found
           4. Re-run to confirm everything passes

@@ -93,3 +93,32 @@ func TestCloseSession_TwoTabs_CloseSecond(t *testing.T) {
 	assert.Equal(t, "A", s.activeID)
 	assert.Equal(t, []string{"A"}, s.order)
 }
+
+// TestSetPendingEvent_RoundTrip verifies that SetPendingEvent stores an event
+// for a session and that ConsumePendingEvent retrieves and clears it. This
+// is the path used to re-stash a background dialog's originating event when
+// the user switches away from the tab that opened it (see #2626).
+func TestSetPendingEvent_RoundTrip(t *testing.T) {
+	s := newTestSupervisor([]string{"A", "B"}, "A")
+
+	type fakeEvent struct{ id int }
+	event := &fakeEvent{id: 7}
+
+	s.SetPendingEvent("A", event)
+
+	assert.Equal(t, event, s.runners["A"].PendingEvent, "event is stored on the runner")
+	assert.False(t, s.runners["A"].NeedsAttn, "SetPendingEvent must NOT raise NeedsAttn (the user is already aware)")
+
+	got := s.ConsumePendingEvent("A")
+	assert.Equal(t, event, got)
+	assert.Nil(t, s.runners["A"].PendingEvent, "event is cleared after consumption")
+}
+
+// TestSetPendingEvent_UnknownSession is a no-op (and must not panic).
+func TestSetPendingEvent_UnknownSession(t *testing.T) {
+	s := newTestSupervisor([]string{"A"}, "A")
+
+	s.SetPendingEvent("does-not-exist", "payload")
+
+	assert.Nil(t, s.runners["A"].PendingEvent, "unrelated runner is untouched")
+}

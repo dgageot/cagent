@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/teamloader"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
 	"github.com/docker/docker-agent/pkg/version"
 )
 
@@ -827,19 +827,19 @@ func parseToolCallArguments(argsJSON string) map[string]any {
 // isTodoTool returns true if the tool is a todo management tool
 func isTodoTool(toolName string) bool {
 	return slices.Contains([]string{
-		builtin.ToolNameCreateTodo,
-		builtin.ToolNameCreateTodos,
-		builtin.ToolNameUpdateTodos,
-		builtin.ToolNameListTodos,
+		todo.ToolNameCreateTodo,
+		todo.ToolNameCreateTodos,
+		todo.ToolNameUpdateTodos,
+		todo.ToolNameListTodos,
 	}, toolName)
 }
 
 // buildPlanUpdateFromTodos converts todo metadata to an ACP plan update
 func buildPlanUpdateFromTodos(meta any) *acp.SessionUpdate {
 	// Meta should be a slice of todos
-	todos, ok := meta.([]builtin.Todo)
+	todos, ok := meta.([]todo.Todo)
 	if !ok {
-		slog.Debug("Todo meta is not []builtin.Todo", "type", fmt.Sprintf("%T", meta))
+		slog.Debug("Todo meta is not []todo.Todo", "type", fmt.Sprintf("%T", meta))
 		return nil
 	}
 

@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"reflect"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -12,8 +14,14 @@ type ToolSet interface {
 	Tools(ctx context.Context) ([]Tool, error)
 }
 
-// NewHandler creates a type-safe tool handler from a function that accepts typed parameters.
-// It handles JSON unmarshaling of the tool call arguments into the specified type T.
+// NewHandler creates a type-safe tool handler from a function that accepts
+// typed parameters. It first runs a strict json.Unmarshal into T; on success
+// the typed function is called with zero overhead. On failure the handler
+// invokes the input-shape repair layer (see repair.go) which targets the
+// four common LLM mistakes: null-for-required, JSON-stringified array, single
+// object placeholder where an array is expected, and bare scalar where an
+// array is expected. Repaired calls emit a tool_input_repaired log entry so
+// per-(model, tool) repair rates can be tracked.
 func NewHandler[T any](fn func(context.Context, T) (*ToolCallResult, error)) ToolHandler {
 	return func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
 		var params T
@@ -21,10 +29,31 @@ func NewHandler[T any](fn func(context.Context, T) (*ToolCallResult, error)) Too
 		if args == "" {
 			args = "{}"
 		}
-		if err := json.Unmarshal([]byte(args), &params); err != nil {
+
+		err := json.Unmarshal([]byte(args), &params)
+		if err == nil {
+			return fn(ctx, params)
+		}
+
+		// Strict parse failed. Try the four shape repairs at the field
+		// paths the schema disagreed at, then re-parse. Valid inputs are
+		// never reached by this code path so well-formed calls pay nothing.
+		repaired, kinds, ok := tryRepairToolArgs([]byte(args), reflect.TypeFor[T]())
+		if !ok {
 			return nil, err
 		}
-		return fn(ctx, params)
+		var retry T
+		if rerr := json.Unmarshal(repaired, &retry); rerr != nil {
+			// Repair did not produce a parseable payload. Surface the
+			// original error so the model sees the schema's complaint, not
+			// the repair-layer's complaint about a synthesised payload.
+			return nil, err
+		}
+		slog.Info("tool_input_repaired",
+			"tool", toolCall.Function.Name,
+			"repairs", kinds,
+		)
+		return fn(ctx, retry)
 	}
 }
 

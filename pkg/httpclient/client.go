@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/docker/docker-agent/pkg/remote"
+	"github.com/docker/docker-agent/pkg/userid"
 	"github.com/docker/docker-agent/pkg/version"
 )
 
@@ -124,6 +125,14 @@ func WithProxiedBaseURL(value string) Opt {
 		o.Header.Set("X-Cagent-Arch", runtime.GOARCH)
 		o.Header.Set("X-Cagent-Runtime", "cagent")
 		o.Header.Set("X-Cagent-Runtime-Version", version.Version)
+
+		// Stamp the persistent UUID identifying this cagent install so
+		// the gateway can correlate calls coming from the same client
+		// across sessions and processes. Same value as the `user_uuid`
+		// telemetry property; the gateway is free to ignore it.
+		if id := userid.Get(); id != "" {
+			o.Header.Set("X-Cagent-Id", id)
+		}
 	}
 }
 

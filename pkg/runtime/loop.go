@@ -22,18 +22,23 @@ import (
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/telemetry/genai"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
 	bgagent "github.com/docker/docker-agent/pkg/tools/builtin/agent"
+	"github.com/docker/docker-agent/pkg/tools/builtin/handoff"
+	"github.com/docker/docker-agent/pkg/tools/builtin/modelpicker"
+	builtinrag "github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
+	"github.com/docker/docker-agent/pkg/tools/builtin/skills"
+	"github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
 )
 
 // registerDefaultTools wires up the built-in tool handlers (delegation,
 // background agents, model switching) into the runtime's tool dispatch map.
 func (r *LocalRuntime) registerDefaultTools() {
-	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
-	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
-	r.toolMap[builtin.ToolNameChangeModel] = r.handleChangeModel
-	r.toolMap[builtin.ToolNameRevertModel] = r.handleRevertModel
-	r.toolMap[builtin.ToolNameRunSkill] = r.handleRunSkill
+	r.toolMap[transfertask.ToolNameTransferTask] = r.handleTaskTransfer
+	r.toolMap[handoff.ToolNameHandoff] = r.handleHandoff
+	r.toolMap[modelpicker.ToolNameChangeModel] = r.handleChangeModel
+	r.toolMap[modelpicker.ToolNameRevertModel] = r.handleRevertModel
+	r.toolMap[skills.ToolNameRunSkill] = r.handleRunSkill
 
 	r.bgAgents.RegisterHandlers(func(name string, fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error)) {
 		r.toolMap[name] = func(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
@@ -293,7 +298,7 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 	}
 	loopDetector := toolexec.NewLoopDetector(loopThreshold,
 		bgagent.ToolNameViewBackgroundAgent,
-		builtin.ToolNameViewBackgroundJob,
+		shell.ToolNameViewBackgroundJob,
 	)
 
 	// overflowCompactions counts how many consecutive context-overflow
@@ -861,7 +866,7 @@ func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Even
 		)
 
 		// Wire RAG event forwarding so the TUI shows indexing progress.
-		if ragTool, ok := tools.As[*builtin.RAGTool](toolset); ok {
+		if ragTool, ok := tools.As[*builtinrag.Tool](toolset); ok {
 			ragTool.SetEventCallback(ragEventForwarder(ragTool.Name(), r, chanSend(events)))
 		}
 	}

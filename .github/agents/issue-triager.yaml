@@ -123,8 +123,8 @@ agents:
 
       5. **Verify**: Run tests and linting to make sure the fix is correct:
          ```bash
-         mise test
-         mise lint
+         task test
+         task lint
          ```
          If tests fail, investigate and fix. Do not leave broken tests.
 
@@ -134,7 +134,7 @@ agents:
       - Do NOT modify CI/CD configs, workflows, or unrelated files
       - Keep changes minimal — fix the bug, nothing more
       - If you cannot determine a fix with confidence, make no changes and explain why
-      - Always run `mise test` and `mise lint` before finishing
+      - Always run `task test` and `task lint` before finishing
 
     toolsets:
       - type: filesystem
@@ -147,7 +147,7 @@ permissions:
     - shell:cmd=gh issue edit *
     - shell:cmd=gh issue view *
     - shell:cmd=gh api *
-    - shell:cmd=mise test*
-    - shell:cmd=mise lint*
-    - shell:cmd=mise build*
+    - shell:cmd=task test*
+    - shell:cmd=task lint*
+    - shell:cmd=task build*
     - shell:cmd=go *

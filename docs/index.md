@@ -1,13 +1,13 @@
 ---
 layout: default
 title: "docker-agent"
-description: "Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker."
+description: "Build, run, and share powerful AI agents with a declarative YAML or HCL config, rich tool ecosystem, and multi-agent orchestration — by Docker."
 permalink: /
 ---
 
 <div class="hero">
   <h1>docker-agent</h1>
-  <p>Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker.</p>
+  <p>Build, run, and share powerful AI agents with a declarative YAML or HCL config, rich tool ecosystem, and multi-agent orchestration — by Docker.</p>
   <div class="hero-buttons">
     <a href="{{ '/getting-started/introduction/' | relative_url }}" class="btn btn-primary">Get Started</a>
     <a href="https://github.com/docker/docker-agent" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">GitHub →</a>
@@ -18,7 +18,7 @@ permalink: /
   <div class="feature">
     <div class="feature-icon">🤖</div>
     <h3>Declarative Agents</h3>
-    <p>Define agents in simple YAML — their model, tools, behavior, and relationships. No framework code required.</p>
+    <p>Define agents in simple YAML or HCL — their model, tools, behavior, and relationships. No framework code required.</p>
   </div>
   <div class="feature">
     <div class="feature-icon">🔧</div>
@@ -80,6 +80,12 @@ docker agent run agent.yaml
 # Or run a one-shot command
 docker agent run --exec agent.yaml "Explain the code in main.go"
 ```
+
+<div class="callout callout-tip" markdown="1">
+<div class="callout-title">💡 Prefer HCL?
+</div>
+  <p>You can also write agents as <code>.hcl</code> files. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a> for the block-based syntax.</p>
+</div>
 
 ## Explore the Docs
 

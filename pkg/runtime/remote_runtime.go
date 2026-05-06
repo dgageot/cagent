@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker-agent/pkg/sessiontitle"
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/skills"
 	"github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
@@ -505,7 +505,7 @@ func (r *RemoteRuntime) ResetStartupInfo() {
 }
 
 // CurrentAgentSkillsToolset returns nil for remote runtimes since skills are managed server-side.
-func (r *RemoteRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
+func (r *RemoteRuntime) CurrentAgentSkillsToolset() *skills.Toolset {
 	return nil
 }
 

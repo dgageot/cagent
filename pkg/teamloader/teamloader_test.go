@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/js"
 	"github.com/docker/docker-agent/pkg/model/provider/dmr"
 	"github.com/docker/docker-agent/pkg/tools"
 )
@@ -66,7 +67,9 @@ func TestGetToolsForAgent_ContinuesOnCreateToolError(t *testing.T) {
 		EnvProviderForTests: &noEnvProvider{},
 	}
 
-	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewToolsetRegistry(), "test-config")
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewToolsetRegistry(), "test-config", expander)
 
 	require.Empty(t, got)
 	require.NotEmpty(t, warnings)
@@ -217,6 +220,31 @@ func TestToolsetInstructions(t *testing.T) {
 	instructions := tools.GetInstructions(toolsets[0])
 	expected := "Dummy fetch tool instruction"
 	require.Equal(t, expected, instructions)
+}
+
+// TestInstructionExpansion verifies that ${env.X} placeholders are expanded
+// at load time both in agent.instruction and in toolsets[*].instruction.
+// See https://github.com/docker/docker-agent/issues/2614.
+func TestInstructionExpansion(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("USER", "alice")
+
+	agentSource, err := config.Resolve("testdata/instruction-expansion.yaml", nil)
+	require.NoError(t, err)
+
+	team, err := Load(t.Context(), agentSource, &config.RuntimeConfig{})
+	require.NoError(t, err)
+
+	rootAgent, err := team.Agent("root")
+	require.NoError(t, err)
+
+	// agents.<name>.instruction must be expanded.
+	assert.Equal(t, "Hello alice, you are running in staging", rootAgent.Instruction())
+
+	// toolsets[*].instruction must also be expanded.
+	toolsets := rootAgent.ToolSets()
+	require.Len(t, toolsets, 1)
+	assert.Equal(t, "Fetch as alice", tools.GetInstructions(toolsets[0]))
 }
 
 func TestAutoModelFallbackError(t *testing.T) {
@@ -414,7 +442,9 @@ func TestGetToolsForAgent_MultipleLSPToolsetsAreCombined(t *testing.T) {
 		EnvProviderForTests: &noEnvProvider{},
 	}
 
-	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewDefaultToolsetRegistry(), "test-config")
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewDefaultToolsetRegistry(), "test-config", expander)
 	require.Empty(t, warnings)
 
 	// Should have exactly one toolset (the multiplexer)
@@ -454,7 +484,9 @@ func TestGetToolsForAgent_SingleLSPToolsetNotWrapped(t *testing.T) {
 		EnvProviderForTests: &noEnvProvider{},
 	}
 
-	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewDefaultToolsetRegistry(), "test-config")
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewDefaultToolsetRegistry(), "test-config", expander)
 	require.Empty(t, warnings)
 
 	// Should have exactly one toolset that provides LSP tools.

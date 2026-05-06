@@ -24,6 +24,8 @@
   items:
     - title: Overview
       url: /configuration/overview/
+    - title: HCL Configuration
+      url: /configuration/hcl/
     - title: Agent Config
       url: /configuration/agents/
     - title: Model Config

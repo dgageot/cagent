@@ -109,10 +109,13 @@ func createMCPServer(ctx context.Context, agentFilename, agentName string, runCo
 		}
 	}
 
+	// The SDK only starts keep-alive when KeepAlive > 0.
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "docker agent",
 		Version: version.Version,
-	}, nil)
+	}, &mcp.ServerOptions{
+		KeepAlive: runConfig.MCPKeepAlive,
+	})
 
 	agentNames := t.AgentNames()
 	if agentName != "" {

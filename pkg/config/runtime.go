@@ -5,6 +5,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
@@ -35,7 +36,8 @@ type Config struct {
 	HookOnUserInput  []string
 	HookStop         []string
 
-	MCPToolName string
+	MCPToolName  string
+	MCPKeepAlive time.Duration
 }
 
 func (runConfig *RuntimeConfig) Clone() *RuntimeConfig {

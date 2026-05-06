@@ -195,7 +195,7 @@ models:
       thinking_display: summarized # "summarized", "display", or "omitted"
 ```
 
-See the [Anthropic provider page](/providers/anthropic/#thinking-display) for details.
+See the [Anthropic provider page]({{ '/providers/anthropic/#thinking-display' | relative_url }}) for details.
 
 ## Custom HTTP Headers
 

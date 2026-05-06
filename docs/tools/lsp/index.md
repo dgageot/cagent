@@ -59,14 +59,14 @@ agents:
 
 ## Properties
 
-| Property      | Type   | Required | Description                                                                                                                                                              |
-| ------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| `command`     | string | ✓        | LSP server executable command                                                                                                                                            |
-| `args`        | array  | ✗        | Command-line arguments for the LSP server                                                                                                                                |
-| `env`         | object | ✗        | Environment variables for the LSP process                                                                                                                                |
-| `file_types`  | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`)                                                                                                               |
+| Property      | Type   | Required | Description                                                                                                                  |
+| ------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `command`     | string | ✓        | LSP server executable command                                                                                                |
+| `args`        | array  | ✗        | Command-line arguments for the LSP server                                                                                    |
+| `env`         | object | ✗        | Environment variables for the LSP process                                                                                    |
+| `file_types`  | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`)                                                                   |
 | `working_dir` | string | ✗        | Working directory for the LSP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. |
-| `version`     | string | ✗        | Package reference for [auto-installing]({{ '/configuration/tools/#auto-installing-tools'                                                                                 | relative_url }}) the command binary |
+| `version`     | string | ✗        | Package reference for [auto-installing]({{ '/configuration/tools/#auto-installing-tools' | relative_url }}) the command binary |
 
 ## Common LSP Servers
 

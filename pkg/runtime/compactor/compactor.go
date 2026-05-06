@@ -159,7 +159,7 @@ func RunLLM(ctx context.Context, args LLMArgs) (result *Result, err error) {
 		options.WithStructuredOutput(nil),
 		options.WithMaxTokens(MaxSummaryTokens),
 	)
-	compactionAgent := agent.New("root", compaction.SystemPrompt, agent.WithModel(summaryModel))
+	compactionAgent := agent.New("root", "", agent.WithModel(summaryModel))
 
 	messages, firstKeptEntry := extractMessages(args.Session, compactionAgent, args.ContextLimit, args.AdditionalPrompt)
 

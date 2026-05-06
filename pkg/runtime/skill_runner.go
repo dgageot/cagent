@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/telemetry/genai"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/skills"
 )
 
 // handleRunSkill executes a skill as an isolated sub-agent. The skill's
@@ -22,7 +22,7 @@ import (
 // its final response is returned as the tool result.
 //
 // All skill-specific business rules (lookup, fork-mode validation, content
-// expansion) live in (*builtin.SkillsToolset).PrepareForkSubSession; this
+// expansion) live in (*skills.Toolset).PrepareForkSubSession; this
 // handler keeps only the runtime-private orchestration that runForwarding
 // can't generalise — namely the optional model override that applies for
 // the sub-session's lifetime.
@@ -30,7 +30,7 @@ import (
 // This implements the `context: fork` behaviour from the SKILL.md frontmatter,
 // following the same convention as Claude Code.
 func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
-	var args builtin.RunSkillArgs
+	var args skills.RunSkillArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
@@ -119,7 +119,7 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 			Title:               "Skill: " + prepared.SkillName,
 			ToolsApproved:       sess.ToolsApproved,
 			NonInteractive:      sess.NonInteractive,
-			ExcludedTools:       []string{builtin.ToolNameRunSkill},
+			ExcludedTools:       []string{skills.ToolNameRunSkill},
 		},
 	})
 }

@@ -130,8 +130,8 @@ func (t *Toolset) validate() error {
 	if (len(t.Remote.Headers) > 0) && (t.Type != "mcp" && t.Type != "a2a") {
 		return errors.New("remote headers can only be used with type 'mcp' or 'a2a'")
 	}
-	if len(t.Headers) > 0 && t.Type != "openapi" && t.Type != "a2a" {
-		return errors.New("headers can only be used with type 'openapi' or 'a2a'")
+	if len(t.Headers) > 0 && t.Type != "openapi" && t.Type != "a2a" && t.Type != "fetch" {
+		return errors.New("headers can only be used with type 'openapi', 'a2a' or 'fetch'")
 	}
 	if t.Config != nil && t.Type != "mcp" {
 		return errors.New("config can only be used with type 'mcp'")

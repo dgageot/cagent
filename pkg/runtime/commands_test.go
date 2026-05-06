@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	skillstool "github.com/docker/docker-agent/pkg/tools/builtin/skills"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
@@ -54,7 +54,7 @@ func (m *mockRuntime) SessionStore() session.Store { return nil }
 func (m *mockRuntime) Summarize(context.Context, *session.Session, string, chan Event) {
 }
 func (m *mockRuntime) PermissionsInfo() *PermissionsInfo { return nil }
-func (m *mockRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
+func (m *mockRuntime) CurrentAgentSkillsToolset() *skillstool.Toolset {
 	return nil
 }
 

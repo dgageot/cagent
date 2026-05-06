@@ -11,6 +11,9 @@
 //   - Multi-line strings should use heredocs. Because HCL templates expand
 //     `${...}` interpolation, any literal `${...}` (such as
 //     `${shell({cmd: "..."})}`) must be escaped as `$${...}`.
+//   - The custom `file("path")` function reads a UTF-8 text file and returns
+//     its contents as a string. Relative paths are resolved from the HCL
+//     config file's directory.
 //
 // The converter does not validate the resulting document against the
 // configuration schema; that is left to the existing YAML/JSON loader.
@@ -19,6 +22,7 @@ package hcl
 import (
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -26,6 +30,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // LooksLikeHCL reports whether the given bytes look like an HCL document
@@ -88,7 +93,7 @@ func ToMap(data []byte, filename string) (map[string]any, error) {
 	if !ok {
 		return nil, fmt.Errorf("HCL file %s is not native syntax", filename)
 	}
-	out, diags := convertBody(body)
+	out, diags := convertBody(body, newEvalContext(baseDir(filename)))
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("converting HCL %s: %s", filename, diags.Error())
 	}
@@ -207,12 +212,12 @@ func LabelKeyedMapOutKeys() map[string]bool {
 //
 // HCL's parser already rejects duplicate attribute names within a body, so
 // we don't guard against them here.
-func convertBody(body *hclsyntax.Body) (map[string]any, hcl.Diagnostics) {
+func convertBody(body *hclsyntax.Body, evalCtx *hcl.EvalContext) (map[string]any, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	out := map[string]any{}
 
 	for name, attr := range body.Attributes {
-		val, attrDiags := convertExpr(attr.Expr)
+		val, attrDiags := convertExpr(attr.Expr, evalCtx)
 		diags = append(diags, attrDiags...)
 		if !attrDiags.HasErrors() {
 			out[name] = val
@@ -220,7 +225,7 @@ func convertBody(body *hclsyntax.Body) (map[string]any, hcl.Diagnostics) {
 	}
 
 	for _, block := range body.Blocks {
-		diags = append(diags, mergeBlock(out, block)...)
+		diags = append(diags, mergeBlock(out, block, evalCtx)...)
 	}
 
 	return out, diags
@@ -230,14 +235,14 @@ func convertBody(body *hclsyntax.Body) (map[string]any, hcl.Diagnostics) {
 // according to the block's rule. It validates label count and detects
 // per-rule duplicates (e.g. two singleton blocks of the same name, or two
 // labeled blocks with the same label).
-func mergeBlock(out map[string]any, block *hclsyntax.Block) hcl.Diagnostics {
+func mergeBlock(out map[string]any, block *hclsyntax.Block, evalCtx *hcl.EvalContext) hcl.Diagnostics {
 	rule := lookupRule(block.Type, len(block.Labels))
 
 	if d := checkLabels(block, rule.expectedLabels()); d != nil {
 		return d
 	}
 
-	body, diags := convertBody(block.Body)
+	body, diags := convertBody(block.Body, evalCtx)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -297,12 +302,27 @@ func errf(subj *hcl.Range, summary, format string, args ...any) hcl.Diagnostics 
 	}}
 }
 
-func convertExpr(expr hclsyntax.Expression) (any, hcl.Diagnostics) {
-	val, diags := expr.Value(&hcl.EvalContext{})
+func convertExpr(expr hclsyntax.Expression, evalCtx *hcl.EvalContext) (any, hcl.Diagnostics) {
+	val, diags := expr.Value(evalCtx)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 	return ctyToGo(val), nil
+}
+
+func baseDir(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	return filepath.Dir(filename)
+}
+
+func newEvalContext(baseDir string) *hcl.EvalContext {
+	return &hcl.EvalContext{
+		Functions: map[string]function.Function{
+			"file": fileFunction(baseDir),
+		},
+	}
 }
 
 // ctyToGo recursively converts a cty.Value into the Go primitives used by

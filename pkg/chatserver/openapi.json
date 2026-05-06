@@ -118,6 +118,15 @@
             "items": { "$ref": "#/components/schemas/ChatCompletionMessage" }
           },
           "stream": { "type": "boolean", "default": false },
+          "stream_options": {
+            "type": "object",
+            "properties": {
+              "include_usage": {
+                "type": "boolean",
+                "description": "When true and stream=true, emit an extra final chunk with usage and empty choices before [DONE]."
+              }
+            }
+          },
           "temperature": {
             "type": "number",
             "minimum": 0,

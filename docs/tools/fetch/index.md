@@ -15,7 +15,7 @@ The fetch tool lets agents retrieve content from one or more HTTP/HTTPS URLs. It
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ GET only
 </div>
-  <p>The fetch tool does <strong>not</strong> support <code>POST</code>, <code>PUT</code>, <code>DELETE</code> or other methods, and does not expose request bodies or custom headers. To call REST endpoints with other verbs, use the <a href="{{ '/tools/api/' | relative_url }}">API tool</a> or an <a href="{{ '/configuration/tools/#openapi' | relative_url }}">OpenAPI toolset</a>.</p>
+  <p>The fetch tool does <strong>not</strong> support <code>POST</code>, <code>PUT</code>, <code>DELETE</code> or other methods, and does not expose request bodies or custom headers. To call REST endpoints with other verbs, use the <a href="{{ '/tools/api/' | relative_url }}">API tool</a> or an <a href="{{ '/tools/openapi/' | relative_url }}">OpenAPI toolset</a>.</p>
 
 </div>
 

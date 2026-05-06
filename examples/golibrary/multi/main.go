@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/team"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func run(ctx context.Context) error {
 		"You are a human, with feelings and emotions.",
 		agent.WithModel(llm),
 		agent.WithSubAgents(child),
-		agent.WithToolSets(builtin.NewTransferTaskTool()),
+		agent.WithToolSets(transfertask.NewTransferTaskTool()),
 	)
 	rt, err := runtime.New(team.New(team.WithAgents(root, child)))
 	if err != nil {

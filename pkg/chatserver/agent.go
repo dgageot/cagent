@@ -247,13 +247,8 @@ func runAgentLoop(ctx context.Context, rt runtime.Runtime, sess *session.Session
 	return errors.Join(runErrs...)
 }
 
-// sessionUsage extracts approximate token usage from a completed session,
-// returning nil when nothing is known so we can omit the field entirely
-// rather than reporting zeroes.
+// sessionUsage extracts approximate token usage from a completed session
 func sessionUsage(sess *session.Session) *ChatCompletionUsage {
-	if sess.InputTokens == 0 && sess.OutputTokens == 0 {
-		return nil
-	}
 	return &ChatCompletionUsage{
 		PromptTokens:     sess.InputTokens,
 		CompletionTokens: sess.OutputTokens,

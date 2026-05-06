@@ -12,8 +12,24 @@ import (
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/compaction"
+	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
+
+type fakeProvider struct{ id string }
+
+func (p fakeProvider) ID() string { return p.id }
+
+func (p fakeProvider) BaseConfig() base.Config { return base.Config{} }
+
+func (p fakeProvider) CreateChatCompletionStream(
+	context.Context,
+	[]chat.Message,
+	[]tools.Tool,
+) (chat.MessageStream, error) {
+	return nil, nil
+}
 
 func TestExtractMessages(t *testing.T) {
 	t.Parallel()
@@ -200,6 +216,38 @@ func TestMapToSessionIndex(t *testing.T) {
 	assert.Equal(t, 4, mapToSessionIndex(sess, 2))
 	// Past the end: returns len(sess.Messages)
 	assert.Equal(t, len(sess.Messages), mapToSessionIndex(sess, 3))
+}
+
+func TestRunLLM_DoesNotDuplicateSystemPrompt(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New(session.WithMessages([]session.Item{
+		session.NewMessageItem(&session.Message{Message: chat.Message{Role: chat.MessageRoleUser, Content: "please summarize"}}),
+	}))
+	a := agent.New("test", "parent prompt", agent.WithModel(fakeProvider{id: "fake/model"}))
+
+	var systemPromptCount int
+	result, err := RunLLM(t.Context(), LLMArgs{
+		Session:      sess,
+		Agent:        a,
+		ContextLimit: 100_000,
+		RunAgent: func(_ context.Context, compactionAgent *agent.Agent, compactionSession *session.Session) error {
+			for _, msg := range compactionSession.GetMessages(compactionAgent) {
+				if msg.Role == chat.MessageRoleSystem && msg.Content == compaction.SystemPrompt {
+					systemPromptCount++
+				}
+			}
+			compactionSession.AddMessage(&session.Message{Message: chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "summary",
+			}})
+			return nil
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 1, systemPromptCount, "compaction sub-run should see the compaction system prompt exactly once")
 }
 
 // TestRunLLM_RequiresRunAgent pins the contract that a missing RunAgent

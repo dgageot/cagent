@@ -19,7 +19,7 @@ _Complete reference for all docker-agent command-line commands and flags._
 
 ### `docker agent run`
 
-Launch the interactive TUI with an agent configuration.
+Launch the interactive TUI with an agent configuration (`.yaml`, `.yml`, or `.hcl`).
 
 ```bash
 $ docker agent run [config] [message...] [flags]
@@ -154,7 +154,7 @@ All [runtime configuration flags](#runtime-configuration-flags) (`--working-dir`
 # Examples
 $ docker agent serve api agent.yaml
 $ docker agent serve api agent.yaml --listen :8080
-$ docker agent serve api ./agents/                          # directory of agent YAMLs
+$ docker agent serve api ./agents/                          # directory of agent YAML/HCL configs
 $ docker agent serve api ociReference --pull-interval 10    # auto-refresh
 ```
 

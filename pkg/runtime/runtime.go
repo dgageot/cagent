@@ -25,8 +25,8 @@ import (
 	"github.com/docker/docker-agent/pkg/sessiontitle"
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
+	"github.com/docker/docker-agent/pkg/tools/builtin/skills"
 	"github.com/docker/docker-agent/pkg/tools/lifecycle"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
 )
@@ -82,7 +82,7 @@ type Runtime interface {
 	PermissionsInfo() *PermissionsInfo
 
 	// CurrentAgentSkillsToolset returns the skills toolset for the current agent, or nil if skills are not enabled.
-	CurrentAgentSkillsToolset() *builtin.SkillsToolset
+	CurrentAgentSkillsToolset() *skills.Toolset
 
 	// CurrentMCPPrompts returns MCP prompts available from the current agent's toolsets.
 	// Returns an empty map if no MCP prompts are available.
@@ -546,7 +546,7 @@ func (r *LocalRuntime) CurrentAgentTools(ctx context.Context) ([]tools.Tool, err
 
 // CurrentAgentToolsetStatuses returns one ToolsetStatus per toolset of the
 // active agent. The list is in declaration order. Toolsets that wrap
-// another (StartableToolSet, LSPMultiplexer) are unwrapped so the inner
+// another (StartableToolSet, Multiplexer) are unwrapped so the inner
 // supervisor's state is visible.
 func (r *LocalRuntime) CurrentAgentToolsetStatuses() []tools.ToolsetStatus {
 	a := r.CurrentAgent()
@@ -714,13 +714,13 @@ func (r *LocalRuntime) resolveSessionAgent(sess *session.Session) *agent.Agent {
 }
 
 // CurrentAgentSkillsToolset returns the skills toolset for the current agent, or nil if not enabled.
-func (r *LocalRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
+func (r *LocalRuntime) CurrentAgentSkillsToolset() *skills.Toolset {
 	a := r.CurrentAgent()
 	if a == nil {
 		return nil
 	}
 	for _, ts := range a.ToolSets() {
-		if st, ok := tools.As[*builtin.SkillsToolset](ts); ok {
+		if st, ok := tools.As[*skills.Toolset](ts); ok {
 			return st
 		}
 	}

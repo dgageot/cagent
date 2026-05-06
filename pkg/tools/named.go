@@ -9,7 +9,7 @@ package tools
 //     (`shell`, `filesystem`, `memory`, …), the registry wraps the
 //     toolset with WithName(toolset.Type) so Name() returns the YAML
 //     `type:` instead. The point is that no surface ever has to display
-//     a Go type ("*builtin.ShellTool") to the user.
+//     a Go type ("*builtin.Tool") to the user.
 type Named interface {
 	Name() string
 }

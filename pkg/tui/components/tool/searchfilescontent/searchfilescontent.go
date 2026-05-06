@@ -3,7 +3,7 @@ package searchfilescontent
 import (
 	"fmt"
 
-	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
 	"github.com/docker/docker-agent/pkg/tui/core/layout"
 	"github.com/docker/docker-agent/pkg/tui/service"
@@ -18,7 +18,7 @@ func New(msg *types.Message, sessionState service.SessionStateReader) layout.Mod
 }
 
 func extractArgs(args string) string {
-	parsed, err := toolcommon.ParseArgs[builtin.SearchFilesContentArgs](args)
+	parsed, err := toolcommon.ParseArgs[filesystem.SearchFilesContentArgs](args)
 	if err != nil {
 		return ""
 	}
@@ -39,7 +39,7 @@ func extractResult(msg *types.Message) string {
 	if msg.ToolResult == nil || msg.ToolResult.Meta == nil {
 		return "no matches"
 	}
-	meta, ok := msg.ToolResult.Meta.(builtin.SearchFilesContentMeta)
+	meta, ok := msg.ToolResult.Meta.(filesystem.SearchFilesContentMeta)
 	if !ok {
 		return "no matches"
 	}
