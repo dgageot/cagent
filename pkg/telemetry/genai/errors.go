@@ -32,6 +32,18 @@ func ClassifyError(err error) string {
 		return "deadline_exceeded"
 	}
 
+	// Prefer a structured status-code probe before falling back to
+	// substring matching. The string heuristic below trips on any
+	// error message that incidentally contains "401", "403", "429" —
+	// request IDs, byte counts, status-line fragments, etc. Providers
+	// that surface HTTP status codes via a `StatusCode() int` method
+	// (or via an OTel-style `HTTPStatusCode() int`) get classified
+	// from the structural signal, while text-only errors fall through
+	// to the heuristic.
+	if t := classifyByStatusCode(err); t != "" {
+		return t
+	}
+
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "context length") || strings.Contains(msg, "context_length"):
@@ -59,6 +71,27 @@ func ClassifyError(err error) string {
 	}
 
 	return ErrorTypeOther
+}
+
+// classifyByStatusCode returns a low-cardinality `error.type` when err
+// (or anything in its wrap chain) exposes an HTTP status code via a
+// `StatusCode() int` method and the value matches one of the cases
+// ClassifyError handles. Returns "" when no structural signal is
+// available so the caller can fall through to substring heuristics.
+func classifyByStatusCode(err error) string {
+	var sc interface{ StatusCode() int }
+	if !errors.As(err, &sc) {
+		return ""
+	}
+	switch sc.StatusCode() {
+	case 401:
+		return "auth"
+	case 403:
+		return "forbidden"
+	case 429:
+		return "rate_limit"
+	}
+	return ""
 }
 
 // applyExtraAttribute converts a StreamAttributer KeyValue into an OTel

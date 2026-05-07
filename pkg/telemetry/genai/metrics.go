@@ -44,6 +44,14 @@ var (
 // previously a single early return left every metric permanently
 // disabled, which surprised production debugging when one bucket
 // configuration tripped a registration error.
+//
+// Test note: instruments are bound to the global MeterProvider on first
+// call and frozen for the process lifetime via sync.Once. Replacing the
+// provider with otel.SetMeterProvider after any production code path
+// has already triggered getInstruments will NOT rebind the histograms,
+// so tests that inspect emitted metrics must install their provider
+// before any code under test runs (typically in TestMain or per-test
+// setup before the first instrumented call).
 func getInstruments() *instruments {
 	instOnce.Do(func() {
 		meter := otel.Meter(instrumentationName)

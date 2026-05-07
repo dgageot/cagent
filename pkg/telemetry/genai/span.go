@@ -353,6 +353,12 @@ func (s *ChatSpan) End() {
 		attribute.String(AttrOperationName, OperationChat),
 		attribute.String(AttrProviderName, s.provider),
 	}
+	// `gen_ai.request.model` is required here by the OTel GenAI
+	// semconv but is unbounded in practice — every dated variant
+	// (e.g. `model-YYYYMMDD`) opens a new metric series. Operators
+	// concerned about backend cardinality should drop or canonicalise
+	// this label at the collector rather than at the agent, so spans
+	// keep full detail while metrics stay bounded.
 	if s.model != "" {
 		commonAttrs = append(commonAttrs, attribute.String(AttrRequestModel, s.model))
 	}
