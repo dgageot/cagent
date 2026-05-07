@@ -2,15 +2,13 @@ package main
 
 import (
 	"go/ast"
-	"slices"
-	"strings"
 
 	"github.com/dgageot/rubocop-go/cop"
 )
 
-// HookBuiltinsRegistered enforces that every builtin-name constant declared
-// under pkg/hooks/builtins/ is wired into the package's Register() function
-// in pkg/hooks/builtins/builtins.go.
+// NewHookBuiltinsRegistered enforces that every builtin-name constant
+// declared under pkg/hooks/builtins/ is wired into the package's Register()
+// function in pkg/hooks/builtins/builtins.go.
 //
 // Each in-process builtin lives in its own file with a name constant and an
 // implementation:
@@ -39,60 +37,46 @@ import (
 // Files named builtins.go itself, *_test.go, and testhelpers_test.go are
 // excluded from the constant scan because they are not where new
 // builtins land.
-type HookBuiltinsRegistered struct {
-	cop.Meta
+func NewHookBuiltinsRegistered() cop.Cop {
+	return &cop.Func{
+		Meta: cop.Meta{
+			Name:        "Lint/HookBuiltinsRegistered",
+			Description: "every builtin name constant under pkg/hooks/builtins/ must appear in a RegisterBuiltin call",
+			Severity:    cop.Error,
+		},
+		Scope: cop.OnlyFile("pkg/hooks/builtins/builtins.go"),
+		Run: func(p *cop.Pass) {
+			declared, err := exportedBuiltinNames(p)
+			if err != nil || len(declared) == 0 {
+				return
+			}
+
+			registered := p.IdentSetFromCalls("RegisterBuiltin", 0)
+
+			// Anchor on the first RegisterBuiltin call, falling back to the
+			// package clause if the function was reshaped beyond recognition.
+			var anchor ast.Node = p.File.Name
+			if call := p.FirstMethodCall("RegisterBuiltin"); call != nil {
+				anchor = call
+			}
+
+			var missing []string
+			for name := range declared {
+				if !registered[name] {
+					missing = append(missing, name)
+				}
+			}
+			p.ReportMissing(anchor,
+				"pkg/hooks/builtins/builtins.go is missing RegisterBuiltin call(s) for: %s", missing)
+		},
+	}
 }
 
-// NewHookBuiltinsRegistered returns a fully configured
-// HookBuiltinsRegistered cop.
-func NewHookBuiltinsRegistered() *HookBuiltinsRegistered {
-	return &HookBuiltinsRegistered{Meta: cop.Meta{
-		CopName:     "Lint/HookBuiltinsRegistered",
-		CopDesc:     "every builtin name constant under pkg/hooks/builtins/ must appear in a RegisterBuiltin call",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *HookBuiltinsRegistered) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/hooks/builtins/builtins.go") {
-		return
-	}
-
-	declared, err := exportedBuiltinNames(p)
-	if err != nil || len(declared) == 0 {
-		return
-	}
-
-	registered := p.IdentSetFromCalls("RegisterBuiltin", 0)
-
-	// Anchor on the first RegisterBuiltin call, falling back to the package
-	// clause if the function was reshaped beyond recognition.
-	var anchor ast.Node = p.File.Name
-	p.ForEachMethodCall("RegisterBuiltin", func(call *ast.CallExpr) {
-		if anchor == p.File.Name {
-			anchor = call
-		}
-	})
-
-	var missing []string
-	for _, name := range declared {
-		if !registered[name] {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) == 0 {
-		return
-	}
-	slices.Sort(missing)
-	p.Report(anchor,
-		"pkg/hooks/builtins/builtins.go is missing RegisterBuiltin call(s) for: %s",
-		strings.Join(missing, ", "))
-}
-
-// exportedBuiltinNames returns the identifiers of every exported `const Name = "..."`
-// declaration in pkg/hooks/builtins/, excluding builtins.go itself and any
-// test files (which is not where new builtins land).
-func exportedBuiltinNames(p *cop.Pass) ([]string, error) {
+// exportedBuiltinNames returns the set of identifiers of every exported
+// `const Name = "..."` declaration in pkg/hooks/builtins/, excluding
+// builtins.go itself and any test files (which is not where new builtins
+// land).
+func exportedBuiltinNames(p *cop.Pass) (map[string]struct{}, error) {
 	files, err := p.ParseDir(".", cop.ParseDirOptions{
 		SkipTests: true,
 		SkipFiles: []string{"builtins.go"},
@@ -106,10 +90,5 @@ func exportedBuiltinNames(p *cop.Pass) ([]string, error) {
 			seen[name] = struct{}{}
 		}
 	}
-	names := make([]string, 0, len(seen))
-	for n := range seen {
-		names = append(names, n)
-	}
-	slices.Sort(names)
-	return names, nil
+	return seen, nil
 }

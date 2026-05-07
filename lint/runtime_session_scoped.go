@@ -7,9 +7,9 @@ import (
 	"github.com/dgageot/rubocop-go/cop"
 )
 
-// RuntimeSessionScoped enforces that every runtime event struct carrying a
-// SessionID field also implements the SessionScoped interface, i.e. exposes
-// a `GetSessionID() string` method on its pointer receiver.
+// NewRuntimeSessionScoped enforces that every runtime event struct carrying
+// a SessionID field also implements the SessionScoped interface, i.e.
+// exposes a `GetSessionID() string` method on its pointer receiver.
 //
 // SessionScoped is the discriminator the persistence pipeline uses to keep
 // sub-agent events out of the parent session's transcript:
@@ -27,37 +27,30 @@ import (
 //
 // The cop runs on pkg/runtime/event.go and reports any *Event struct with
 // a SessionID field whose pointer type lacks GetSessionID().
-type RuntimeSessionScoped struct {
-	cop.Meta
-}
+func NewRuntimeSessionScoped() cop.Cop {
+	return &cop.Func{
+		Meta: cop.Meta{
+			Name:        "Lint/RuntimeSessionScoped",
+			Description: "runtime events with a SessionID field must implement GetSessionID() (SessionScoped)",
+			Severity:    cop.Error,
+		},
+		Scope: cop.OnlyFile("pkg/runtime/event.go"),
+		Run: func(p *cop.Pass) {
+			withSessionID := eventStructsWithSessionID(p)
+			if len(withSessionID) == 0 {
+				return
+			}
+			implementsScoped := p.PointerReceiverMethods("GetSessionID")
 
-// NewRuntimeSessionScoped returns a fully configured RuntimeSessionScoped cop.
-func NewRuntimeSessionScoped() *RuntimeSessionScoped {
-	return &RuntimeSessionScoped{Meta: cop.Meta{
-		CopName:     "Lint/RuntimeSessionScoped",
-		CopDesc:     "runtime events with a SessionID field must implement GetSessionID() (SessionScoped)",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *RuntimeSessionScoped) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/runtime/event.go") {
-		return
-	}
-
-	withSessionID := eventStructsWithSessionID(p)
-	if len(withSessionID) == 0 {
-		return
-	}
-	implementsScoped := pointerReceiversWithMethod(p, "GetSessionID")
-
-	for typeName, typeSpec := range withSessionID {
-		if !implementsScoped[typeName] {
-			p.Report(typeSpec.Name,
-				"%s carries a SessionID field but does not implement GetSessionID() (SessionScoped); "+
-					"sub-agent events of this type would bypass the persistence-observer session filter",
-				typeName)
-		}
+			for typeName, typeSpec := range withSessionID {
+				if !implementsScoped[typeName] {
+					p.Reportf(typeSpec.Name,
+						"%s carries a SessionID field but does not implement GetSessionID() (SessionScoped); "+
+							"sub-agent events of this type would bypass the persistence-observer session filter",
+						typeName)
+				}
+			}
+		},
 	}
 }
 
@@ -79,20 +72,4 @@ func eventStructsWithSessionID(p *cop.Pass) map[string]*ast.TypeSpec {
 		}
 	})
 	return out
-}
-
-// pointerReceiversWithMethod returns the set of type names T for which the
-// file declares `func (* T) <method>(...)`. Used to detect interface
-// satisfaction without invoking the type checker.
-func pointerReceiversWithMethod(p *cop.Pass, method string) map[string]bool {
-	with := map[string]bool{}
-	p.ForEachFunc(func(fn *ast.FuncDecl) {
-		if fn.Name.Name != method {
-			return
-		}
-		if r, ok := cop.Receiver(fn); ok && r.IsPointer {
-			with[r.TypeName] = true
-		}
-	})
-	return with
 }

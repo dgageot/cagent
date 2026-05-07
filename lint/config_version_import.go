@@ -7,53 +7,46 @@ import (
 	"github.com/dgageot/rubocop-go/cop"
 )
 
-// ConfigVersionImport enforces that config version packages (pkg/config/vN
-// and pkg/config/latest) only import their immediate predecessor and the
-// shared types package, preserving the strict migration chain:
-// v0 → v1 → v2 → … → latest.
-type ConfigVersionImport struct {
-	cop.Meta
-}
-
-// NewConfigVersionImport returns a fully configured ConfigVersionImport cop.
-func NewConfigVersionImport() *ConfigVersionImport {
-	return &ConfigVersionImport{Meta: cop.Meta{
-		CopName:     "Lint/ConfigVersionImport",
-		CopDesc:     "Config version packages must only import their immediate predecessor",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *ConfigVersionImport) Check(p *cop.Pass) {
-	if len(p.File.Imports) == 0 {
-		return
-	}
-	// Black-box test files (package <dir>_test) are external to the package
-	// and may import what they please.
-	if p.IsBlackBoxTest() {
-		return
-	}
-
-	dir, ok := p.PathSegment("pkg/config")
-	if !ok {
-		return
-	}
-	dirVersion, isVersioned := versionFromDir(dir)
-	isLatest := dir == "latest"
-	if !isVersioned && !isLatest {
-		return
-	}
-
-	for _, imp := range p.File.Imports {
-		path := cop.ImportPath(imp)
-
-		if !strings.Contains(path, "pkg/config/") || strings.HasSuffix(path, "pkg/config/types") {
-			continue
+// NewConfigVersionImport enforces that config version packages
+// (pkg/config/vN and pkg/config/latest) only import their immediate
+// predecessor and the shared types package, preserving the strict
+// migration chain: v0 → v1 → v2 → … → latest.
+func NewConfigVersionImport() cop.Cop {
+	return cop.New(cop.Meta{
+		Name:        "Lint/ConfigVersionImport",
+		Description: "Config version packages must only import their immediate predecessor",
+		Severity:    cop.Error,
+	}, func(p *cop.Pass) {
+		if len(p.File.Imports) == 0 {
+			return
 		}
-		if msg := importViolation(path, dirVersion, isLatest); msg != "" {
-			p.Report(imp.Path, "%s", msg)
+		// Black-box test files (package <dir>_test) are external to the
+		// package and may import what they please.
+		if p.IsBlackBoxTest() {
+			return
 		}
-	}
+
+		dir, ok := p.PathSegment("pkg/config")
+		if !ok {
+			return
+		}
+		dirVersion, isVersioned := versionFromDir(dir)
+		isLatest := dir == "latest"
+		if !isVersioned && !isLatest {
+			return
+		}
+
+		for _, imp := range p.File.Imports {
+			path := cop.ImportPath(imp)
+
+			if !strings.Contains(path, "pkg/config/") || strings.HasSuffix(path, "pkg/config/types") {
+				continue
+			}
+			if msg := importViolation(path, dirVersion, isLatest); msg != "" {
+				p.Reportf(imp.Path, "%s", msg)
+			}
+		}
+	})
 }
 
 // importViolation returns a non-empty error message if the given import path

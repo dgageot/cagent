@@ -1,16 +1,14 @@
 package main
 
 import (
-	"go/ast"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/dgageot/rubocop-go/cop"
 )
 
-// ConfigVersionsRegistered enforces that pkg/config/versions.go registers
+// NewConfigVersionsRegistered enforces that pkg/config/versions.go registers
 // every config-version package that exists on disk.
 //
 // pkg/config/versions.go is the dispatch table for parsing and upgrading: it
@@ -27,46 +25,39 @@ import (
 //
 // The cop only inspects pkg/config/versions.go and reports any package that
 // exists under pkg/config/ but is not registered.
-type ConfigVersionsRegistered struct {
-	cop.Meta
-}
+func NewConfigVersionsRegistered() cop.Cop {
+	return &cop.Func{
+		Meta: cop.Meta{
+			Name:        "Lint/ConfigVersionsRegistered",
+			Description: "pkg/config/versions.go must register every pkg/config/vN and pkg/config/latest package",
+			Severity:    cop.Error,
+		},
+		Scope: cop.OnlyFile("pkg/config/versions.go"),
+		Run: func(p *cop.Pass) {
+			want, err := versionPackagesOnDisk(filepath.Dir(p.Filename()))
+			if err != nil || len(want) == 0 {
+				return
+			}
+			got := p.SelectorReceivers("Register")
 
-// NewConfigVersionsRegistered returns a fully configured
-// ConfigVersionsRegistered cop.
-func NewConfigVersionsRegistered() *ConfigVersionsRegistered {
-	return &ConfigVersionsRegistered{Meta: cop.Meta{
-		CopName:     "Lint/ConfigVersionsRegistered",
-		CopDesc:     "pkg/config/versions.go must register every pkg/config/vN and pkg/config/latest package",
-		CopSeverity: cop.Error,
-	}}
-}
+			var missing []string
+			for _, name := range want {
+				if !got[name] {
+					missing = append(missing, name)
+				}
+			}
 
-func (c *ConfigVersionsRegistered) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/config/versions.go") {
-		return
+			// Anchor on the `versions` function declaration so the message
+			// points at the registry rather than the package clause; fall
+			// back to the package clause if it has been renamed.
+			anchor := p.File.Name
+			if fn := p.FuncDecl("versions"); fn != nil {
+				anchor = fn.Name
+			}
+			p.ReportMissing(anchor,
+				"pkg/config/versions.go is missing Register call(s) for: %s", missing)
+		},
 	}
-
-	want, err := versionPackagesOnDisk(filepath.Dir(p.Filename()))
-	if err != nil || len(want) == 0 {
-		return
-	}
-	got := p.SelectorReceivers("Register")
-
-	var missing []string
-	for _, name := range want {
-		if !got[name] {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) == 0 {
-		return
-	}
-	slices.Sort(missing)
-
-	// Anchor the diagnostic on the function declaration so the message points
-	// at the registry rather than at the package clause.
-	p.Report(registryAnchor(p),
-		"pkg/config/versions.go is missing Register call(s) for: %s", strings.Join(missing, ", "))
 }
 
 // versionPackagesOnDisk lists the package directories under pkg/config/ that
@@ -92,18 +83,4 @@ func versionPackagesOnDisk(dir string) ([]string, error) {
 	}
 	slices.Sort(names)
 	return names, nil
-}
-
-// registryAnchor picks the AST node used to position the offense. Preferring
-// the `versions` function declaration keeps the diagnostic close to the
-// dispatch table; if that function is absent (unexpected), the file's
-// package clause is used as a fallback.
-func registryAnchor(p *cop.Pass) ast.Node {
-	var anchor ast.Node = p.File.Name
-	p.ForEachFunc(func(fn *ast.FuncDecl) {
-		if fn.Name.Name == "versions" {
-			anchor = fn.Name
-		}
-	})
-	return anchor
 }

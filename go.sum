@@ -193,8 +193,8 @@ github.com/danieljoos/wincred v1.2.2/go.mod h1:w7w4Utbrz8lqeMbDAK0lkNJUv5sAOkFi7
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dgageot/rubocop-go v0.0.0-20260429125723-198995cc80c9 h1:LwBQXSuGbtHC3rzVOBQIsSofzTc7k9QWRqoQdfPbG+s=
-github.com/dgageot/rubocop-go v0.0.0-20260429125723-198995cc80c9/go.mod h1:r8YOJV5+/30NZ8HW/2NbWUObBGDXGvfHrjgury5YlFI=
+github.com/dgageot/rubocop-go v0.0.0-20260507084512-2695e6771458 h1:qLFMffgwEigJvNG9kNGVlgfpVmLz92dy92Nr1sPJt4M=
+github.com/dgageot/rubocop-go v0.0.0-20260507084512-2695e6771458/go.mod h1:r8YOJV5+/30NZ8HW/2NbWUObBGDXGvfHrjgury5YlFI=
 github.com/dgageot/ultraviolet v0.0.0-20260313154905-9451997d56b6 h1:88fWkkjwzuI4tRTqadbJIbA9O+gO67oyu+2OpHHuuT8=
 github.com/dgageot/ultraviolet v0.0.0-20260313154905-9451997d56b6/go.mod h1:SQpCTRNBtzJkwku5ye4S3HEuthAlGy2n9VXZnWkEW98=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
