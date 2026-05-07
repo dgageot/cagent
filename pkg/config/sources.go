@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker-agent/pkg/content"
@@ -257,7 +255,11 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 
 	client := httpclient.NewHTTPClient(ctx)
 	if !a.unsafe {
-		client = ssrfSafeHTTPClient()
+		client = &http.Client{
+			Timeout:       60 * time.Second,
+			Transport:     httpclient.NewSSRFSafeTransport(),
+			CheckRedirect: httpclient.HTTPSOnlyRedirects(10),
+		}
 	}
 
 	resp, err := client.Do(req)
@@ -295,14 +297,14 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	}
 
 	// Cache the response
-	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
-		if err := os.WriteFile(cachePath, data, 0o644); err != nil {
+	if err := os.MkdirAll(cacheDir, 0o700); err == nil {
+		if err := os.WriteFile(cachePath, data, 0o600); err != nil {
 			slog.DebugContext(ctx, "Failed to cache URL content", "url", a.url, "error", err)
 		}
 
 		// Save ETag if present
 		if etag := resp.Header.Get("ETag"); etag != "" {
-			if err := os.WriteFile(etagPath, []byte(etag), 0o644); err != nil {
+			if err := os.WriteFile(etagPath, []byte(etag), 0o600); err != nil {
 				slog.DebugContext(ctx, "Failed to cache ETag", "url", a.url, "error", err)
 			}
 		} else {
@@ -366,8 +368,8 @@ func IsURLReference(input string) bool {
 
 // validateAgentURL enforces that an agent URL uses HTTPS. SSRF protection
 // (rejecting connections to loopback / private / link-local addresses) is
-// done at dial time by ssrfSafeHTTPClient so that DNS rebinding cannot be
-// used to bypass it.
+// done at dial time by [httpclient.NewSSRFSafeTransport] so that DNS
+// rebinding cannot be used to bypass it.
 func validateAgentURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -380,79 +382,4 @@ func validateAgentURL(rawURL string) error {
 		return fmt.Errorf("invalid URL %q: missing host", rawURL)
 	}
 	return nil
-}
-
-// ssrfSafeHTTPClient returns an http.Client whose dialer rejects connections
-// to non-public IP ranges (loopback, private, link-local, multicast,
-// unspecified). The check happens after DNS resolution and before the TCP
-// handshake, so DNS rebinding to a private IP is also blocked.
-//
-// Redirects are re-validated through CheckRedirect so that an https://
-// origin cannot transparently downgrade to http:// or to a different scheme.
-// SSRF protection on the redirect target is provided by the same dialer.
-func ssrfSafeHTTPClient() *http.Client {
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		Control:   ssrfDialControl,
-	}
-	return &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialer.DialContext,
-			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          10,
-			IdleConnTimeout:       30 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 30 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-		CheckRedirect: ssrfCheckRedirect,
-	}
-}
-
-// ssrfCheckRedirect is the http.Client CheckRedirect hook used by
-// ssrfSafeHTTPClient. It rejects redirects to non-https URLs (defeating
-// TLS downgrade) and bounds the redirect chain. SSRF on the redirect
-// target itself is enforced by the dialer's Control hook.
-func ssrfCheckRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("stopped after 10 redirects")
-	}
-	if req.URL.Scheme != "https" {
-		return fmt.Errorf("refusing redirect to non-https URL %q", req.URL.Redacted())
-	}
-	return nil
-}
-
-// ssrfDialControl is invoked by net.Dialer after DNS resolution but before the
-// TCP handshake. It rejects addresses that are not safe to fetch from over
-// the public internet.
-func ssrfDialControl(_, address string, _ syscall.RawConn) error {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return fmt.Errorf("parsing dial address %q: %w", address, err)
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return fmt.Errorf("refusing to dial %q: not a valid IP", host)
-	}
-	if !isPublicIP(ip) {
-		return fmt.Errorf("refusing to dial non-public address %s", ip)
-	}
-	return nil
-}
-
-// isPublicIP reports whether ip is a routable public address. It rejects
-// loopback (127/8, ::1), RFC1918 private ranges, link-local (incl. the
-// 169.254.169.254 cloud metadata endpoint), multicast and the unspecified
-// address (0.0.0.0, ::).
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() &&
-		!ip.IsPrivate() &&
-		!ip.IsLinkLocalUnicast() &&
-		!ip.IsLinkLocalMulticast() &&
-		!ip.IsMulticast() &&
-		!ip.IsUnspecified()
 }

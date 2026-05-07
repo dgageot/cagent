@@ -98,6 +98,24 @@ func TestParseSlashCommand_OtherCommands(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	t.Run("undo command", func(t *testing.T) {
+		t.Parallel()
+		cmd := parser.Parse("/undo")
+		require.NotNil(t, cmd)
+		msg := cmd()
+		_, ok := msg.(messages.UndoSnapshotMsg)
+		assert.True(t, ok)
+	})
+
+	t.Run("snapshots command", func(t *testing.T) {
+		t.Parallel()
+		cmd := parser.Parse("/snapshots")
+		require.NotNil(t, cmd)
+		msg := cmd()
+		_, ok := msg.(messages.ShowSnapshotsDialogMsg)
+		assert.True(t, ok)
+	})
+
 	t.Run("unknown command returns nil", func(t *testing.T) {
 		t.Parallel()
 		cmd := parser.Parse("/unknown")
@@ -140,4 +158,37 @@ func TestParseSlashCommand_Compact(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "focus on the API design", compactMsg.AdditionalPrompt)
 	})
+}
+
+func TestRemoveByIDsDropsSnapshotCommands(t *testing.T) {
+	t.Parallel()
+
+	items := builtInSessionCommands()
+	require.NotEmpty(t, items)
+
+	hasID := func(items []Item, id string) bool {
+		for _, it := range items {
+			if it.ID == id {
+				return true
+			}
+		}
+		return false
+	}
+
+	require.True(t, hasID(items, "session.undo"))
+	require.True(t, hasID(items, "session.snapshots"))
+
+	filtered := removeByIDs(items, snapshotCommandIDs)
+	assert.False(t, hasID(filtered, "session.undo"))
+	assert.False(t, hasID(filtered, "session.snapshots"))
+	// Other commands are untouched.
+	assert.True(t, hasID(filtered, "session.exit"))
+	assert.True(t, hasID(filtered, "session.new"))
+
+	// Build a parser that mirrors the disabled-snapshots state and verify
+	// that the snapshot slash commands no longer resolve.
+	parser := NewParser(Category{Name: "Session", Commands: filtered})
+	assert.Nil(t, parser.Parse("/undo"))
+	assert.Nil(t, parser.Parse("/snapshots"))
+	require.NotNil(t, parser.Parse("/exit"))
 }

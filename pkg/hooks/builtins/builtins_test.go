@@ -34,6 +34,7 @@ func TestRegisterInstallsAllBuiltins(t *testing.T) {
 		builtins.AddUserInfo,
 		builtins.AddRecentCommits,
 		builtins.MaxIterations,
+		builtins.Snapshot,
 		builtins.RedactSecrets,
 	} {
 		fn, ok := r.LookupBuiltin(name)
@@ -219,10 +220,23 @@ func TestApplyAgentDefaultsInjectsExpectedEvents(t *testing.T) {
 	assert.Equal(t, builtins.AddEnvironmentInfo, cfg.SessionStart[0].Command)
 }
 
-// TestApplyAgentDefaultsAppendsToUserHooks documents that auto-injected
-// builtins coexist with user-authored entries — they're appended, not
-// replaced. The executor's dedup logic then collapses any overlap so
-// a user-authored `add_date` plus `addDate=true` runs exactly once.
+// TestApplyAgentDefaultsInjectsSnapshotHooks verifies the global snapshot
+// default wires turn-boundary capture plus session_end shadow-repo cleanup.
+func TestApplyAgentDefaultsInjectsSnapshotHooks(t *testing.T) {
+	t.Parallel()
+
+	cfg := builtins.ApplyAgentDefaults(nil, builtins.AgentDefaults{Snapshot: true})
+	require.NotNil(t, cfg)
+	require.Len(t, cfg.SessionStart, 1)
+	require.Len(t, cfg.TurnStart, 1)
+	require.Len(t, cfg.TurnEnd, 1)
+	require.Len(t, cfg.SessionEnd, 1)
+	assert.Equal(t, builtins.Snapshot, cfg.SessionStart[0].Command)
+	assert.Equal(t, builtins.Snapshot, cfg.TurnStart[0].Command)
+	assert.Equal(t, builtins.Snapshot, cfg.TurnEnd[0].Command)
+	assert.Equal(t, builtins.Snapshot, cfg.SessionEnd[0].Command)
+}
+
 func TestApplyAgentDefaultsAppendsToUserHooks(t *testing.T) {
 	t.Parallel()
 

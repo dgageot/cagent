@@ -65,6 +65,7 @@ type runExecFlags struct {
 	// globalPermissions holds the user-level global permission checker built
 	// from user config settings. Nil when no global permissions are configured.
 	globalPermissions *permissions.Checker
+	snapshotsEnabled  bool
 }
 
 func newRunCmd() *cobra.Command {
@@ -184,6 +185,10 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	if userSettings.YOLO && !f.autoApprove {
 		f.autoApprove = true
 		slog.DebugContext(ctx, "Applying user settings", "YOLO", true)
+	}
+	if userSettings.SnapshotsEnabled() {
+		f.snapshotsEnabled = true
+		slog.DebugContext(ctx, "Applying user settings", "snapshot", true)
 	}
 
 	// Apply alias options if this is an alias reference
@@ -359,12 +364,16 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 		AgentDefaultModels: loadResult.AgentDefaultModels,
 	}
 
-	localRt, err := runtime.New(t,
+	runtimeOpts := []runtime.Opt{
 		runtime.WithSessionStore(sessStore),
 		runtime.WithCurrentAgent(agentName),
 		runtime.WithTracer(otel.Tracer(AppName)),
 		runtime.WithModelSwitcherConfig(modelSwitcherCfg),
-	)
+	}
+	if f.snapshotsEnabled {
+		runtimeOpts = append(runtimeOpts, runtime.WithSnapshots(true))
+	}
+	localRt, err := runtime.New(t, runtimeOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating runtime: %w", err)
 	}
@@ -551,12 +560,16 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 		}
 
 		// Create the local runtime
-		localRt, err := runtime.New(t,
+		runtimeOpts := []runtime.Opt{
 			runtime.WithSessionStore(sessStore),
 			runtime.WithCurrentAgent(agt.Name()),
 			runtime.WithTracer(otel.Tracer(AppName)),
 			runtime.WithModelSwitcherConfig(modelSwitcherCfg),
-		)
+		}
+		if f.snapshotsEnabled {
+			runtimeOpts = append(runtimeOpts, runtime.WithSnapshots(true))
+		}
+		localRt, err := runtime.New(t, runtimeOpts...)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -592,7 +605,7 @@ func stopToolSets(t toolStopper) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := t.StopToolSets(ctx); err != nil {
-		slog.Error("Failed to stop tool sets", "error", err)
+		slog.ErrorContext(ctx, "Failed to stop tool sets", "error", err)
 	}
 }
 

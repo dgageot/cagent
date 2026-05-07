@@ -1,9 +1,6 @@
 package main
 
 import (
-	"go/ast"
-	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -34,103 +31,72 @@ import (
 // cop runs on pkg/config/latest/types.go (where the diagnostic anchors
 // on the HooksConfig type spec) and parses pkg/hooks/types.go from disk
 // for the source of truth.
-type HookConfigSync struct {
-	cop.Meta
-}
-
-// NewHookConfigSync returns a fully configured HookConfigSync cop.
-func NewHookConfigSync() *HookConfigSync {
-	return &HookConfigSync{Meta: cop.Meta{
-		CopName:     "Lint/HookConfigSync",
-		CopDesc:     "EventXxx constants in pkg/hooks/types.go must match HooksConfig fields in pkg/config/latest",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *HookConfigSync) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/config/latest/types.go") {
-		return
-	}
-
-	// pkg/config/latest/types.go ↔ ../../hooks/types.go
-	hookFile, err := p.ParseSibling("../../hooks/types.go")
-	if err != nil {
-		return
-	}
-	hookEvents := cop.StringConstsIn(hookFile, func(name string) bool {
-		return strings.HasPrefix(name, "Event")
-	})
-	if len(hookEvents) == 0 {
-		return
-	}
-
-	cfgFields, hooksConfigSpec := readHooksConfigFields(p)
-	if hooksConfigSpec == nil {
-		// Schema didn't ship HooksConfig (or this isn't the right
-		// types.go) — nothing meaningful the cop can say.
-		return
-	}
-
-	// Build reverse map for diagnostics.
-	cfgByJSON := map[string]string{} // wire-string -> Go field name
-	for goName, jsonName := range cfgFields {
-		cfgByJSON[jsonName] = goName
-	}
-
-	// Direction 1: every event must have a config field.
-	var missingFields []string
-	for constName, wire := range hookEvents {
-		if _, ok := cfgByJSON[wire]; !ok {
-			missingFields = append(missingFields, constName+"="+strconv.Quote(wire))
+var HookConfigSync = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/HookConfigSync",
+		Description: "EventXxx constants in pkg/hooks/types.go must match HooksConfig fields in pkg/config/latest",
+		Severity:    cop.Error,
+	},
+	Scope: cop.OnlyFile("pkg/config/latest/types.go"),
+	Run: func(p *cop.Pass) {
+		// pkg/config/latest/types.go ↔ ../../hooks/types.go
+		hookFile, err := p.ParseSibling("../../hooks/types.go")
+		if err != nil {
+			return
 		}
-	}
-	if len(missingFields) > 0 {
-		slices.Sort(missingFields)
-		p.Report(hooksConfigSpec.Name,
-			"HooksConfig is missing field(s) for hook event(s): %s", strings.Join(missingFields, ", "))
-	}
-
-	// Direction 2: every config field must have an event constant.
-	wireSet := map[string]string{} // wire -> const name
-	for n, w := range hookEvents {
-		wireSet[w] = n
-	}
-	var orphanFields []string
-	for goName, jsonName := range cfgFields {
-		if _, ok := wireSet[jsonName]; !ok {
-			orphanFields = append(orphanFields, goName+" json:"+strconv.Quote(jsonName))
+		hookEvents := cop.StringConstsIn(hookFile, func(name string) bool {
+			return strings.HasPrefix(name, "Event")
+		})
+		if len(hookEvents) == 0 {
+			return
 		}
-	}
-	if len(orphanFields) > 0 {
-		slices.Sort(orphanFields)
-		p.Report(hooksConfigSpec.Name,
+
+		ts, st := p.StructType("HooksConfig")
+		if ts == nil {
+			// Schema didn't ship HooksConfig (or this isn't the right
+			// types.go) — nothing meaningful the cop can say.
+			return
+		}
+
+		// Build Go-name -> wire-name and the reverse, to diff in both directions.
+		cfgFields := map[string]string{}
+		for _, fld := range st.Fields.List {
+			opts, ok := cop.ParseTagOptions(cop.FieldTag(fld), "json")
+			if !ok || !opts.HasName() {
+				continue
+			}
+			for _, n := range fld.Names {
+				cfgFields[n.Name] = opts.Name
+			}
+		}
+		cfgByJSON := map[string]string{}
+		for goName, jsonName := range cfgFields {
+			cfgByJSON[jsonName] = goName
+		}
+
+		// Direction 1: every event must have a config field.
+		var missingFields []string
+		for constName, wire := range hookEvents {
+			if _, ok := cfgByJSON[wire]; !ok {
+				missingFields = append(missingFields, constName+"="+strconv.Quote(wire))
+			}
+		}
+		p.ReportMissing(ts.Name,
+			"HooksConfig is missing field(s) for hook event(s): %s", missingFields)
+
+		// Direction 2: every config field must have an event constant.
+		wireSet := map[string]string{}
+		for n, w := range hookEvents {
+			wireSet[w] = n
+		}
+		var orphanFields []string
+		for goName, jsonName := range cfgFields {
+			if _, ok := wireSet[jsonName]; !ok {
+				orphanFields = append(orphanFields, goName+" json:"+strconv.Quote(jsonName))
+			}
+		}
+		p.ReportMissing(ts.Name,
 			"HooksConfig field(s) without a matching EventXxx constant in pkg/hooks/types.go: %s",
-			strings.Join(orphanFields, ", "))
-	}
-}
-
-// readHooksConfigFields scans the file in p for the HooksConfig type and
-// returns the field-name -> json-tag-name map together with the type spec
-// itself (so the caller can anchor diagnostics on it).
-func readHooksConfigFields(p *cop.Pass) (map[string]string, *ast.TypeSpec) {
-	fields := map[string]string{}
-	var spec *ast.TypeSpec
-	p.ForEachStructField(func(ts *ast.TypeSpec, fld *ast.Field, tag reflect.StructTag) {
-		if ts.Name.Name != "HooksConfig" {
-			return
-		}
-		spec = ts
-		jsonTag, ok := tag.Lookup("json")
-		if !ok {
-			return
-		}
-		name, _, _ := strings.Cut(jsonTag, ",")
-		if name == "" || name == "-" {
-			return
-		}
-		for _, n := range fld.Names {
-			fields[n.Name] = name
-		}
-	})
-	return fields, spec
+			orphanFields)
+	},
 }

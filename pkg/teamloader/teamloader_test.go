@@ -108,8 +108,8 @@ func TestLoadExamples(t *testing.T) {
 			runConfig.WorkingDir = t.TempDir()
 
 			teams, err := Load(t.Context(), agentSource, runConfig)
-			if errors.Is(err, dmr.ErrNotInstalled) && filepath.Base(agentFilename) == "dmr.yaml" {
-				t.Skip("Skipping DMR example: Docker Model Runner not installed")
+			if errors.Is(err, dmr.ErrNotInstalled) {
+				t.Skipf("Skipping %s: Docker Model Runner not installed", agentFilename)
 			}
 			require.NoError(t, err)
 			assert.NotEmpty(t, teams)

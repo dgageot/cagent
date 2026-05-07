@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -186,11 +187,22 @@ func RequestAuthorizationCode(ctx context.Context, authURL string, callbackServe
 		return "", "", fmt.Errorf("failed to receive authorization callback: %w", err)
 	}
 
-	if state != expectedState {
-		return "", "", fmt.Errorf("state mismatch: expected %s, got %s", expectedState, state)
+	if !constantTimeStateEqual(state, expectedState) {
+		return "", "", errors.New("OAuth state mismatch (possible CSRF attempt or stale callback)")
 	}
 
 	return code, state, nil
+}
+
+// constantTimeStateEqual compares two OAuth state values in constant time to
+// avoid leaking the expected value through timing side-channels. It returns
+// false when either value is empty so the caller doesn't accept a missing
+// expected state as a match.
+func constantTimeStateEqual(got, want string) bool {
+	if got == "" || want == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
 // RegisterClient performs dynamic client registration

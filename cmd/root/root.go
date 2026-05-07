@@ -265,7 +265,7 @@ func isFirstRun() bool {
 	markerFile := filepath.Join(configDir, ".cagent_first_run")
 
 	// Ensure the config directory exists before trying to create the marker file
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		slog.Warn("Failed to create config directory for first run marker", "error", err)
 		return false
 	}

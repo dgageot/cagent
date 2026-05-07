@@ -127,7 +127,7 @@ func (h *History) addInMemory(message string) {
 // append writes message to the persistent history file as one JSON-encoded
 // line.
 func (h *History) append(message string) error {
-	if err := os.MkdirAll(filepath.Dir(h.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(h.path), 0o700); err != nil {
 		return err
 	}
 	encoded, err := json.Marshal(message)
@@ -135,7 +135,7 @@ func (h *History) append(message string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(h.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(h.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

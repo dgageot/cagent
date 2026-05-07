@@ -15,10 +15,10 @@ import (
 )
 
 // buildHooksExecutors builds a [hooks.Executor] for every agent in the
-// team that has user-configured hooks, an agent-flag that maps to a
-// builtin (AddDate / AddEnvironmentInfo / AddPromptFiles), or a
-// configured response cache (which auto-injects a cache_response stop
-// hook). Agents with no hooks have no entry; lookups fall through to
+// team that has user-configured hooks, an agent-flag or runtime setting
+// that maps to a builtin (AddDate / AddEnvironmentInfo / AddPromptFiles /
+// Snapshot), or a configured response cache (which auto-injects a
+// cache_response stop hook). Agents with no hooks have no entry; lookups fall through to
 // nil so callers can short-circuit cheaply.
 //
 // Called once from [NewLocalRuntime] after r.workingDir, r.env and
@@ -37,6 +37,7 @@ func (r *LocalRuntime) buildHooksExecutors() {
 			AddEnvironmentInfo: a.AddEnvironmentInfo(),
 			AddPromptFiles:     a.AddPromptFiles(),
 			RedactSecrets:      a.RedactSecrets(),
+			Snapshot:           r.snapshotsEnabled,
 		})
 		cfg = applyCacheDefault(cfg, a)
 		if cfg == nil {

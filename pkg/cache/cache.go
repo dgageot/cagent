@@ -299,7 +299,7 @@ func mtimeOf(path string) time.Time {
 func lockFile(path string) (func(), error) {
 	lockPath := path + ".lock"
 	if dir := filepath.Dir(lockPath); dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("creating lock directory %q: %w", dir, err)
 		}
 	}
@@ -329,7 +329,7 @@ func lockFile(path string) (func(), error) {
 // after the rename so the rename itself is durable across an OS crash.
 func writeJSON(path string, entries map[string]string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("creating cache directory %q: %w", dir, err)
 	}
 

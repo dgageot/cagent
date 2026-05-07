@@ -190,24 +190,35 @@ func RunLLM(ctx context.Context, args LLMArgs) (result *Result, err error) {
 // [maxKeepTokens] window. Used by the runtime when a hook supplies
 // its own summary so the kept-tail policy stays consistent across
 // the two strategies.
-func ComputeFirstKeptEntry(sess *session.Session, a *agent.Agent) int {
-	return mapToSessionIndex(sess, compaction.SplitIndexForKeep(nonSystemMessages(sess, a), maxKeepTokens))
+func ComputeFirstKeptEntry(sess *session.Session) int {
+	messages, sessIndices := gatherCompactionInput(sess)
+	return firstKeptSessionIndex(sess, sessIndices, compaction.SplitIndexForKeep(messages, maxKeepTokens))
 }
 
-// nonSystemMessages returns the agent-visible messages in sess with
-// the system entries filtered out. Both the LLM strategy (via
-// [extractMessages]) and the hook-supplied path (via
-// [ComputeFirstKeptEntry]) operate on this same shape, which is also
-// what [compaction.SplitIndexForKeep] expects.
-func nonSystemMessages(sess *session.Session, a *agent.Agent) []chat.Message {
-	var messages []chat.Message
-	for _, msg := range sess.GetMessages(a) {
-		if msg.Role == chat.MessageRoleSystem {
-			continue
-		}
-		messages = append(messages, msg)
+// gatherCompactionInput is a thin wrapper around
+// [session.Session.CompactionInput] that clears compaction-specific
+// fields on the returned chat messages.
+//
+// Cost is per-message bookkeeping already accumulated into
+// sess.TotalCost(); leaving it set would double-count when the
+// summarization session reports its own TotalCost back through
+// [Result.Cost]. CacheControl pins a provider cache checkpoint
+// (Anthropic prompt caching, etc.); pinning it inside the
+// summarization sub-call would associate the cache point with the
+// throwaway compaction conversation rather than the parent session.
+//
+// The reconstruction work — surfacing a synthetic "Session Summary"
+// message when a prior summary exists, picking the right start index
+// past the prior summary, and tracking origin indices in sess.Messages
+// — lives on Session itself so it can run under sess.mu.RLock and stay
+// race-safe against concurrent AddMessage / ApplyCompaction calls.
+func gatherCompactionInput(sess *session.Session) ([]chat.Message, []int) {
+	messages, sessIndices := sess.CompactionInput()
+	for i := range messages {
+		messages[i].Cost = 0
+		messages[i].CacheControl = false
 	}
-	return messages
+	return messages, sessIndices
 }
 
 // extractMessages returns the messages to send to the compaction
@@ -225,23 +236,11 @@ func nonSystemMessages(sess *session.Session, a *agent.Agent) []chat.Message {
 // If the conversation tail itself doesn't fit in
 // (contextLimit − MaxSummaryTokens − prompt-overhead), older messages
 // are dropped from the front of the to-compact list to make room.
-func extractMessages(sess *session.Session, a *agent.Agent, contextLimit int64, additionalPrompt string) ([]chat.Message, int) {
-	messages := nonSystemMessages(sess, a)
-	// Clear Cost and CacheControl on our local copy of the conversation.
-	// Cost is per-message bookkeeping that's already accumulated into
-	// sess.TotalCost(); leaving it set would double-count when the
-	// summarization session reports its own TotalCost back through the
-	// compactor.Result.Cost field. CacheControl pins a provider cache
-	// checkpoint (Anthropic prompt caching, etc.); pinning it inside the
-	// summarization sub-call would associate the cache point with the
-	// throwaway compaction conversation rather than the parent session.
-	for i := range messages {
-		messages[i].Cost = 0
-		messages[i].CacheControl = false
-	}
+func extractMessages(sess *session.Session, _ *agent.Agent, contextLimit int64, additionalPrompt string) ([]chat.Message, int) {
+	messages, sessIndices := gatherCompactionInput(sess)
 
 	splitIdx := compaction.SplitIndexForKeep(messages, maxKeepTokens)
-	firstKeptEntry := mapToSessionIndex(sess, splitIdx)
+	firstKeptEntry := firstKeptSessionIndex(sess, sessIndices, splitIdx)
 	messages = messages[:splitIdx]
 
 	systemPromptMessage := chat.Message{
@@ -275,21 +274,18 @@ func extractMessages(sess *session.Session, a *agent.Agent, contextLimit int64, 
 	return messages, firstKeptEntry
 }
 
-// mapToSessionIndex maps an index in the non-system-filtered message
-// list (the form [extractMessages] operates on) back to an index in
-// sess.Messages. Returns len(sess.Messages) when filteredIdx is past
-// the end — i.e. "compact everything; keep nothing of the tail".
-func mapToSessionIndex(sess *session.Session, filteredIdx int) int {
-	count := 0
-	for i, item := range sess.Messages {
-		if item.IsMessage() && item.Message.Message.Role != chat.MessageRoleSystem {
-			if count == filteredIdx {
-				return i
-			}
-			count++
-		}
+// firstKeptSessionIndex translates a split index produced against the
+// chat-message list returned by [gatherCompactionInput] back to an
+// index in sess.Messages, suitable for the new summary's
+// FirstKeptEntry. Out-of-range splits map to len(sess.Messages),
+// matching the "compact everything; keep nothing of the tail"
+// sentinel that session.buildSessionSummaryMessages handles by
+// skipping the conversation loop.
+func firstKeptSessionIndex(sess *session.Session, sessIndices []int, splitIdx int) int {
+	if splitIdx >= len(sessIndices) {
+		return len(sess.Messages)
 	}
-	return len(sess.Messages)
+	return sessIndices[splitIdx]
 }
 
 // toItems wraps a flat slice of chat messages into session items so a

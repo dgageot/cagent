@@ -81,7 +81,7 @@ func NewStore(opts ...Opt) (*Store, error) {
 		store.baseDir = filepath.Join(homeDir, ".cagent", "store")
 	}
 
-	if err := os.MkdirAll(store.baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(store.baseDir, 0o700); err != nil {
 		return nil, fmt.Errorf("creating store directory: %w", err)
 	}
 
@@ -353,14 +353,14 @@ func (s *Store) resolveReference(reference string) (string, error) {
 // createReferenceLink creates a link from reference to digest
 func (s *Store) createReferenceLink(reference, digest string) error {
 	refsDir := filepath.Join(s.baseDir, "refs")
-	if err := os.MkdirAll(refsDir, 0o755); err != nil {
+	if err := os.MkdirAll(refsDir, 0o700); err != nil {
 		return fmt.Errorf("creating refs directory: %w", err)
 	}
 
 	refHash := sha256.Sum256([]byte(reference))
 	refFile := filepath.Join(refsDir, hex.EncodeToString(refHash[:]))
 
-	return os.WriteFile(refFile, []byte(digest), 0o644)
+	return os.WriteFile(refFile, []byte(digest), 0o600)
 }
 
 // removeReferenceLinks removes all reference links pointing to the given digest
@@ -398,7 +398,7 @@ func (s *Store) saveMetadata(digest string, metadata *ArtifactMetadata) error {
 		return fmt.Errorf("marshaling metadata: %w", err)
 	}
 
-	return os.WriteFile(metadataPath, data, 0o644)
+	return os.WriteFile(metadataPath, data, 0o600)
 }
 
 // loadMetadata loads metadata for an artifact

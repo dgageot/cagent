@@ -833,6 +833,26 @@ func TestSettings_GetSound(t *testing.T) {
 	}
 }
 
+func TestSettings_SnapshotsEnabled(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name     string
+		settings *Settings
+		want     bool
+	}{
+		{"nil settings", nil, false},
+		{"empty settings", &Settings{}, false},
+		{"explicitly enabled", &Settings{Snapshot: new(true)}, true},
+		{"explicitly disabled", &Settings{Snapshot: new(false)}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.settings.SnapshotsEnabled())
+		})
+	}
+}
+
 func TestSettings_RestoreTabs(t *testing.T) {
 	t.Parallel()
 

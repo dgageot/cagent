@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/docker-agent/pkg/hooks/builtins"
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
@@ -17,7 +18,12 @@ import (
 )
 
 // mockRuntime is a minimal mock for testing App without a real runtime
-type mockRuntime struct{}
+type mockRuntime struct {
+	store     session.Store
+	undoFiles int
+	undoOK    bool
+	undoErr   error
+}
 
 func (m *mockRuntime) CurrentAgentInfo(ctx context.Context) runtime.CurrentAgentInfo {
 	return runtime.CurrentAgentInfo{}
@@ -47,7 +53,7 @@ func (m *mockRuntime) Resume(ctx context.Context, req runtime.ResumeRequest) {}
 func (m *mockRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
 	return nil
 }
-func (m *mockRuntime) SessionStore() session.Store { return nil }
+func (m *mockRuntime) SessionStore() session.Store { return m.store }
 func (m *mockRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan runtime.Event) {
 }
 func (m *mockRuntime) PermissionsInfo() *runtime.PermissionsInfo { return nil }
@@ -72,6 +78,14 @@ func (m *mockRuntime) Close() error                            { return nil }
 func (m *mockRuntime) Stop()                                   {}
 func (m *mockRuntime) Steer(_ runtime.QueuedMessage) error     { return nil }
 func (m *mockRuntime) FollowUp(_ runtime.QueuedMessage) error  { return nil }
+func (m *mockRuntime) UndoLastSnapshot(context.Context, *session.Session) (int, bool, error) {
+	return m.undoFiles, m.undoOK, m.undoErr
+}
+func (m *mockRuntime) SnapshotsEnabled() bool                                 { return true }
+func (m *mockRuntime) ListSnapshots(*session.Session) []builtins.SnapshotInfo { return nil }
+func (m *mockRuntime) ResetSnapshot(context.Context, *session.Session, int) (int, bool, error) {
+	return m.undoFiles, m.undoOK, m.undoErr
+}
 
 // Verify mockRuntime implements runtime.Runtime
 var _ runtime.Runtime = (*mockRuntime)(nil)
@@ -225,6 +239,34 @@ func TestApp_ResolveSkillCommand_NotSlashCommand(t *testing.T) {
 	resolved, err := app.ResolveSkillCommand(ctx, "not a slash command")
 	require.NoError(t, err)
 	assert.Empty(t, resolved)
+}
+
+func TestApp_UndoLastSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	app := New(ctx, &mockRuntime{undoFiles: 2, undoOK: true}, session.New())
+	result, err := app.UndoLastSnapshot(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.RestoredFiles)
+}
+
+func TestApp_UndoLastSnapshot_NoSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	app := New(ctx, &mockRuntime{}, session.New())
+	_, err := app.UndoLastSnapshot(ctx)
+	assert.ErrorIs(t, err, ErrNothingToUndo)
+}
+
+func TestApp_SnapshotsEnabled_DoesNotRequireSession(t *testing.T) {
+	t.Parallel()
+
+	// SnapshotsEnabled answers a runtime-capability question; it must not
+	// silently return false just because no session is attached.
+	app := &App{runtime: &mockRuntime{}, session: nil}
+	assert.True(t, app.SnapshotsEnabled())
 }
 
 func TestApp_RegenerateSessionTitle(t *testing.T) {

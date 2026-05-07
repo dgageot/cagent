@@ -67,7 +67,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	}
 	defer func() {
 		if err := cleanup(); err != nil {
-			slog.Error("Failed to cleanup fake proxy", "error", err)
+			slog.ErrorContext(ctx, "Failed to cleanup fake proxy", "error", err)
 		}
 	}()
 
@@ -78,7 +78,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	}
 	defer func() {
 		if err := recordCleanup(); err != nil {
-			slog.Error("Failed to cleanup recording proxy", "error", err)
+			slog.ErrorContext(ctx, "Failed to cleanup recording proxy", "error", err)
 		}
 	}()
 
@@ -95,7 +95,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	out.Println("Listening on", ln.Addr().String())
 	warnIfNotLoopback(out, ln.Addr())
 
-	slog.Debug("Starting server", "agents", agentsPath, "addr", ln.Addr().String())
+	slog.DebugContext(ctx, "Starting server", "agents", agentsPath, "addr", ln.Addr().String())
 
 	// Expand tilde in session database path
 	sessionDB, err := expandTilde(f.sessionDB)
@@ -109,7 +109,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	}
 	defer func() {
 		if err := sessionStore.Close(); err != nil {
-			slog.Error("Failed to close session store", "error", err)
+			slog.ErrorContext(ctx, "Failed to close session store", "error", err)
 		}
 	}()
 

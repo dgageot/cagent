@@ -423,34 +423,6 @@ func TestAdjustMaxTokensForThinking(t *testing.T) {
 	})
 }
 
-func TestRequiresAdaptiveThinking(t *testing.T) {
-	tests := []struct {
-		model string
-		want  bool
-	}{
-		{"claude-opus-4-6", true},
-		{"claude-opus-4-7", true},
-		{"claude-opus-4-6-20251101", true},
-		{"claude-opus-4-7-20260101", true},
-		{"CLAUDE-OPUS-4-7", true},     // case-insensitive
-		{"  claude-opus-4-6  ", true}, // trims whitespace
-		{"claude-opus-4-5", false},
-		{"claude-opus-4-5-20251015", false},
-		{"claude-opus-4-8", false},
-		{"claude-sonnet-4-7", false},
-		{"claude-sonnet-4-5", false},
-		{"claude-haiku-4-5", false},
-		{"claude-opus-4-60", false}, // not a real model and must not match
-		{"claude-opus-4-70", false},
-		{"", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.model, func(t *testing.T) {
-			assert.Equal(t, tt.want, requiresAdaptiveThinking(tt.model))
-		})
-	}
-}
-
 func TestCoerceAdaptiveThinking(t *testing.T) {
 	t.Run("nil budget stays nil", func(t *testing.T) {
 		c := clientWithModel("claude-opus-4-7", nil, nil)

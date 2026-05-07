@@ -820,6 +820,15 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CopyLastResponseToClipboardMsg:
 		return m.handleCopyLastResponseToClipboard()
 
+	case messages.UndoSnapshotMsg:
+		return m.handleUndoSnapshot()
+
+	case messages.ShowSnapshotsDialogMsg:
+		return m.handleShowSnapshotsDialog()
+
+	case messages.ResetSnapshotMsg:
+		return m.handleResetSnapshot(msg.Keep)
+
 	case messages.EvalSessionMsg:
 		return m.handleEvalSession(msg.Filename)
 
@@ -1065,11 +1074,11 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 		// Update tuistate: replace old persisted ID with the loaded session's ID
 		if m.tuiStore != nil {
 			if err := m.tuiStore.UpdateTabSessionID(ctx, oldPersistedID, sess.ID); err != nil {
-				slog.Warn("Failed to update tab session ID after in-place load", "error", err)
+				slog.WarnContext(ctx, "Failed to update tab session ID after in-place load", "error", err)
 			}
 			if sess.WorkingDir != "" {
 				if err := m.tuiStore.UpdateTabWorkingDir(ctx, sess.ID, sess.WorkingDir); err != nil {
-					slog.Warn("Failed to update tab working dir after in-place load", "error", err)
+					slog.WarnContext(ctx, "Failed to update tab working dir after in-place load", "error", err)
 				}
 			}
 		}
@@ -1077,7 +1086,7 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 		return model, cmd
 	}
 
-	slog.Debug("Loading session into new tab", "session_id", sessionID)
+	slog.DebugContext(ctx, "Loading session into new tab", "session_id", sessionID)
 
 	// Spawn a new tab.
 	newSessionID, err := m.supervisor.SpawnSession(ctx, workingDir)
@@ -1088,7 +1097,7 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	// Persist the new tab using the loaded session's persisted ID (not the ephemeral tab ID).
 	if m.tuiStore != nil {
 		if err := m.tuiStore.AddTab(ctx, sess.ID, workingDir); err != nil {
-			slog.Warn("Failed to persist loaded session tab", "error", err)
+			slog.WarnContext(ctx, "Failed to persist loaded session tab", "error", err)
 		}
 	}
 
@@ -1181,7 +1190,7 @@ func (m *appModel) handleClearSession() (tea.Model, tea.Cmd) {
 		ctx := context.Background()
 		oldPersistedID := m.persistedSessionID(activeID)
 		if err := m.tuiStore.UpdateTabSessionID(ctx, oldPersistedID, newSess.ID); err != nil {
-			slog.Warn("Failed to update tab session ID after clear", "error", err)
+			slog.WarnContext(ctx, "Failed to update tab session ID after clear", "error", err)
 		}
 	}
 	m.persistActiveTab(newSess.ID)
@@ -1212,7 +1221,7 @@ func (m *appModel) handleSpawnSession(workingDir string) (tea.Model, tea.Cmd) {
 	// Persist the new tab (for new tabs, persisted ID == runtime tab ID).
 	if m.tuiStore != nil {
 		if err := m.tuiStore.AddTab(ctx, sessionID, workingDir); err != nil {
-			slog.Warn("Failed to persist new tab", "error", err)
+			slog.WarnContext(ctx, "Failed to persist new tab", "error", err)
 		}
 	}
 
@@ -1473,7 +1482,7 @@ func (m *appModel) handleCloseTab(sessionID string) (tea.Model, tea.Cmd) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		if err := m.tuiStore.RemoveTab(ctx, persistedID); err != nil {
-			slog.Error("Failed to remove tab from store", "error", err)
+			slog.ErrorContext(ctx, "Failed to remove tab from store", "error", err)
 			cmds = append(cmds, notification.ErrorCmd(fmt.Sprintf("Failed to remove tab from tui state db: %v", err)))
 		}
 	}

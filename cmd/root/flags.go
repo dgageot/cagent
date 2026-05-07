@@ -76,13 +76,14 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 
 	persistentPreRunE := cmd.PersistentPreRunE
 	cmd.PersistentPreRunE = func(_ *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+
 		userCfg, err := loadUserConfig()
 		if err != nil {
-			slog.Warn("Failed to load user config", "error", err)
+			slog.WarnContext(ctx, "Failed to load user config", "error", err)
 			userCfg = &userconfig.Config{}
 		}
 
-		ctx := cmd.Context()
 		env := runConfig.EnvProvider()
 
 		// Precedence: CLI flag > environment variable > user config

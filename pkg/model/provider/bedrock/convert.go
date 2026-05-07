@@ -1,6 +1,7 @@
 package bedrock
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
@@ -17,7 +18,7 @@ import (
 // convertMessages handles Bedrock's Converse API constraints:
 // - Tool results must immediately follow the assistant message with tool_use
 // - Multiple consecutive tool results must be grouped into a single user message
-func convertMessages(messages []chat.Message, enableCaching bool) ([]types.Message, []types.SystemContentBlock) {
+func convertMessages(ctx context.Context, messages []chat.Message, modelID string, enableCaching bool) ([]types.Message, []types.SystemContentBlock) {
 	var bedrockMessages []types.Message
 	var systemBlocks []types.SystemContentBlock
 
@@ -42,7 +43,7 @@ func convertMessages(messages []chat.Message, enableCaching bool) ([]types.Messa
 			}
 
 		case chat.MessageRoleUser:
-			contentBlocks := convertUserContent(msg)
+			contentBlocks := convertUserContent(ctx, msg, modelID)
 			if len(contentBlocks) > 0 {
 				bedrockMessages = append(bedrockMessages, types.Message{
 					Role:    types.ConversationRoleUser,
@@ -119,7 +120,7 @@ func applyCachePointsToMessages(messages []types.Message) {
 	}
 }
 
-func convertUserContent(msg *chat.Message) []types.ContentBlock {
+func convertUserContent(ctx context.Context, msg *chat.Message, modelID string) []types.ContentBlock {
 	var blocks []types.ContentBlock
 
 	if len(msg.MultiContent) > 0 {
@@ -130,10 +131,20 @@ func convertUserContent(msg *chat.Message) []types.ContentBlock {
 					Value: part.Text,
 				})
 			case chat.MessagePartTypeImageURL:
+				// Note: superseded by MessagePartTypeDocument.
 				if part.ImageURL != nil {
 					if imageBlock := convertImageURL(part.ImageURL); imageBlock != nil {
 						blocks = append(blocks, imageBlock)
 					}
+				}
+			case chat.MessagePartTypeDocument:
+				if part.Document != nil {
+					docBlocks, err := convertDocument(ctx, *part.Document, modelID)
+					if err != nil {
+						slog.WarnContext(ctx, "failed to convert document attachment", "error", err, "doc", part.Document.Name)
+						continue
+					}
+					blocks = append(blocks, docBlocks...)
 				}
 			}
 		}

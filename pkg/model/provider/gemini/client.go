@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/model/provider/providerutil"
+	"github.com/docker/docker-agent/pkg/modelinfo"
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -192,7 +193,7 @@ func thoughtSignatureOrDefault(sig []byte) []byte {
 }
 
 // convertMessagesToGemini converts chat.Messages into Gemini Contents
-func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
+func convertMessagesToGemini(ctx context.Context, messages []chat.Message, modelID string) []*genai.Content {
 	contents := make([]*genai.Content, 0, len(messages))
 	for i := range messages {
 		msg := &messages[i]
@@ -257,7 +258,7 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 		// Handle regular messages
 		if len(msg.MultiContent) > 0 {
-			parts := convertMultiContent(msg.MultiContent, msg.ThoughtSignature)
+			parts := convertMultiContent(ctx, msg.MultiContent, msg.ThoughtSignature, modelID)
 			if len(parts) > 0 {
 				contents = append(contents, genai.NewContentFromParts(parts, role))
 			}
@@ -287,15 +288,27 @@ func newTextPartWithSignature(text string, signature []byte) *genai.Part {
 }
 
 // convertMultiContent converts multi-part content to Gemini parts
-func convertMultiContent(multiContent []chat.MessagePart, thoughtSignature []byte) []*genai.Part {
+func convertMultiContent(ctx context.Context, multiContent []chat.MessagePart, thoughtSignature []byte, modelID string) []*genai.Part {
 	parts := make([]*genai.Part, 0, len(multiContent))
 	for _, part := range multiContent {
 		switch part.Type {
 		case chat.MessagePartTypeText:
 			parts = append(parts, newTextPartWithSignature(part.Text, thoughtSignature))
 		case chat.MessagePartTypeImageURL:
+			// Note: superseded by MessagePartTypeDocument.
 			if imgPart := convertImageURLToPart(part.ImageURL); imgPart != nil {
 				parts = append(parts, imgPart)
+			}
+		case chat.MessagePartTypeDocument:
+			if part.Document != nil {
+				docPart, err := convertDocument(ctx, *part.Document, modelID)
+				if err != nil {
+					slog.WarnContext(ctx, "failed to convert document attachment", "error", err, "doc", part.Document.Name)
+					continue
+				}
+				if docPart != nil {
+					parts = append(parts, docPart)
+				}
 			}
 		}
 	}
@@ -366,8 +379,7 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 		// that always think, use the lowest level and bump MaxOutputTokens so
 		// internal reasoning doesn't consume the entire budget. Gemini 2.5 and
 		// older can fully disable thinking with ThinkingBudget=0.
-		model := strings.ToLower(c.ModelConfig.Model)
-		if isGemini3PlusModel(model) {
+		if modelinfo.UsesThinkingLevel(c.ModelConfig.Model) {
 			config.ThinkingConfig = &genai.ThinkingConfig{
 				IncludeThoughts: false,
 				ThinkingLevel:   genai.ThinkingLevelLow,
@@ -384,7 +396,7 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 		}
 	} else if c.ModelConfig.ThinkingBudget != nil {
 		config.ThinkingConfig = &genai.ThinkingConfig{IncludeThoughts: true}
-		if isGemini3PlusModel(strings.ToLower(c.ModelConfig.Model)) {
+		if modelinfo.UsesThinkingLevel(c.ModelConfig.Model) {
 			c.applyGemini3ThinkingLevel(config)
 		} else {
 			c.applyGemini25ThinkingBudget(config)
@@ -589,7 +601,7 @@ func (c *Client) CreateChatCompletionStream(
 		}
 	}
 
-	contents := convertMessagesToGemini(messages)
+	contents := convertMessagesToGemini(ctx, messages, c.ModelConfig.Model)
 
 	// Debug: Log the messages we're sending
 	slog.DebugContext(ctx, "Gemini messages", "count", len(contents))
@@ -765,17 +777,4 @@ func providerOption(cfg *latest.ModelConfig, name string) string {
 		return v
 	}
 	return ""
-}
-
-// isGemini3PlusModel returns true if the lowercased model name is a Gemini 3+
-// model. It matches both "gemini-3-<family>" and "gemini-3.X-<family>" patterns.
-// NOTE: keep in sync with gemini3Family in pkg/model/provider/provider.go.
-func isGemini3PlusModel(model string) bool {
-	if !strings.HasPrefix(model, "gemini-3") {
-		return false
-	}
-	rest := model[len("gemini-3"):]
-	// "gemini-3-pro" → rest = "-pro"
-	// "gemini-3.1-flash" → rest = ".1-flash"
-	return rest != "" && (rest[0] == '-' || (rest[0] == '.' && strings.Contains(rest, "-")))
 }

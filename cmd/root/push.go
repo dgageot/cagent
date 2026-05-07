@@ -50,7 +50,7 @@ func runPushCommand(cmd *cobra.Command, args []string) (commandErr error) {
 		return fmt.Errorf("failed to build artifact: %w", err)
 	}
 
-	slog.Debug("Starting push", "registry_ref", tag)
+	slog.DebugContext(ctx, "Starting push", "registry_ref", tag)
 
 	out.Printf("Pushing agent %s to %s\n", agentFilename, tag)
 

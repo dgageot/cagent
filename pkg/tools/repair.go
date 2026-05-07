@@ -65,7 +65,7 @@ func tryRepairToolArgs(data []byte, paramsType reflect.Type) ([]byte, []repairKi
 	if paramsType == nil {
 		return nil, nil, false
 	}
-	for paramsType.Kind() == reflect.Ptr {
+	for paramsType.Kind() == reflect.Pointer {
 		paramsType = paramsType.Elem()
 	}
 	if paramsType.Kind() != reflect.Struct {
@@ -150,7 +150,7 @@ func jsonFieldName(field reflect.StructField) (string, bool) {
 // is intentionally conservative — when in doubt, return false and let the
 // original validation error surface.
 func repairFieldValue(val any, fieldType reflect.Type) (any, repairKind, bool) {
-	for fieldType.Kind() == reflect.Ptr {
+	for fieldType.Kind() == reflect.Pointer {
 		fieldType = fieldType.Elem()
 	}
 
@@ -185,7 +185,7 @@ func repairFieldValue(val any, fieldType reflect.Type) (any, repairKind, bool) {
 	}
 
 	elemType := fieldType.Elem()
-	for elemType.Kind() == reflect.Ptr {
+	for elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 	elemKind := elemType.Kind()

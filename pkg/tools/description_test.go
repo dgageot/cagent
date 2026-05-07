@@ -41,7 +41,7 @@ func TestAddDescriptionParameter_AddsDescriptionParameter(t *testing.T) {
 	descProp, ok := properties[DescriptionParam].(map[string]any)
 	require.True(t, ok, "description parameter should be added")
 	assert.Equal(t, "string", descProp["type"])
-	assert.Contains(t, descProp["description"], "human-readable")
+	assert.Contains(t, descProp["description"], "description")
 }
 
 func TestAddDescriptionParameter_PreservesOriginalParameters(t *testing.T) {

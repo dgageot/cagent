@@ -15,10 +15,21 @@ func (t *Config) UnmarshalYAML(unmarshal func(any) error) error {
 		return err
 	}
 	*t = Config(tmp)
-	return t.validate()
+	return t.Validate()
 }
 
-func (t *Config) validate() error {
+func (t *Config) Validate() error {
+	for name, p := range t.Providers {
+		if err := p.Auth.Validate(p.Provider); err != nil {
+			return fmt.Errorf("providers.%s: %w", name, err)
+		}
+	}
+	for name, m := range t.Models {
+		if err := m.Auth.Validate(EffectiveProviderType(m, t.Providers)); err != nil {
+			return fmt.Errorf("models.%s: %w", name, err)
+		}
+	}
+
 	for i := range t.Agents {
 		agent := &t.Agents[i]
 
@@ -33,7 +44,7 @@ func (t *Config) validate() error {
 			}
 		}
 		if agent.Hooks != nil {
-			if err := agent.Hooks.validate(); err != nil {
+			if err := agent.Hooks.Validate(); err != nil {
 				return err
 			}
 		}
@@ -96,6 +107,9 @@ func (t *Toolset) validate() error {
 	}
 	if len(t.BlockedDomains) > 0 && t.Type != "fetch" {
 		return errors.New("blocked_domains can only be used with type 'fetch'")
+	}
+	if t.AllowPrivateIPs && t.Type != "fetch" {
+		return errors.New("allow_private_ips can only be used with type 'fetch'")
 	}
 	if len(t.AllowedDomains) > 0 && len(t.BlockedDomains) > 0 {
 		return errors.New("allowed_domains and blocked_domains are mutually exclusive")

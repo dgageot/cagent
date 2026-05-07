@@ -180,6 +180,15 @@
             "ANTHROPIC_API_KEY"
           ]
         },
+        "unload_api": {
+          "type": "string",
+          "description": "Optional path (or absolute URL) to the provider's model-unload endpoint. POSTed with `{\"model\": \"<id>\"}` when the agent wires the `unload` builtin into its `on_agent_switch` hook chain, to free GPU/RAM held by the previous model. Today only Docker Model Runner ships a provider that calls this endpoint; cloud providers don't implement [provider.Unloader] and the hook silently skips them. A relative path is resolved against the scheme+host of base_url; an absolute URL is used verbatim.",
+          "examples": [
+            "/engines/_unload",
+            "/api/unload",
+            "http://localhost:11434/api/unload"
+          ]
+        },
         "temperature": {
           "type": "number",
           "description": "Default sampling temperature for models using this provider.",
@@ -260,8 +269,101 @@
               "additionalProperties": false
             }
           ]
+        },
+        "auth": {
+          "$ref": "#/definitions/AuthConfig",
+          "description": "Non-API-key authentication scheme. When set, the provider's regular API-key path is bypassed."
         }
       },
+      "additionalProperties": false
+    },
+    "AuthConfig": {
+      "type": "object",
+      "description": "Non-API-key authentication for a model provider. Today only Anthropic Workload Identity Federation is supported (type: workload_identity_federation).",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["workload_identity_federation"],
+          "description": "Authentication scheme discriminator."
+        },
+        "workload_identity_federation": {
+          "$ref": "#/definitions/FederationAuthConfig",
+          "description": "Parameters for the Anthropic OIDC federation flow. Required when type is workload_identity_federation."
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "workload_identity_federation"}}},
+          "then": {"required": ["workload_identity_federation"]}
+        }
+      ]
+    },
+    "FederationAuthConfig": {
+      "type": "object",
+      "description": "Anthropic OIDC Federation Rule parameters and the source of the JWT identity token to exchange. See https://platform.claude.com/docs/en/build-with-claude/workload-identity-federation",
+      "properties": {
+        "federation_rule_id": {
+          "type": "string",
+          "pattern": "^fdrl_",
+          "description": "Anthropic OidcFederationRule ID. Must start with 'fdrl_'."
+        },
+        "organization_id": {
+          "type": "string",
+          "description": "UUID of the Anthropic organization that owns the federation rule."
+        },
+        "service_account_id": {
+          "type": "string",
+          "pattern": "^svac_",
+          "description": "Optional expected-target check for federation rules with target_type=SERVICE_ACCOUNT. Must start with 'svac_'."
+        },
+        "identity_token": {
+          "$ref": "#/definitions/IdentityTokenSourceConfig",
+          "description": "How to obtain a fresh JWT identity token for each token exchange."
+        }
+      },
+      "required": ["federation_rule_id", "organization_id", "identity_token"],
+      "additionalProperties": false
+    },
+    "IdentityTokenSourceConfig": {
+      "type": "object",
+      "description": "Source of the JWT identity token used for OIDC federation. Exactly one of file, env, command, or url must be set.",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Path to a file containing the JWT. Re-read on every token exchange (suitable for K8s projected SA tokens, SPIFFE helpers, Vault sidecars)."
+        },
+        "env": {
+          "type": "string",
+          "description": "Name of an environment variable holding the JWT."
+        },
+        "command": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1,
+          "description": "Subprocess to execute; stdout is used as the JWT. Re-run on every token exchange."
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTP(S) endpoint to GET for the JWT. ${VAR} references in the URL are expanded against the runtime environment."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "description": "HTTP headers sent with the URL request. Values support ${VAR} expansion. Only valid with 'url'."
+        },
+        "response_field": {
+          "type": "string",
+          "description": "When set, the URL response is parsed as JSON and this top-level field is used as the token. When empty, the entire (trimmed) response body is used. Only valid with 'url'."
+        }
+      },
+      "oneOf": [
+        {"required": ["file"], "not": {"anyOf": [{"required": ["env"]}, {"required": ["command"]}, {"required": ["url"]}]}},
+        {"required": ["env"], "not": {"anyOf": [{"required": ["file"]}, {"required": ["command"]}, {"required": ["url"]}]}},
+        {"required": ["command"], "not": {"anyOf": [{"required": ["file"]}, {"required": ["env"]}, {"required": ["url"]}]}},
+        {"required": ["url"], "not": {"anyOf": [{"required": ["file"]}, {"required": ["env"]}, {"required": ["command"]}]}}
+      ],
       "additionalProperties": false
     },
     "AgentConfig": {
@@ -779,7 +881,7 @@
         },
         "type": {
           "type": "string",
-          "description": "Type of hook. 'command' executes a shell command; 'builtin' invokes a named in-process Go function registered by the runtime; 'model' asks an LLM and translates its reply into the hook's native output (used for LLM-as-a-judge pre_tool_use, summarizers, etc., with no Go code). The docker-agent runtime ships these builtins: 'add_date' (turn_start: today's date), 'add_environment_info' (session_start: cwd, git, OS, arch), 'add_prompt_files' (turn_start: contents of named files looked up in the workdir hierarchy and the home directory), 'add_git_status' (turn_start: `git status --short --branch`), 'add_git_diff' (turn_start: `git diff --stat`, or full diff with args=['full']), 'add_directory_listing' (session_start: top-level entries of cwd), 'add_user_info' (session_start: current OS user and hostname), 'add_recent_commits' (session_start: `git log --oneline -n N`, default N=10, override via args=['<N>']), 'max_iterations' (before_llm_call: hard stop after N model calls; args=['<N>'] required), 'redact_secrets' (pre_tool_use / before_llm_call / tool_response_transform: scrubs detected secrets from tool arguments, outgoing chat content, and tool output — the same builtin handles all three legs and dispatches on the event; the matching agent-level 'redact_secrets: true' flag auto-injects the entries for all three).",
+          "description": "Type of hook. 'command' executes a shell command; 'builtin' invokes a named in-process Go function registered by the runtime; 'model' asks an LLM and translates its reply into the hook's native output (used for LLM-as-a-judge pre_tool_use, summarizers, etc., with no Go code). The docker-agent runtime ships these builtins: 'add_date' (turn_start: today's date), 'add_environment_info' (session_start: cwd, git, OS, arch), 'add_prompt_files' (turn_start: contents of named files looked up in the workdir hierarchy and the home directory), 'add_git_status' (turn_start: `git status --short --branch`), 'add_git_diff' (turn_start: `git diff --stat`, or full diff with args=['full']), 'add_directory_listing' (session_start: top-level entries of cwd), 'add_user_info' (session_start: current OS user and hostname), 'add_recent_commits' (session_start: `git log --oneline -n N`, default N=10, override via args=['<N>']), 'max_iterations' (before_llm_call: hard stop after N model calls; args=['<N>'] required), 'redact_secrets' (pre_tool_use / before_llm_call / tool_response_transform: scrubs detected secrets from tool arguments, outgoing chat content, and tool output — the same builtin handles all three legs and dispatches on the event; the matching agent-level 'redact_secrets: true' flag auto-injects the entries for all three), 'unload' (on_agent_switch: walks the previous agent's models and calls Unload() on every provider that implements provider.Unloader — e.g. asks Docker Model Runner to release the GPU/RAM held by the just-departing model so the next agent's model can claim it; opt in by adding the entry to the agent's hooks.on_agent_switch list).",
           "enum": [
             "command",
             "builtin",
@@ -919,7 +1021,7 @@
         },
         "provider_opts": {
           "type": "object",
-          "description": "Provider-specific options. Sampling parameters: top_k (integer, supported by anthropic, google, amazon-bedrock, and custom OpenAI-compatible providers like vLLM/Ollama), repetition_penalty (float, forwarded to custom OpenAI-compatible providers), min_p (float, forwarded to custom providers), seed (integer, forwarded to OpenAI). Infrastructure options: http_headers (map of string to string, adds custom HTTP headers to every request; used for OpenAI-compatible providers like github-copilot which requires Copilot-Integration-Id). dmr: runtime_flags. anthropic/amazon-bedrock (Claude): interleaved_thinking (boolean, default true), thinking_display ('summarized', 'omitted', or 'display') controls whether thinking blocks are returned in responses when thinking is enabled. Claude Opus 4.7 hides thinking by default ('omitted'); set thinking_display: summarized (or thinking_display: display) to receive thinking blocks. openai: transport ('sse' or 'websocket') to choose between SSE and WebSocket streaming for the Responses API. openai/anthropic/google: rerank_prompt (string) to fully override the system prompt used for RAG reranking (advanced - prefer using results.reranking.criteria for domain-specific guidance). Google: google_search (boolean) enables Google Search grounding, google_maps (boolean) enables Google Maps grounding, code_execution (boolean) enables server-side code execution.",
+          "description": "Provider-specific options. Sampling parameters: top_k (integer, supported by anthropic, google, amazon-bedrock, and custom OpenAI-compatible providers like vLLM/Ollama), repetition_penalty (float, forwarded to custom OpenAI-compatible providers), min_p (float, forwarded to custom providers), seed (integer, forwarded to OpenAI). Lifecycle: unload_api (string) overrides the unload endpoint inherited from the provider config (relative path resolved against base_url's scheme+host, or an absolute URL); used by the runtime's `unload` on_agent_switch builtin hook to release model resources between agent switches. Infrastructure options: http_headers (map of string to string, adds custom HTTP headers to every request; used for OpenAI-compatible providers like github-copilot which requires Copilot-Integration-Id). dmr: runtime_flags. anthropic/amazon-bedrock (Claude): interleaved_thinking (boolean, default true), thinking_display ('summarized', 'omitted', or 'display') controls whether thinking blocks are returned in responses when thinking is enabled. Claude Opus 4.7 hides thinking by default ('omitted'); set thinking_display: summarized (or thinking_display: display) to receive thinking blocks. openai: transport ('sse' or 'websocket') to choose between SSE and WebSocket streaming for the Responses API. openai/anthropic/google: rerank_prompt (string) to fully override the system prompt used for RAG reranking (advanced - prefer using results.reranking.criteria for domain-specific guidance). Google: google_search (boolean) enables Google Search grounding, google_maps (boolean) enables Google Maps grounding, code_execution (boolean) enables server-side code execution.",
           "additionalProperties": true
         },
         "track_usage": {
@@ -1000,6 +1102,10 @@
           "items": {
             "$ref": "#/definitions/RoutingRule"
           }
+        },
+        "auth": {
+          "$ref": "#/definitions/AuthConfig",
+          "description": "Non-API-key authentication scheme for this model. When set, takes precedence over both the provider's API-key path and any auth defined on the referenced ProviderConfig."
         }
       },
       "additionalProperties": false
@@ -1446,6 +1552,10 @@
             ["169.254.169.254"],
             ["169.254.0.0/16", "10.0.0.0/8"]
           ]
+        },
+        "allow_private_ips": {
+          "type": "boolean",
+          "description": "Opt in to dialling non-public IP addresses (only valid for type 'fetch'). By default the fetch tool refuses connections — after DNS resolution, so DNS rebinding is also blocked — to loopback, RFC1918 private ranges, link-local (including the cloud metadata endpoint at 169.254.169.254), multicast and the unspecified address. Set this to true when an agent legitimately needs to call internal services. 'allowed_domains' / 'blocked_domains' are evaluated independently and still apply."
         },
         "url": {
           "type": "string",

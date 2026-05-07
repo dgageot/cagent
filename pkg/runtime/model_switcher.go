@@ -486,6 +486,20 @@ func (r *LocalRuntime) getAvailableProviders(ctx context.Context) map[string]boo
 		available["google"] = true
 	}
 
+	// Mark anthropic available when any model or referenced provider in the
+	// workspace has a non-API-key auth scheme configured (e.g. Workload
+	// Identity Federation). We deliberately do not eagerly probe the token
+	// source here: doing so would slow down startup for the common case
+	// (file/env are fine, gcloud/az may take seconds, IMDS endpoints may
+	// hang on non-cloud hosts). A misconfigured source surfaces as a clear
+	// error on the first request via federation.RequestOptions.
+	for _, m := range r.modelSwitcherCfg.Models {
+		if modelHasAnthropicAuth(m, r.modelSwitcherCfg.Providers) {
+			available["anthropic"] = true
+			break
+		}
+	}
+
 	// DMR and ollama don't require credentials (local models)
 	available["dmr"] = true
 	available["ollama"] = true
@@ -515,6 +529,16 @@ func (r *LocalRuntime) getAvailableProviders(ctx context.Context) map[string]boo
 	}
 
 	return available
+}
+
+// modelHasAnthropicAuth reports whether the model (or its referenced
+// ProviderConfig) declares a non-API-key auth scheme that targets the
+// anthropic provider. Used by getAvailableProviders so that workspaces
+// configured with Workload Identity Federation surface their Anthropic
+// models without requiring ANTHROPIC_API_KEY.
+func modelHasAnthropicAuth(m latest.ModelConfig, providers map[string]latest.ProviderConfig) bool {
+	return latest.EffectiveProviderType(m, providers) == "anthropic" &&
+		latest.EffectiveAuth(m, providers) != nil
 }
 
 // createProviderFromConfig creates a provider from a ModelConfig using the runtime's configuration.

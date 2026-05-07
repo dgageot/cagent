@@ -3,13 +3,15 @@ package secretsscan
 // kwMask is a fixed-size bitset over keyword indices, used to record
 // which patterns occurred in a scanned input and which keywords each
 // rule subscribes to. Storing it as a small array keeps every test
-// branch-free; the cap of 128 indices accommodates today's catalogue
-// of ~108 unique keywords with comfortable headroom.
-type kwMask [2]uint64
+// branch-free; the cap of 256 indices accommodates today's catalogue
+// of ~150 unique keywords with comfortable headroom for future rules.
+type kwMask [4]uint64
 
-func (m *kwMask) empty() bool                { return m[0]|m[1] == 0 }
-func (m *kwMask) overlaps(other kwMask) bool { return m[0]&other[0]|m[1]&other[1] != 0 }
-func (m *kwMask) set(idx int)                { m[idx>>6] |= 1 << uint(idx&63) }
+func (m *kwMask) empty() bool { return m[0]|m[1]|m[2]|m[3] == 0 }
+func (m *kwMask) overlaps(other kwMask) bool {
+	return m[0]&other[0]|m[1]&other[1]|m[2]&other[2]|m[3]&other[3] != 0
+}
+func (m *kwMask) set(idx int) { m[idx>>6] |= 1 << uint(idx&63) }
 
 // acAutomaton is an Aho–Corasick keyword pre-filter for [Redact] and
 // [ContainsSecrets]. A single linear pass over the input yields a
@@ -32,7 +34,7 @@ type acAutomaton struct {
 // buildAhoCorasick compiles patterns into an automaton. Patterns
 // must be lower-cased ASCII.
 func buildAhoCorasick(patterns []string) *acAutomaton {
-	if len(patterns) > 128 {
+	if len(patterns) > 256 {
 		panic("secretsscan: too many AC patterns for kwMask")
 	}
 
@@ -83,6 +85,8 @@ func buildAhoCorasick(patterns []string) *acAutomaton {
 		accept[s] = trie[s].terms
 		accept[s][0] |= accept[fs][0]
 		accept[s][1] |= accept[fs][1]
+		accept[s][2] |= accept[fs][2]
+		accept[s][3] |= accept[fs][3]
 
 		base, fbase := int(s)*256, int(fs)*256
 		copy(next[base:base+256], next[fbase:fbase+256])
@@ -110,6 +114,8 @@ func (a *acAutomaton) scan(text string) (mask kwMask) {
 		s = a.next[int(s)*256+int(c)]
 		mask[0] |= a.accept[s][0]
 		mask[1] |= a.accept[s][1]
+		mask[2] |= a.accept[s][2]
+		mask[3] |= a.accept[s][3]
 	}
 	return mask
 }

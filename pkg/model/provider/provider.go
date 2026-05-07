@@ -71,6 +71,22 @@ type RerankingProvider interface {
 	Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error)
 }
 
+// Unloader is an optional interface for providers that can release
+// the resources held for the configured model. Local inference engines
+// (today, Docker Model Runner) implement it; cloud APIs typically
+// don't.
+//
+// The runtime's [unload] on_agent_switch builtin hook calls Unload when
+// an agent hands control to another agent. Implementations are
+// best-effort and should be idempotent — repeated calls on an
+// already-unloaded model must succeed.
+//
+// [unload]: https://pkg.go.dev/github.com/docker/docker-agent/pkg/runtime#BuiltinUnload
+type Unloader interface {
+	Provider
+	Unload(ctx context.Context) error
+}
+
 // New creates a new provider from a model config.
 // This is a convenience wrapper for NewWithModels with no models map.
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {

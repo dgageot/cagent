@@ -515,9 +515,9 @@ func (s *Session) GetLastUserMessages(n int) []string {
 
 func (s *Session) getLastMessageContentByRole(role chat.MessageRole) string {
 	messages := s.GetAllMessages()
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Message.Role == role {
-			return strings.TrimSpace(messages[i].Message.Content)
+	for _, message := range slices.Backward(messages) {
+		if message.Message.Role == role {
+			return strings.TrimSpace(message.Message.Content)
 		}
 	}
 	return ""
@@ -881,7 +881,7 @@ func buildSessionSummaryMessages(items []Item) ([]chat.Message, int) {
 	// Find the last summary index to determine where conversation messages start
 	// and to include the summary in session summary messages
 	lastSummaryIndex := -1
-	for i := len(items) - 1; i >= 0; i-- {
+	for i := range slices.Backward(items) {
 		if items[i].Summary != "" {
 			lastSummaryIndex = i
 			break
@@ -908,6 +908,84 @@ func buildSessionSummaryMessages(items []Item) ([]chat.Message, int) {
 	}
 
 	return messages, startIndex
+}
+
+// CompactionInput returns the chat messages that the compactor should
+// summarize together with their origin indices in s.Messages. The
+// returned messages are independent copies safe for the caller to
+// mutate (cloned via snapshotItems); the parallel sessIndices slice
+// maps each entry back to its source item so the caller can compute a
+// FirstKeptEntry that survives prior summaries in the history.
+//
+// When the session contains a prior summary, the result begins with a
+// synthetic "Session Summary: ..." user message whose origin index is
+// the prior summary item itself; subsequent entries are the prior
+// kept-tail and the post-summary conversation, mirroring what
+// buildSessionSummaryMessages produces for the runtime. System
+// messages stored on the session are filtered out (the compactor
+// supplies its own system/user prompt around this list).
+//
+// This method intentionally bypasses GetMessages's agent-level
+// transformations — invariant system prompts, NumHistoryItems
+// trimming, old-tool-content truncation, whitespace normalization,
+// orphan-tool-call sanitization, and cache_control marking. None of
+// those belong in compaction input: the compactor needs the full,
+// untrimmed history (so the LLM can summarize what trimming would
+// have hidden), supplies its own system/user prompt, and runs through
+// a sub-runtime that re-applies sanitization on its own session.
+//
+// All work is performed under s.mu.RLock via snapshotItems, so this
+// method is safe to call concurrently with AddMessage / ApplyCompaction
+// on the same session.
+func (s *Session) CompactionInput() ([]chat.Message, []int) {
+	items := s.snapshotItems()
+
+	lastSummaryIndex := -1
+	for i := range slices.Backward(items) {
+		if items[i].Summary != "" {
+			lastSummaryIndex = i
+			break
+		}
+	}
+
+	var (
+		messages    []chat.Message
+		sessIndices []int
+	)
+
+	if lastSummaryIndex >= 0 {
+		messages = append(messages, chat.Message{
+			Role:      chat.MessageRoleUser,
+			Content:   "Session Summary: " + items[lastSummaryIndex].Summary,
+			CreatedAt: nowFn().Format(time.RFC3339),
+		})
+		// The synthetic message stands in for the prior summary item;
+		// when this index lands inside the kept tail we want the
+		// summary item itself preserved so the next compaction round
+		// still sees it via buildSessionSummaryMessages.
+		sessIndices = append(sessIndices, lastSummaryIndex)
+	}
+
+	startIndex := lastSummaryIndex + 1
+	if lastSummaryIndex >= 0 {
+		kept := items[lastSummaryIndex].FirstKeptEntry
+		if kept > 0 && kept < lastSummaryIndex {
+			startIndex = kept
+		}
+	}
+
+	for i := startIndex; i < len(items); i++ {
+		if !items[i].IsMessage() {
+			continue
+		}
+		msg := items[i].Message.Message
+		if msg.Role == chat.MessageRoleSystem {
+			continue
+		}
+		messages = append(messages, msg)
+		sessIndices = append(sessIndices, i)
+	}
+	return messages, sessIndices
 }
 
 func (s *Session) GetMessages(a *agent.Agent, extraSystemMessages ...chat.Message) []chat.Message {
@@ -1190,7 +1268,7 @@ func truncateOldToolContent(messages []chat.Message, maxTokens int) []chat.Messa
 
 	tokenBudget := maxTokens
 
-	for i := len(result) - 1; i >= 0; i-- {
+	for i := range slices.Backward(result) {
 		msg := &result[i]
 
 		if msg.Role == chat.MessageRoleTool {

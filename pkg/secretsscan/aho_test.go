@@ -84,14 +84,19 @@ func TestAhoCorasickOverlappingPatterns(t *testing.T) {
 }
 
 // TestAhoCorasickPanicOnTooManyPatterns verifies that buildAhoCorasick
-// panics when given more than 128 patterns, which would overflow the
+// panics when given more than 256 patterns, which would overflow the
 // kwMask bitset.
 func TestAhoCorasickPanicOnTooManyPatterns(t *testing.T) {
 	t.Parallel()
 
-	patterns := make([]string, 129)
+	patterns := make([]string, 257)
 	for i := range patterns {
-		patterns[i] = string(rune('a' + i%26))
+		// Each pattern must be unique to avoid trie conflicts; encode
+		// the index as a 3-letter base-26 string.
+		a := byte('a' + (i/26/26)%26)
+		b := byte('a' + (i/26)%26)
+		c := byte('a' + i%26)
+		patterns[i] = string([]byte{a, b, c})
 	}
 
 	assert.PanicsWithValue(t, "secretsscan: too many AC patterns for kwMask",
@@ -118,11 +123,20 @@ func TestKwMaskOperations(t *testing.T) {
 	m.set(127)
 	assert.Equal(t, uint64(1<<63|1), m[1], "bit 127 should be set in second word")
 
+	m.set(128)
+	assert.Equal(t, uint64(1), m[2], "bit 128 should be set in third word")
+
+	m.set(192)
+	assert.Equal(t, uint64(1), m[3], "bit 192 should be set in fourth word")
+
+	m.set(255)
+	assert.Equal(t, uint64(1<<63|1), m[3], "bit 255 should be set in fourth word")
+
 	var other kwMask
 	other.set(0)
 	assert.True(t, m.overlaps(other), "masks with shared bit should overlap")
 
 	other = kwMask{}
-	other.set(100)
+	other.set(200)
 	assert.False(t, m.overlaps(other), "masks with no shared bits should not overlap")
 }

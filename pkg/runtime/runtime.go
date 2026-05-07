@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -155,6 +156,7 @@ type LocalRuntime struct {
 	workingDir           string   // Working directory for hooks execution
 	env                  []string // Environment variables for hooks execution
 	modelSwitcherCfg     *ModelSwitcherConfig
+	snapshotsEnabled     bool
 
 	// hooksRegistry is the runtime-private hooks.Registry used to build
 	// every Executor. It carries the runtime-owned builtin hooks
@@ -433,6 +435,14 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	// package-level functions registered via builtins.Register above.
 	if err := hooksRegistry.RegisterBuiltin(BuiltinCacheResponse, r.cacheResponseBuiltin); err != nil {
 		return nil, fmt.Errorf("register %q builtin: %w", BuiltinCacheResponse, err)
+	}
+
+	// unload is registered alongside cache_response for the same
+	// reason: it needs to walk Input.FromAgent up to the previous agent's
+	// configured models and dispatch to provider.Unloader implementations,
+	// which the runtime owns through the team.
+	if err := hooksRegistry.RegisterBuiltin(BuiltinUnload, r.unloadBuiltin); err != nil {
+		return nil, fmt.Errorf("register %q builtin: %w", BuiltinUnload, err)
 	}
 
 	// stripUnsupportedModalitiesTransform captures the runtime closure to
@@ -984,7 +994,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 		// parent agent's state: this event carries the parent session_id,
 		// and sub-agents emit their own token_usage events with their own
 		// session_id during live streaming.
-		for i := len(sess.Messages) - 1; i >= 0; i-- {
+		for i := range slices.Backward(sess.Messages) {
 			item := &sess.Messages[i]
 			if !item.IsMessage() || item.Message.Message.Role != chat.MessageRoleAssistant {
 				continue

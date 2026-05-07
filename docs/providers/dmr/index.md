@@ -148,6 +148,53 @@ models:
 
 Accepted values: any Go duration string (`"30s"`, `"5m"`, `"1h"`, `"2h30m"`), `"0"` (immediate unload), or `"-1"` (never unload). Invalid values are rejected before the configure request is sent.
 
+## Unloading models on agent switch
+
+In multi-agent setups where two DMR models can't fit in GPU memory simultaneously, wire the [`unload`]({{ '/configuration/hooks/#available-built-ins' | relative_url }}) built-in hook into each agent's `on_agent_switch` chain. Every time the active agent transfers control, the runtime POSTs to the engine's `_unload` endpoint to free the previous model's resources before the next one is loaded:
+
+```yaml
+agents:
+  coder:
+    model: qwen3-large
+    handoffs: [reviewer]
+    hooks:
+      on_agent_switch:
+        - type: builtin
+          command: unload
+  reviewer:
+    model: qwen3-coder
+    handoffs: [coder]
+    hooks:
+      on_agent_switch:
+        - type: builtin
+          command: unload
+```
+
+The unload URL is derived from `base_url` by replacing the trailing `/v1` segment (e.g. `http://127.0.0.1:12434/engines/llama.cpp/v1/` → `http://127.0.0.1:12434/engines/llama.cpp/_unload`). Override it explicitly via the provider-level `unload_api` field when running against a non-standard model-runner deployment:
+
+```yaml
+providers:
+  my_dmr:
+    provider: dmr
+    base_url: http://model-runner.docker.internal/engines/v1
+    unload_api: /engines/_unload   # default; absolute URLs also work
+
+models:
+  big:
+    provider: my_dmr
+    model: ai/qwen3
+```
+
+Unload errors are logged and swallowed — a stuck or unreachable engine never blocks an agent transfer (each call is bounded to 10 s). Pair this with [`keep_alive`](#keeping-models-resident-in-memory-keep_alive) only when you want the model to *also* survive idle periods within a single agent's run; the hook controls **between-agent** unloads independently.
+
+<div class="callout callout-warning" markdown="1">
+<div class="callout-title">⚠️ Single-tenant assumption</div>
+
+The `_unload` endpoint is engine-level: it evicts the model from DMR's memory regardless of who is using it. If two concurrent sessions on the same runtime (e.g. an API server serving multiple users) hit the same agent, switching away in session A will yank the model out from under session B's in-flight request, which then has to wait for a reload. Wire `unload` only when the agents using these models are not run concurrently — typically a single TUI/CLI session.
+</div>
+
+See [`examples/unload_on_switch.yaml`](https://github.com/docker/docker-agent/blob/main/examples/unload_on_switch.yaml) for the full example.
+
 ## Operating mode (`mode`)
 
 Model-runner normally infers the backend mode from the request path. You can pin it explicitly via `provider_opts.mode`:

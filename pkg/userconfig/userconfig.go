@@ -14,8 +14,8 @@ import (
 	"sync"
 
 	"github.com/goccy/go-yaml"
-	"github.com/natefinch/atomic"
 
+	"github.com/docker/docker-agent/pkg/atomicfile"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/paths"
 )
@@ -61,6 +61,8 @@ type Settings struct {
 	// SoundThreshold is the minimum duration in seconds a task must run
 	// before a success sound is played. Defaults to 5 seconds.
 	SoundThreshold int `yaml:"sound_threshold,omitempty"`
+	// Snapshot enables automatic shadow-git snapshots globally when true.
+	Snapshot *bool `yaml:"snapshot,omitempty"`
 	// Permissions defines global permission patterns applied across all sessions
 	// and agents. These act as user-wide defaults; session-level and agent-level
 	// permissions override them.
@@ -103,6 +105,11 @@ func (s *Settings) GetSplitDiffView() bool {
 		return true
 	}
 	return *s.SplitDiffView
+}
+
+// SnapshotsEnabled returns whether global snapshot auto-injection is enabled.
+func (s *Settings) SnapshotsEnabled() bool {
+	return s != nil && s.Snapshot != nil && *s.Snapshot
 }
 
 // CredentialHelper contains configuration for a credential helper command
@@ -242,7 +249,7 @@ func (c *Config) Save() error {
 }
 
 func (c *Config) saveTo(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -254,7 +261,9 @@ func (c *Config) saveTo(path string) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return atomic.WriteFile(path, bytes.NewReader(data))
+	// The config may contain a credential helper command, so restrict it
+	// to the user.
+	return atomicfile.Write(path, bytes.NewReader(data), 0o600)
 }
 
 // GetAlias retrieves the alias configuration for a given name.

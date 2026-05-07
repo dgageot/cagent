@@ -219,7 +219,7 @@ func ensureDir(filePath string) error {
 	}
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return os.MkdirAll(dir, 0o755)
+		return os.MkdirAll(dir, 0o700)
 	}
 
 	return nil

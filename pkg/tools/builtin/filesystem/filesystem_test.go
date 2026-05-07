@@ -970,3 +970,140 @@ func createTestJPEG(t *testing.T, w, h int) []byte {
 	require.NoError(t, jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}))
 	return buf.Bytes()
 }
+
+// TestFilesystemTool_RootedWriteRefusesSymlinkSwap is a regression test for
+// the TOCTOU window between [resolveAndCheckPath] and the actual write.
+//
+// The attack: a file inside the allow-list is replaced (after the check)
+// with a symlink that points outside it. Without rooted I/O, the path-
+// based [os.WriteFile] follows the symlink and clobbers the target. With
+// rooted I/O — [*os.Root].WriteFile in [FilesystemTool.writeFile] — the
+// kernel rejects the lookup because the symlink leaves the root.
+//
+// The test deliberately bypasses [resolveAndCheckPath] (which would catch
+// the symlink statically once it exists) by running the check first while
+// the path is a regular file, THEN swapping it for a symlink, THEN
+// invoking the rooted writer with the previously-validated path. This
+// faithfully simulates the race window the issue describes.
+func TestFilesystemTool_RootedWriteRefusesSymlinkSwap(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	outside := t.TempDir()
+
+	// The file the LLM thinks it's writing to.
+	target := filepath.Join(wd, "report.txt")
+	require.NoError(t, os.WriteFile(target, []byte("legit"), 0o644))
+
+	// The secret file we must NOT clobber.
+	secret := filepath.Join(outside, "secret.txt")
+	require.NoError(t, os.WriteFile(secret, []byte("untouched"), 0o600))
+
+	tool := NewFilesystemTool(wd, WithAllowList([]string{"."}))
+	t.Cleanup(func() { _ = tool.Close() })
+
+	// Step 1: validate the path while the file is legitimate. This is
+	// what would happen at T0 in a real attack — the static check passes.
+	resolved, err := tool.resolveAndCheckPath("report.txt")
+	require.NoError(t, err)
+
+	// Step 2: attacker (or hostile post-edit hook running between T0 and
+	// T1) swaps the regular file for a symlink to the secret.
+	require.NoError(t, os.Remove(target))
+	require.NoError(t, os.Symlink(secret, target))
+
+	// Step 3: at T1 the tool issues the actual write. The rooted writer
+	// MUST refuse because the symlink target escapes the [*os.Root].
+	err = tool.writeFile(resolved, []byte("PWNED"), 0o644)
+	require.Error(t, err,
+		"rooted writeFile must refuse to follow a symlink whose target escapes the allow-list")
+
+	// Step 4: the secret must be untouched on disk.
+	got, err := os.ReadFile(secret)
+	require.NoError(t, err)
+	assert.Equal(t, "untouched", string(got),
+		"rooted writeFile must NOT have followed the symlink out of the sandbox")
+}
+
+// TestFilesystemTool_RootedReadRefusesSymlinkSwap is the same regression
+// test but for [FilesystemTool.readFile]. An attacker that wins the race
+// must not be able to exfiltrate a secret outside the sandbox.
+func TestFilesystemTool_RootedReadRefusesSymlinkSwap(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	outside := t.TempDir()
+
+	target := filepath.Join(wd, "report.txt")
+	require.NoError(t, os.WriteFile(target, []byte("legit"), 0o644))
+
+	secret := filepath.Join(outside, "secret.txt")
+	require.NoError(t, os.WriteFile(secret, []byte("CONFIDENTIAL"), 0o600))
+
+	tool := NewFilesystemTool(wd, WithAllowList([]string{"."}))
+	t.Cleanup(func() { _ = tool.Close() })
+
+	resolved, err := tool.resolveAndCheckPath("report.txt")
+	require.NoError(t, err)
+
+	require.NoError(t, os.Remove(target))
+	require.NoError(t, os.Symlink(secret, target))
+
+	data, err := tool.readFile(resolved)
+	require.Error(t, err,
+		"rooted readFile must refuse to follow a symlink whose target escapes the allow-list")
+	assert.NotContains(t, string(data), "CONFIDENTIAL",
+		"rooted readFile must NOT have returned the symlink target's contents")
+}
+
+// TestFilesystemTool_StaticCheckRejectsExistingSymlink verifies the
+// belt-and-braces layer: once a symlink is on disk, [resolveAndCheckPath]
+// rejects it at check time too. This is the cheap defence; the rooted
+// I/O above is the one that closes the race.
+func TestFilesystemTool_StaticCheckRejectsExistingSymlink(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	outside := t.TempDir()
+
+	secret := filepath.Join(outside, "secret.txt")
+	require.NoError(t, os.WriteFile(secret, []byte("CONFIDENTIAL"), 0o600))
+	require.NoError(t, os.Symlink(secret, filepath.Join(wd, "report.txt")))
+
+	tool := NewFilesystemTool(wd, WithAllowList([]string{"."}))
+	t.Cleanup(func() { _ = tool.Close() })
+
+	_, err := tool.resolveAndCheckPath("report.txt")
+	require.Error(t, err,
+		"static check must refuse a path that already resolves outside the allow-list")
+}
+
+// TestFilesystemTool_RootedListDirRefusesSymlinkSwap verifies that
+// [FilesystemTool.readDir] cannot be tricked into listing a directory
+// outside the allow-list via a swapped-in directory symlink.
+func TestFilesystemTool_RootedListDirRefusesSymlinkSwap(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	outside := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "leaked-marker"), nil, 0o644))
+
+	// Create a regular sub-directory first; resolveAndCheckPath will
+	// validate it. Then swap it for a symlink to the outside directory.
+	subdir := filepath.Join(wd, "sub")
+	require.NoError(t, os.MkdirAll(subdir, 0o755))
+
+	tool := NewFilesystemTool(wd, WithAllowList([]string{"."}))
+	t.Cleanup(func() { _ = tool.Close() })
+
+	resolved, err := tool.resolveAndCheckPath("sub")
+	require.NoError(t, err)
+
+	require.NoError(t, os.Remove(subdir))
+	require.NoError(t, os.Symlink(outside, subdir))
+
+	_, err = tool.readDir(resolved)
+	require.Error(t, err,
+		"rooted readDir must refuse a directory symlink that escapes the allow-list")
+}

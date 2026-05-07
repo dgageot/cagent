@@ -38,7 +38,7 @@ func addDescriptionParam(tool Tool) Tool {
 
 	properties[DescriptionParam] = map[string]any{
 		"type":        "string",
-		"description": "A brief, human-readable description of what this tool call is doing",
+		"description": "Brief description of this call",
 	}
 
 	tool.Parameters = schema

@@ -100,6 +100,7 @@ agents:
 | `api_type`            | string     | API schema: `openai_chatcompletions` or `openai_responses`. Only for OpenAI-compatible providers. | `openai_chatcompletions` |
 | `base_url`            | string     | Base URL for the API endpoint. Required for OpenAI-compatible providers, optional for native providers. | —                        |
 | `token_key`           | string     | Environment variable name containing the API token.                                   | —                        |
+| `unload_api`          | string     | Optional path (or absolute URL) to the provider's model-unload endpoint. Used by the [`unload`]({{ '/configuration/hooks/#available-built-ins' | relative_url }}) built-in hook to release model resources between agent switches. Relative paths resolve against `base_url`'s scheme + host; absolute URLs are used verbatim. Today only Docker Model Runner ships a provider that calls this endpoint; cloud providers don't implement the underlying interface and the hook silently skips them. | —                        |
 | `temperature`         | float      | Default sampling temperature (0.0–2.0).                                               | —                        |
 | `max_tokens`          | int        | Default maximum response tokens.                                                      | —                        |
 | `top_p`               | float      | Default nucleus sampling threshold (0.0–1.0).                                         | —                        |

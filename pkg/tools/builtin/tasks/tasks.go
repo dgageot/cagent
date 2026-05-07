@@ -137,7 +137,7 @@ func (t *Tool) save(store taskStore) error {
 	if err != nil {
 		return fmt.Errorf("marshaling task store: %w", err)
 	}
-	return os.WriteFile(t.filePath, data, 0o644)
+	return os.WriteFile(t.filePath, data, 0o600)
 }
 
 func effectiveStatus(task Task, tasks map[string]Task) TaskStatus {

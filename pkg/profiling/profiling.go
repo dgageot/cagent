@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"slices"
 )
 
 // Stop is a function returned by Start that stops profiling and flushes
@@ -21,7 +22,7 @@ func Start(cpuProfile, memProfile string) (Stop, error) {
 	var closers []func() error
 
 	if cpuProfile != "" {
-		f, err := os.Create(cpuProfile)
+		f, err := os.OpenFile(cpuProfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return noop, fmt.Errorf("failed to create CPU profile: %w", err)
 		}
@@ -37,7 +38,7 @@ func Start(cpuProfile, memProfile string) (Stop, error) {
 
 	if memProfile != "" {
 		closers = append(closers, func() error {
-			f, err := os.Create(memProfile)
+			f, err := os.OpenFile(memProfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 			if err != nil {
 				return fmt.Errorf("failed to create memory profile: %w", err)
 			}
@@ -53,8 +54,8 @@ func Start(cpuProfile, memProfile string) (Stop, error) {
 	return func() error {
 		// Run in reverse order so CPU profile is stopped before mem profile is written.
 		var errs []error
-		for i := len(closers) - 1; i >= 0; i-- {
-			if err := closers[i](); err != nil {
+		for _, closeFn := range slices.Backward(closers) {
+			if err := closeFn(); err != nil {
 				errs = append(errs, err)
 			}
 		}

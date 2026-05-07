@@ -5,7 +5,9 @@ This file contains shared message conversion utilities for OpenAI-compatible pro
 */
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -24,18 +26,31 @@ func (j JSONSchema) MarshalJSON() ([]byte, error) {
 }
 
 // ConvertMultiContent converts chat.MessagePart slices to OpenAI content parts.
-func ConvertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
+// ctx is forwarded to convertDocument for logging and future cancellation support.
+// modelID is used for attachment capability lookups; pass an empty string to
+// skip capability checks (all documents are attempted).
+func ConvertMultiContent(ctx context.Context, multiContent []chat.MessagePart, modelID string) []openai.ChatCompletionContentPartUnionParam {
 	parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(multiContent))
 	for _, part := range multiContent {
 		switch part.Type {
 		case chat.MessagePartTypeText:
 			parts = append(parts, openai.TextContentPart(part.Text))
 		case chat.MessagePartTypeImageURL:
+			// Note: superseded by MessagePartTypeDocument.
 			if part.ImageURL != nil {
 				parts = append(parts, openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
 					URL:    part.ImageURL.URL,
 					Detail: string(part.ImageURL.Detail),
 				}))
+			}
+		case chat.MessagePartTypeDocument:
+			if part.Document != nil {
+				docParts, err := convertDocument(ctx, *part.Document, modelID)
+				if err != nil {
+					slog.WarnContext(ctx, "failed to convert document attachment", "error", err, "doc", part.Document.Name)
+					continue
+				}
+				parts = append(parts, docParts...)
 			}
 		}
 	}
@@ -43,8 +58,10 @@ func ConvertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletio
 }
 
 // ConvertMessages converts chat.Message slices to OpenAI message params.
+// ctx is forwarded to convertDocument for logging and cancellation support.
+// modelID is forwarded to convertDocument for attachment capability lookups.
 // This is the base conversion without any provider-specific post-processing.
-func ConvertMessages(messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
+func ConvertMessages(ctx context.Context, messages []chat.Message, modelID string) []openai.ChatCompletionMessageParamUnion {
 	openaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
 	for i := range messages {
 		msg := &messages[i]
@@ -77,7 +94,7 @@ func ConvertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 			if len(msg.MultiContent) == 0 {
 				openaiMessage = openai.UserMessage(msg.Content)
 			} else {
-				openaiMessage = openai.UserMessage(ConvertMultiContent(msg.MultiContent))
+				openaiMessage = openai.UserMessage(ConvertMultiContent(ctx, msg.MultiContent, modelID))
 			}
 
 		case chat.MessageRoleAssistant:

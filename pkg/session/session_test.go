@@ -706,3 +706,101 @@ func TestNormalizeMessageContent(t *testing.T) {
 		})
 	}
 }
+
+func TestCompactionInput(t *testing.T) {
+	t.Parallel()
+
+	newMsg := func(role chat.MessageRole, content string) Item {
+		return NewMessageItem(&Message{Message: chat.Message{Role: role, Content: content}})
+	}
+
+	t.Run("empty session returns empty", func(t *testing.T) {
+		t.Parallel()
+		sess := New()
+		messages, sessIndices := sess.CompactionInput()
+		assert.Empty(t, messages)
+		assert.Empty(t, sessIndices)
+	})
+
+	t.Run("system messages on the session are filtered out", func(t *testing.T) {
+		t.Parallel()
+		sess := New(WithMessages([]Item{
+			newMsg(chat.MessageRoleSystem, "sys"),
+			newMsg(chat.MessageRoleUser, "u1"),
+			newMsg(chat.MessageRoleAssistant, "a1"),
+			newMsg(chat.MessageRoleSystem, "sys2"),
+			newMsg(chat.MessageRoleUser, "u2"),
+		}))
+
+		messages, sessIndices := sess.CompactionInput()
+		require.Len(t, messages, 3)
+		assert.Equal(t, []int{1, 2, 4}, sessIndices)
+		assert.Equal(t, "u1", messages[0].Content)
+		assert.Equal(t, "a1", messages[1].Content)
+		assert.Equal(t, "u2", messages[2].Content)
+	})
+
+	t.Run("prior summary surfaces synthetic message and starts at FirstKeptEntry", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{
+			newMsg(chat.MessageRoleUser, "u0"),
+			newMsg(chat.MessageRoleAssistant, "a0"),
+			newMsg(chat.MessageRoleUser, "u1-kept"),
+			newMsg(chat.MessageRoleAssistant, "a1-kept"),
+			{Summary: "prior summary", FirstKeptEntry: 2},
+			newMsg(chat.MessageRoleUser, "u2"),
+			newMsg(chat.MessageRoleAssistant, "a2"),
+		}
+		sess := New(WithMessages(items))
+
+		messages, sessIndices := sess.CompactionInput()
+
+		require.Len(t, messages, 5)
+		assert.Equal(t, chat.MessageRoleUser, messages[0].Role)
+		assert.Contains(t, messages[0].Content, "Session Summary: prior summary")
+		// The synthetic message maps back to the prior summary item; the
+		// kept-tail then resumes at the prior FirstKeptEntry, skipping
+		// the (non-message) summary item itself.
+		assert.Equal(t, []int{4, 2, 3, 5, 6}, sessIndices)
+	})
+
+	t.Run("prior summary without FirstKeptEntry starts strictly after the summary", func(t *testing.T) {
+		t.Parallel()
+		items := []Item{
+			newMsg(chat.MessageRoleUser, "old"),
+			newMsg(chat.MessageRoleAssistant, "old-reply"),
+			{Summary: "prior summary"},
+			newMsg(chat.MessageRoleUser, "new"),
+			newMsg(chat.MessageRoleAssistant, "new-reply"),
+		}
+		sess := New(WithMessages(items))
+
+		messages, sessIndices := sess.CompactionInput()
+
+		require.Len(t, messages, 3)
+		assert.Equal(t, []int{2, 3, 4}, sessIndices)
+	})
+
+	t.Run("returned messages are independent copies safe to mutate", func(t *testing.T) {
+		t.Parallel()
+		sess := New(WithMessages([]Item{
+			NewMessageItem(&Message{Message: chat.Message{
+				Role:         chat.MessageRoleUser,
+				Content:      "hello",
+				Cost:         1.5,
+				CacheControl: true,
+			}}),
+		}))
+
+		messages, _ := sess.CompactionInput()
+		require.Len(t, messages, 1)
+
+		messages[0].Cost = 0
+		messages[0].CacheControl = false
+		messages[0].Content = "mutated"
+
+		assert.InDelta(t, 1.5, sess.Messages[0].Message.Message.Cost, 0)
+		assert.True(t, sess.Messages[0].Message.Message.CacheControl)
+		assert.Equal(t, "hello", sess.Messages[0].Message.Message.Content)
+	})
+}

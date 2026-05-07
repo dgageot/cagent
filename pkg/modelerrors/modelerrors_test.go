@@ -61,6 +61,8 @@ func TestIsRetryableModelError(t *testing.T) {
 		{name: "context overflow - thinking budget", err: errors.New("max_tokens must be greater than thinking.budget_tokens"), expected: false},
 		{name: "context overflow - wrapped", err: &ContextOverflowError{Underlying: errors.New("test")}, expected: false},
 		{name: "unknown error", err: errors.New("something weird happened"), expected: false},
+		// Vertex AI / Gemini transient 400 (issue #2683)
+		{name: "vertex function response parts 400", err: errors.New("400 Bad Request: please ensure that the number of function response parts is equal to the number of function call parts"), expected: true},
 	}
 
 	for _, tt := range tests {
@@ -205,6 +207,31 @@ func TestIsRetryableModelError_ContextOverflow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.False(t, isRetryableModelError(tt.err), "context overflow errors should not be retryable: %v", tt.err)
+		})
+	}
+}
+
+func TestMatchesTransientPattern(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "nil error", err: nil, expected: false},
+		{name: "unrelated error", err: errors.New("connection refused"), expected: false},
+		{name: "exact lowercase match", err: errors.New("number of function response parts"), expected: true},
+		// Defence-in-depth: the message is lowercased before comparison so
+		// mixed-case provider errors still match the lowercase pattern.
+		{name: "mixed-case message", err: errors.New("Please ensure that the Number Of Function Response Parts is equal"), expected: true},
+		{name: "wrapped error", err: fmt.Errorf("error receiving from stream: %w", errors.New("NUMBER OF FUNCTION RESPONSE PARTS")), expected: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, matchesTransientPattern(tt.err), "matchesTransientPattern(%v)", tt.err)
 		})
 	}
 }
@@ -498,6 +525,10 @@ func TestClassifyModelError(t *testing.T) {
 		{name: "403 StatusError", err: &StatusError{StatusCode: 403, Err: errors.New("forbidden")}, wantRetryable: false, wantRateLimited: false},
 		// Non-retryable fallback
 		{name: "401 message fallback", err: errors.New("401 unauthorized"), wantRetryable: false, wantRateLimited: false},
+		// 400 with Vertex AI "function response parts" message is treated as transient (issue #2683)
+		{name: "vertex transient 400 StatusError", err: &StatusError{StatusCode: 400, Err: errors.New("Error 400, Message: Please ensure that the number of function response parts is equal to the number of function call parts of the function call turn., Status: INVALID_ARGUMENT, Details: []")}, wantRetryable: true, wantRateLimited: false},
+		{name: "vertex transient 400 wrapped in stream error", err: fmt.Errorf("error receiving from stream: %w", &StatusError{StatusCode: 400, Err: errors.New("number of function response parts")}), wantRetryable: true, wantRateLimited: false},
+		{name: "vertex transient 400 message fallback (no StatusError)", err: errors.New("400 Bad Request: Please ensure that the number of function response parts is equal to the number of function call parts"), wantRetryable: true, wantRateLimited: false},
 		// Network errors
 		{name: "network timeout", err: &mockTimeoutError{}, wantRetryable: true, wantRateLimited: false},
 	}

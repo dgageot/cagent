@@ -187,14 +187,14 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 }
 
 // Authenticate implements [acp.Agent]
-func (a *Agent) Authenticate(context.Context, acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
-	slog.Debug("ACP Authenticate called")
+func (a *Agent) Authenticate(ctx context.Context, _ acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
+	slog.DebugContext(ctx, "ACP Authenticate called")
 	return acp.AuthenticateResponse{}, nil
 }
 
 // LoadSession implements [acp.AgentLoader] (optional, not supported)
-func (a *Agent) LoadSession(context.Context, acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
-	slog.Debug("ACP LoadSession called (not supported)")
+func (a *Agent) LoadSession(ctx context.Context, _ acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
+	slog.DebugContext(ctx, "ACP LoadSession called (not supported)")
 	return acp.LoadSessionResponse{}, errors.New("load session not supported")
 }
 
@@ -219,20 +219,20 @@ func (a *Agent) CloseSession(_ context.Context, params acp.CloseSessionRequest) 
 }
 
 // ListSessions implements [acp.Agent] (optional, not advertised in capabilities)
-func (a *Agent) ListSessions(context.Context, acp.ListSessionsRequest) (acp.ListSessionsResponse, error) {
-	slog.Debug("ACP ListSessions called (not supported)")
+func (a *Agent) ListSessions(ctx context.Context, _ acp.ListSessionsRequest) (acp.ListSessionsResponse, error) {
+	slog.DebugContext(ctx, "ACP ListSessions called (not supported)")
 	return acp.ListSessionsResponse{}, errors.New("list sessions not supported")
 }
 
 // ResumeSession implements [acp.Agent] (optional, not advertised in capabilities)
-func (a *Agent) ResumeSession(context.Context, acp.ResumeSessionRequest) (acp.ResumeSessionResponse, error) {
-	slog.Debug("ACP ResumeSession called (not supported)")
+func (a *Agent) ResumeSession(ctx context.Context, _ acp.ResumeSessionRequest) (acp.ResumeSessionResponse, error) {
+	slog.DebugContext(ctx, "ACP ResumeSession called (not supported)")
 	return acp.ResumeSessionResponse{}, errors.New("resume session not supported")
 }
 
 // SetSessionConfigOption implements [acp.Agent] (optional, not advertised in capabilities)
-func (a *Agent) SetSessionConfigOption(context.Context, acp.SetSessionConfigOptionRequest) (acp.SetSessionConfigOptionResponse, error) {
-	slog.Debug("ACP SetSessionConfigOption called (not supported)")
+func (a *Agent) SetSessionConfigOption(ctx context.Context, _ acp.SetSessionConfigOptionRequest) (acp.SetSessionConfigOptionResponse, error) {
+	slog.DebugContext(ctx, "ACP SetSessionConfigOption called (not supported)")
 	return acp.SetSessionConfigOptionResponse{}, nil
 }
 

@@ -847,7 +847,7 @@ func (m *model) isSelectableMessage(index int) bool {
 }
 
 func (m *model) findLastSelectableMessage() int {
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		if m.isSelectableMessage(i) {
 			return i
 		}
@@ -858,10 +858,7 @@ func (m *model) findLastSelectableMessage() int {
 // findLastAssistantMessage finds the last assistant or reasoning block message.
 // Used for initial focus selection to start on assistant content.
 func (m *model) findLastAssistantMessage() int {
-	for i := len(m.messages) - 1; i >= 0; i-- {
-		if i >= len(m.messages) {
-			continue
-		}
+	for i := range slices.Backward(m.messages) {
 		msg := m.messages[i]
 		if msg.Type == types.MessageTypeAssistant || msg.Type == types.MessageTypeAssistantReasoningBlock {
 			return i
@@ -1149,7 +1146,7 @@ func (m *model) AddLoadingMessage(description string) tea.Cmd {
 }
 
 func (m *model) ReplaceLoadingWithUser(content string, sessionPos int) tea.Cmd {
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		if m.messages[i].Type == types.MessageTypeLoading {
 			m.messages = slices.Delete(m.messages, i, i+1)
 			if i < len(m.views) {
@@ -1371,7 +1368,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
 	// First check if this tool call exists in any reasoning block
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		if m.messages[i].Type == types.MessageTypeAssistantReasoningBlock {
 			if block, ok := m.views[i].(*reasoningblock.Model); ok {
 				if block.HasToolCall(toolCall.ID) {
@@ -1384,7 +1381,7 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 	}
 
 	// Then try to update existing standalone tool by ID
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		msg := m.messages[i]
 		if msg.Type == types.MessageTypeToolCall && msg.ToolCall.ID == toolCall.ID {
 			msg.ToolStatus = status
@@ -1426,7 +1423,7 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 
 func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd {
 	// First check reasoning blocks for the tool call
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		if m.messages[i].Type == types.MessageTypeAssistantReasoningBlock {
 			if block, ok := m.views[i].(*reasoningblock.Model); ok {
 				if block.HasToolCall(msg.ToolCallID) {
@@ -1439,7 +1436,7 @@ func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.T
 	}
 
 	// Then check standalone tool call messages
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(m.messages) {
 		toolMessage := m.messages[i]
 		if toolMessage.Type == types.MessageTypeToolCall && toolMessage.ToolCall.ID == msg.ToolCallID {
 			toolMessage.Content = strings.ReplaceAll(msg.Response, "\t", "    ")

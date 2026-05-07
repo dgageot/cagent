@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/effort"
 )
 
-const Version = "8"
+const Version = "9"
 
 // Config represents the entire configuration file
 type Config struct {
@@ -232,6 +232,14 @@ type ProviderConfig struct {
 	APIType string `json:"api_type,omitempty"`
 	// BaseURL is the base URL for the provider's API endpoint
 	BaseURL string `json:"base_url,omitempty"`
+	// UnloadAPI is the path (or absolute URL) to the provider's
+	// model-unload endpoint. When the agent wires the [unload] builtin
+	// into its `on_agent_switch` hook chain, the previous agent's
+	// models are POSTed `{"model": "<id>"}` here at every switch.
+	// Cloud providers should leave this unset.
+	//
+	// [unload]: https://pkg.go.dev/github.com/docker/docker-agent/pkg/runtime#BuiltinUnload
+	UnloadAPI string `json:"unload_api,omitempty"`
 	// TokenKey is the environment variable name containing the API token
 	TokenKey string `json:"token_key,omitempty"`
 	// Temperature is the default sampling temperature for models using this provider
@@ -258,6 +266,10 @@ type ProviderConfig struct {
 	// only Claude Opus 4.7 actually honors it; other models will reject the
 	// field. Accepts an integer token count or a {type: tokens, total: N} object.
 	TaskBudget *TaskBudget `json:"task_budget,omitempty"`
+	// Auth selects a non-API-key authentication scheme for this provider
+	// (currently: Anthropic Workload Identity Federation). When set, the
+	// provider's regular API-key path is bypassed.
+	Auth *AuthConfig `json:"auth,omitempty"`
 }
 
 // FallbackConfig represents fallback model configuration for an agent.
@@ -621,6 +633,11 @@ type ModelConfig struct {
 	// only Claude Opus 4.7 actually honors it; other models will reject the
 	// field. Accepts an integer token count or a {type: tokens, total: N} object.
 	TaskBudget *TaskBudget `json:"task_budget,omitempty"`
+	// Auth selects a non-API-key authentication scheme for this model
+	// (currently: Anthropic Workload Identity Federation). When set, it
+	// takes precedence over both the provider's API-key path and any
+	// auth defined on the referenced ProviderConfig.
+	Auth *AuthConfig `json:"auth,omitempty"`
 	// Routing defines rules for routing requests to different models.
 	// When routing is configured, this model becomes a rule-based router:
 	// - The provider/model fields define the fallback model
@@ -645,6 +662,14 @@ func (m *ModelConfig) Clone() *ModelConfig {
 // otherwise falls back to Model.
 func (m *ModelConfig) DisplayOrModel() string {
 	return cmp.Or(m.DisplayModel, m.Model)
+}
+
+// UnloadAPI returns the unload endpoint inherited from the model's
+// provider config, or "" when no `unload_api` was set. Populated by
+// the provider-config merge step from [ProviderConfig.UnloadAPI].
+func (m *ModelConfig) UnloadAPI() string {
+	v, _ := m.ProviderOpts["unload_api"].(string)
+	return v
 }
 
 // FlexibleModelConfig wraps ModelConfig to support both shorthand and full syntax.
@@ -854,6 +879,21 @@ type Toolset struct {
 	// Uses the same matching rules as `allowed_domains`. Mutually exclusive with
 	// `allowed_domains`.
 	BlockedDomains []string `json:"blocked_domains,omitempty" yaml:"blocked_domains,omitempty"`
+
+	// For the `fetch` tool — opt in to dialling non-public IP addresses.
+	//
+	// By default the fetch tool refuses connections (after DNS resolution,
+	// so DNS rebinding is also blocked) to loopback (127/8, ::1), RFC1918
+	// private ranges, link-local — including the cloud metadata endpoint
+	// at 169.254.169.254 — multicast and the unspecified address. Set this
+	// to true to permit those addresses, which is required when an agent
+	// legitimately needs to call internal services.
+	//
+	// `allowed_domains` and `blocked_domains` are evaluated independently
+	// of this flag: even with `allow_private_ips: true`, an entry in
+	// `blocked_domains` (or absence from `allowed_domains`) still rejects
+	// the request before any network call.
+	AllowPrivateIPs bool `json:"allow_private_ips,omitempty" yaml:"allow_private_ips,omitempty"`
 
 	// For the `rag` tool
 	RAGConfig *RAGConfig `json:"rag_config,omitempty" yaml:"rag_config,omitempty"`
@@ -1954,8 +1994,8 @@ func (h *HookDefinition) DisplayName() string {
 	return h.Type
 }
 
-// validate validates the HooksConfig
-func (h *HooksConfig) validate() error {
+// Validate validates the HooksConfig
+func (h *HooksConfig) Validate() error {
 	// Validate PreToolUse matchers
 	for i, m := range h.PreToolUse {
 		if err := m.validate("pre_tool_use", i); err != nil {

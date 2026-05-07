@@ -109,11 +109,11 @@ func (c *diskCache) FetchAndStore(ctx context.Context, baseURL, skillName, fileP
 	contentPath := filepath.Join(dir, filePath)
 	metaPath := contentPath + ".meta"
 
-	if err := os.MkdirAll(filepath.Dir(contentPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(contentPath), 0o700); err != nil {
 		return "", fmt.Errorf("creating cache directory: %w", err)
 	}
 
-	if err := os.WriteFile(contentPath, body, 0o644); err != nil {
+	if err := os.WriteFile(contentPath, body, 0o600); err != nil {
 		return "", fmt.Errorf("writing cache file: %w", err)
 	}
 
@@ -123,7 +123,7 @@ func (c *diskCache) FetchAndStore(ctx context.Context, baseURL, skillName, fileP
 		ExpiresAt: expiresAt,
 	}
 	metaJSON, _ := json.Marshal(meta)
-	if err := os.WriteFile(metaPath, metaJSON, 0o644); err != nil {
+	if err := os.WriteFile(metaPath, metaJSON, 0o600); err != nil {
 		// Non-fatal: the content is cached, just the metadata isn't
 		slog.DebugContext(ctx, "Failed to write cache metadata", "path", metaPath, "error", err)
 	}

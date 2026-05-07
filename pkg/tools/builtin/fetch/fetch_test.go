@@ -15,16 +15,29 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
+// newFetchToolForTest constructs a FetchTool that bypasses SSRF dial-time
+// protection so tests can talk to httptest.NewServer (which binds to
+// 127.0.0.1). It is defined in a *_test.go file so it is not compiled
+// into release binaries. Production callers must use [NewFetchTool],
+// which refuses non-public addresses by default.
+//
+// The helper prepends [WithAllowPrivateIPs](true) to opts so explicit
+// caller options still take precedence (a later option overrides an
+// earlier one).
+func newFetchToolForTest(opts ...ToolOption) *Tool {
+	return NewFetchTool(append([]ToolOption{WithAllowPrivateIPs(true)}, opts...)...)
+}
+
 func TestFetchToolWithOptions(t *testing.T) {
 	customTimeout := 60 * time.Second
 
-	tool := NewFetchTool(WithTimeout(customTimeout))
+	tool := newFetchToolForTest(WithTimeout(customTimeout))
 
 	assert.Equal(t, customTimeout, tool.handler.timeout)
 }
 
 func TestFetchTool_Tools(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -74,7 +87,7 @@ func TestFetchTool_Tools(t *testing.T) {
 }
 
 func TestFetchTool_Instructions(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	instructions := tools.GetInstructions(tool)
 
@@ -84,7 +97,7 @@ func TestFetchTool_Instructions(t *testing.T) {
 func TestFetchTool_StartStop(t *testing.T) {
 	// Tool doesn't need to implement Startable -
 	// it has no initialization or cleanup requirements
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	// Verify it implements ToolSet but not necessarily Startable
 	_, ok := any(tool).(tools.Startable)
@@ -97,7 +110,7 @@ func TestFetch_Call_Success(t *testing.T) {
 		fmt.Fprint(w, "Hello, World!")
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{URLs: []string{url}})
 	require.NoError(t, err)
@@ -116,7 +129,7 @@ func TestFetch_Call_MultipleURLs(t *testing.T) {
 		fmt.Fprint(w, "Server 2")
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{URLs: []string{url1, url2}})
 	require.NoError(t, err)
@@ -131,7 +144,7 @@ func TestFetch_Call_MultipleURLs(t *testing.T) {
 }
 
 func TestFetch_Call_InvalidURL(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs: []string{
@@ -143,7 +156,7 @@ func TestFetch_Call_InvalidURL(t *testing.T) {
 }
 
 func TestFetch_Call_UnsupportedProtocol(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs: []string{
@@ -156,7 +169,7 @@ func TestFetch_Call_UnsupportedProtocol(t *testing.T) {
 }
 
 func TestFetch_Call_NoURLs(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	_, err := tool.handler.CallTool(t.Context(), ToolArgs{})
 	require.ErrorContains(t, err, "at least one URL is required")
@@ -168,7 +181,7 @@ func TestFetch_Markdown(t *testing.T) {
 		fmt.Fprint(w, "<h1>Hello docker agent</h1>")
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url},
@@ -188,7 +201,7 @@ func TestFetch_Text(t *testing.T) {
 		fmt.Fprint(w, "<h1>Hello docker agent</h1>")
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url},
@@ -228,7 +241,7 @@ func TestFetch_RobotsAllowed(t *testing.T) {
 		http.NotFound(w, r)
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/allowed"},
 		Format: "text",
@@ -256,7 +269,7 @@ func TestFetch_RobotsBlocked(t *testing.T) {
 		http.NotFound(w, r)
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/blocked"},
 		Format: "text",
@@ -280,7 +293,7 @@ func TestFetch_RobotsMissing(t *testing.T) {
 		http.NotFound(w, r)
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/content"},
 		Format: "text",
@@ -312,7 +325,7 @@ func TestFetch_RobotsCachePerHost_MultipleURLs(t *testing.T) {
 		}
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/public", url + "/secret/data"},
 		Format: "text",
@@ -344,7 +357,7 @@ func TestFetch_RobotsUnexpectedStatus(t *testing.T) {
 		fmt.Fprint(w, "content")
 	})
 
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/page"},
 		Format: "text",
@@ -355,7 +368,7 @@ func TestFetch_RobotsUnexpectedStatus(t *testing.T) {
 }
 
 func TestFetchTool_OutputSchema(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -367,7 +380,7 @@ func TestFetchTool_OutputSchema(t *testing.T) {
 }
 
 func TestFetchTool_ParametersAreObjects(t *testing.T) {
-	tool := NewFetchTool()
+	tool := newFetchToolForTest()
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -382,21 +395,21 @@ func TestFetchTool_ParametersAreObjects(t *testing.T) {
 }
 
 func TestFetchTool_WithAllowedDomainsOption(t *testing.T) {
-	tool := NewFetchTool(WithAllowedDomains([]string{"example.com"}))
+	tool := newFetchToolForTest(WithAllowedDomains([]string{"example.com"}))
 
 	assert.Equal(t, []string{"example.com"}, tool.handler.allowedDomains)
 	assert.Empty(t, tool.handler.blockedDomains)
 }
 
 func TestFetchTool_WithBlockedDomainsOption(t *testing.T) {
-	tool := NewFetchTool(WithBlockedDomains([]string{"evil.example.com"}))
+	tool := newFetchToolForTest(WithBlockedDomains([]string{"evil.example.com"}))
 
 	assert.Equal(t, []string{"evil.example.com"}, tool.handler.blockedDomains)
 	assert.Empty(t, tool.handler.allowedDomains)
 }
 
 func TestFetchTool_AllowedDomainsAppearInInstructions(t *testing.T) {
-	tool := NewFetchTool(WithAllowedDomains([]string{"docker.com", "github.com"}))
+	tool := newFetchToolForTest(WithAllowedDomains([]string{"docker.com", "github.com"}))
 
 	instructions := tools.GetInstructions(tool)
 
@@ -406,7 +419,7 @@ func TestFetchTool_AllowedDomainsAppearInInstructions(t *testing.T) {
 }
 
 func TestFetchTool_BlockedDomainsAppearInInstructions(t *testing.T) {
-	tool := NewFetchTool(WithBlockedDomains([]string{"169.254.169.254"}))
+	tool := newFetchToolForTest(WithBlockedDomains([]string{"169.254.169.254"}))
 
 	instructions := tools.GetInstructions(tool)
 
@@ -419,7 +432,7 @@ func TestFetchTool_WithHeadersOption(t *testing.T) {
 		"Authorization": "Bearer secret-token",
 		"X-Api-Key":     "key-123",
 	}
-	tool := NewFetchTool(WithHeaders(headers))
+	tool := newFetchToolForTest(WithHeaders(headers))
 
 	assert.Equal(t, headers, tool.handler.headers)
 }
@@ -437,7 +450,7 @@ func TestFetch_Headers_SentOnRequest(t *testing.T) {
 		fmt.Fprint(w, "ok")
 	})
 
-	tool := NewFetchTool(WithHeaders(map[string]string{
+	tool := newFetchToolForTest(WithHeaders(map[string]string{
 		"Authorization": "Bearer secret-token",
 		"X-Api-Key":     "key-123",
 	}))
@@ -466,7 +479,7 @@ func TestFetch_Headers_OverrideDefaults(t *testing.T) {
 		fmt.Fprint(w, "ok")
 	})
 
-	tool := NewFetchTool(WithHeaders(map[string]string{
+	tool := newFetchToolForTest(WithHeaders(map[string]string{
 		"User-Agent": "CustomAgent/1.0",
 		"Accept":     "application/json",
 	}))
@@ -548,7 +561,7 @@ func TestFetch_AllowedDomains_DeniesUnknownHost(t *testing.T) {
 
 	// httptest servers run on 127.0.0.1; an allow-list that does not include
 	// it must short-circuit the request.
-	tool := NewFetchTool(WithAllowedDomains([]string{"example.com"}))
+	tool := newFetchToolForTest(WithAllowedDomains([]string{"example.com"}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/whatever"},
@@ -571,7 +584,7 @@ func TestFetch_AllowedDomains_PermitsKnownHost(t *testing.T) {
 		fmt.Fprint(w, "hello")
 	})
 
-	tool := NewFetchTool(WithAllowedDomains([]string{"127.0.0.1"}))
+	tool := newFetchToolForTest(WithAllowedDomains([]string{"127.0.0.1"}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/page"},
@@ -588,7 +601,7 @@ func TestFetch_BlockedDomains_DeniesMatchingHost(t *testing.T) {
 		fmt.Fprint(w, "should not be reached")
 	})
 
-	tool := NewFetchTool(WithBlockedDomains([]string{"127.0.0.1"}))
+	tool := newFetchToolForTest(WithBlockedDomains([]string{"127.0.0.1"}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/page"},
@@ -612,7 +625,7 @@ func TestFetch_BlockedDomains_DeniesIgnoringRobots(t *testing.T) {
 		fmt.Fprint(w, "should not be reached")
 	})
 
-	tool := NewFetchTool(WithBlockedDomains([]string{"127.0.0.1"}))
+	tool := newFetchToolForTest(WithBlockedDomains([]string{"127.0.0.1"}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/page"},
@@ -642,7 +655,7 @@ func TestFetch_AllowedDomains_RejectsRedirectToBlockedHost(t *testing.T) {
 
 	// Allow only the test server's host. The redirect target must be
 	// rejected without any network call to attacker.example.com.
-	tool := NewFetchTool(WithAllowedDomains([]string{parsed.Hostname()}))
+	tool := newFetchToolForTest(WithAllowedDomains([]string{parsed.Hostname()}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/start"},
@@ -667,7 +680,7 @@ func TestFetch_BlockedDomains_RejectsRedirectToBlockedHost(t *testing.T) {
 		http.Redirect(w, r, "http://169.254.169.254/metadata", http.StatusFound)
 	})
 
-	tool := NewFetchTool(WithBlockedDomains([]string{"169.254.169.254"}))
+	tool := newFetchToolForTest(WithBlockedDomains([]string{"169.254.169.254"}))
 
 	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
 		URLs:   []string{url + "/innocent"},
@@ -745,7 +758,7 @@ func TestFetch_Headers_StrippedOnCrossHostRedirect(t *testing.T) {
 
 	redirectURL = url2 + "/target"
 
-	tool := NewFetchTool(WithHeaders(map[string]string{
+	tool := newFetchToolForTest(WithHeaders(map[string]string{
 		"X-Api-Key": "secret-key-must-not-leak",
 	}))
 
@@ -784,7 +797,7 @@ func TestFetch_Headers_PreservedOnSameHostRedirect(t *testing.T) {
 		fmt.Fprint(w, "same-host redirect")
 	})
 
-	tool := NewFetchTool(WithHeaders(map[string]string{
+	tool := newFetchToolForTest(WithHeaders(map[string]string{
 		"Authorization": "Bearer secret-token",
 	}))
 
@@ -826,7 +839,7 @@ func TestFetch_Headers_StrippedOnRobotsCrossHostRedirect(t *testing.T) {
 		fmt.Fprint(w, "page content")
 	})
 
-	tool := NewFetchTool(WithHeaders(map[string]string{
+	tool := newFetchToolForTest(WithHeaders(map[string]string{
 		"X-Api-Key": "secret-key-must-not-leak",
 	}))
 
@@ -838,4 +851,57 @@ func TestFetch_Headers_StrippedOnRobotsCrossHostRedirect(t *testing.T) {
 
 	assert.Empty(t, leaked,
 		"custom header MUST NOT leak via a robots.txt cross-host redirect")
+}
+
+// TestFetch_DefaultRefusesNonPublicAddresses pins the security-relevant
+// default: an out-of-the-box [NewFetchTool] (no WithAllowPrivateIPs)
+// must refuse to dial loopback, RFC1918, link-local incl. cloud
+// metadata, multicast and the unspecified address. These are checked
+// after DNS resolution, so a public hostname that resolves to a private
+// IP would also be refused (DNS rebinding defence).
+func TestFetch_DefaultRefusesNonPublicAddresses(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"http://127.0.0.1/",
+		"http://[::1]/",
+		"http://10.0.0.1/",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://0.0.0.0/",
+	}
+	for _, target := range tests {
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+			tool := NewFetchTool() // production constructor, no opt-in
+			result, err := tool.handler.CallTool(t.Context(), ToolArgs{
+				URLs:   []string{target},
+				Format: "text",
+			})
+			require.NoError(t, err)
+			assert.Contains(t, result.Output, "non-public address",
+				"production default must refuse non-public addresses (got %q)", result.Output)
+		})
+	}
+}
+
+// TestFetch_AllowPrivateIPsRestoresLegacyBehaviour verifies that the
+// explicit opt-in disables the dial-time SSRF check, allowing operators
+// who legitimately need to call internal services to do so.
+func TestFetch_AllowPrivateIPsRestoresLegacyBehaviour(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, "internal service response")
+	}))
+	t.Cleanup(server.Close)
+
+	tool := NewFetchTool(WithAllowPrivateIPs(true))
+	result, err := tool.handler.CallTool(t.Context(), ToolArgs{
+		URLs:   []string{server.URL},
+		Format: "text",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, result.Output, "internal service response",
+		"WithAllowPrivateIPs(true) must permit dialling 127.0.0.1")
 }

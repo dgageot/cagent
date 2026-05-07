@@ -114,13 +114,13 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	for _, name := range t.AgentNames() {
 		agent, err := t.Agent(name)
 		if err != nil {
-			slog.Error("Failed to get agent", "name", name, "error", err)
+			slog.ErrorContext(ctx, "Failed to get agent", "name", name, "error", err)
 			continue
 		}
 
 		tools, err := agent.Tools(ctx)
 		if err != nil {
-			slog.Error("Failed to query tools", "name", agent.Name(), "error", err)
+			slog.ErrorContext(ctx, "Failed to query tools", "name", agent.Name(), "error", err)
 			continue
 		}
 

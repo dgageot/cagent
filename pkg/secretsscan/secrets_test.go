@@ -23,6 +23,7 @@ func TestContainsSecretsRecognisesKnownTokens(t *testing.T) {
 	}{
 		{"github_pat", "ghp_cxLeRrvbJfmYdUtr70xnNE3Q7Gvli43s19PD"},
 		{"docker_pat", "dckr_pat_" + "AAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+		{"docker_oat", "dckr_oat_" + "AAAAAAAAAAAAAAAAAAAAAAAAAAA"},
 		// Patterns added on top of the upstream catalogue. Each value
 		// is split across string concatenation so the verbatim token
 		// never appears on a single source line in case downstream
@@ -51,6 +52,56 @@ func TestContainsSecretsRecognisesKnownTokens(t *testing.T) {
 		{"atlassian_cloud_api_token", "ATATT3xFfGF0" + strings.Repeat("a", 200)},
 		{"digitalocean_oauth_token", "doo_v1_" + strings.Repeat("a", 64)},
 		{"digitalocean_oauth_refresh", "dor_v1_" + strings.Repeat("a", 64)},
+		// Second batch of additions (Discord / Telegram / Fly.io / LLM
+		// providers / data-store URIs / Cloudflare Origin CA / etc.).
+		{"discord_bot_token", "MTI" + strings.Repeat("a", 22) + "." + strings.Repeat("b", 6) + "." + strings.Repeat("c", 30)},
+		{"discord_bot_token_n_prefix", "NDQ" + strings.Repeat("a", 22) + "." + strings.Repeat("b", 6) + "." + strings.Repeat("c", 30)},
+		{"discord_webhook_url", "https://discord.com/api/webhooks/" + strings.Repeat("1", 18) + "/" + strings.Repeat("a", 60)},
+		{"discord_webhook_legacy", "https://discordapp.com/api/webhooks/" + strings.Repeat("1", 18) + "/" + strings.Repeat("a", 60)},
+		{"telegram_bot_token", strings.Repeat("1", 10) + ":AA" + strings.Repeat("a", 33)},
+		{"flyio_macaroon", "FlyV1 " + "fm2_" + strings.Repeat("a", 80)},
+		{"groq_api_key", "gsk_" + strings.Repeat("a", 52)},
+		{"perplexity_api_key", "pplx-" + strings.Repeat("a", 48)},
+		{"xai_api_key", "xai-" + strings.Repeat("a", 80)},
+		{"cohere_api_key", "co_" + strings.Repeat("a", 40)},
+		{"buildkite_agent_token", "bkua_" + strings.Repeat("a", 40)},
+		{"circleci_project_token", "CCIPRJ_someorg_" + strings.Repeat("a", 40)},
+		{"cloudinary_url", "cloudinary://" + strings.Repeat("1", 15) + ":" + strings.Repeat("a", 27) + "@" + strings.Repeat("b", 10)},
+		{"mongodb_conn_string", "mongodb+srv://user:" + strings.Repeat("p", 24) + "@cluster.mongodb.net"},
+		{"postgres_conn_string", "postgresql://user:" + strings.Repeat("p", 24) + "@db.example.com"},
+		{"azure_storage_conn", "DefaultEndpointsProtocol=https;AccountName=mystorage;AccountKey=" + strings.Repeat("a", 86) + "=="},
+		{"mapbox_secret_key", "sk." + strings.Repeat("a", 60) + "." + strings.Repeat("b", 22)},
+		{"vault_batch_token", "hvb." + strings.Repeat("a", 100)},
+		{"vault_recovery_token", "hvr." + strings.Repeat("a", 100)},
+		{"netlify_pat", "nfp_" + strings.Repeat("a", 40)},
+		{"asana_pat", "1/" + strings.Repeat("1", 16) + ":" + strings.Repeat("a", 32)},
+		{"cloudflare_origin_ca_key", "v1.0-" + strings.Repeat("a", 32) + "-" + strings.Repeat("b", 146)},
+		// Third batch of additions — vendor-prefixed credentials
+		// confirmed against gitleaks default rules and vendor docs.
+		{"onepassword_service_account", "ops_eyJ" + strings.Repeat("a", 260)},
+		{"openrouter_api_key", "sk-or-v1-" + strings.Repeat("a", 64)},
+		{"sonar_user_token", "squ_" + strings.Repeat("a", 40)},
+		{"sonar_project_token", "sqp_" + strings.Repeat("a", 40)},
+		{"sonar_global_analysis_token", "sqa_" + strings.Repeat("a", 40)},
+		{"pinecone_api_key", "pckey_" + "label_" + strings.Repeat("a", 32)},
+		{"supabase_secret_key", "sb_secret_" + strings.Repeat("a", 48)},
+		{"tailscale_auth_key", "tskey-auth-" + strings.Repeat("a", 12) + "-" + strings.Repeat("b", 32)},
+		{"tailscale_api_access_token", "tskey-api-" + strings.Repeat("a", 12) + "-" + strings.Repeat("b", 32)},
+		{"vercel_personal_access_token", "vcp_" + strings.Repeat("a", 24)},
+		{"vercel_cli_token", "vck_" + strings.Repeat("a", 24)},
+		{"vercel_integration_token", "vci_" + strings.Repeat("a", 24)},
+		// Fourth batch — payment processors, AI / data platforms, infra.
+		{"razorpay_test_key_id", "rzp_test_" + strings.Repeat("a", 14)},
+		{"razorpay_live_key_id", "rzp_live_" + strings.Repeat("a", 14)},
+		{"adyen_api_key", "AQE" + strings.Repeat("a", 200)},
+		{"plaid_access_token_sandbox", "access-sandbox-" + strings.Repeat("a", 8) + "-" + strings.Repeat("b", 4) + "-" + strings.Repeat("c", 4) + "-" + strings.Repeat("d", 4) + "-" + strings.Repeat("e", 12)},
+		{"plaid_access_token_production", "access-production-" + strings.Repeat("f", 8) + "-" + strings.Repeat("a", 4) + "-" + strings.Repeat("b", 4) + "-" + strings.Repeat("c", 4) + "-" + strings.Repeat("d", 12)},
+		{"posthog_personal_api_token", "phx_" + strings.Repeat("a", 43)},
+		{"render_api_key", "rnd_" + strings.Repeat("a", 32)},
+		{"honeycomb_ingest_key", "hcaik_" + strings.Repeat("a", 58)},
+		{"honeycomb_config_key", "hcaic_" + strings.Repeat("a", 58)},
+		{"akamai_edgegrid_client_token", "akab-" + strings.Repeat("a", 16) + "-" + strings.Repeat("b", 16)},
+		{"adafruit_io_key", "aio_" + strings.Repeat("a", 28)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -133,6 +184,62 @@ func TestRedactDoesNotSwallowAdjacentTextAfterSlackRotatingToken(t *testing.T) {
 		"a Slack rotating token must still be redacted: %q", out)
 	assert.Containsf(t, out, "api.slack.com",
 		"adjacent hostname must NOT be swallowed by the rotating-token regex: %q", out)
+}
+
+// TestRedactDoesNotSwallowAdjacentTextAfterPrefixedTokens pins the
+// upper bounds of the rules whose bodies share a character class
+// with arbitrary trailing text. Without an explicit ceiling on the
+// body quantifier, a token directly abutting alphanumeric content
+// would have all of the trailing text silently consumed into the
+// redaction span. Each subtest below uses a suffix long enough to
+// overflow the rule's body cap and asserts that the overflow is
+// preserved — i.e. an upper bound exists and is enforced. (Short
+// alphanumeric identifiers concatenated to a token without any
+// separator may still be consumed up to the cap; the realistic leak
+// vector is rare in practice and the alternative — leaving secrets
+// partially redacted — is worse.)
+func TestRedactDoesNotSwallowAdjacentTextAfterPrefixedTokens(t *testing.T) {
+	t.Parallel()
+
+	// Each token below is intentionally longer than the rule's
+	// upper bound so the regex must split the input into a redacted
+	// prefix and a literal trailing suffix. The marker `STOPHERE` is
+	// alphanumeric (so it would be consumed by an unbounded quantifier)
+	// but is positioned past the body cap to confirm the cap is real.
+	cases := []struct {
+		name  string
+		token string
+	}{
+		// Body cap 80 — use 90 chars to overflow.
+		{"vercel_personal", "vcp_" + strings.Repeat("a", 90)},
+		{"vercel_cli", "vck_" + strings.Repeat("b", 90)},
+		{"vercel_integration", "vci_" + strings.Repeat("c", 90)},
+		// Supabase body cap 80 — use 90 chars.
+		{"supabase_secret", "sb_secret_" + strings.Repeat("d", 90)},
+		// Render body cap 80 — use 90 chars.
+		{"render_api_key", "rnd_" + strings.Repeat("e", 90)},
+		// 1Password body cap 1000 — use 1100 chars.
+		{"onepassword_service_account", "ops_eyJ" + strings.Repeat("f", 1100)},
+		// Pinecone second segment cap 80 — use 90 chars.
+		{"pinecone_api_key", "pckey_label_" + strings.Repeat("g", 90)},
+		// Tailscale second segment cap 80 — use 90 chars.
+		{"tailscale_auth_key", "tskey-auth-" + strings.Repeat("h", 12) + "-" + strings.Repeat("i", 90)},
+		{"tailscale_api_token", "tskey-api-" + strings.Repeat("j", 12) + "-" + strings.Repeat("k", 90)},
+	}
+	const suffix = " and the rest of the line"
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			input := tc.token + suffix
+			out := secretsscan.Redact(input)
+
+			assert.Containsf(t, out, secretsscan.RedactionMarker,
+				"%s must still be redacted: %q", tc.name, out)
+			assert.Containsf(t, out, suffix,
+				"adjacent text past the body cap must NOT be swallowed by %s: %q",
+				tc.name, out)
+		})
+	}
 }
 
 // TestContainsSecretsIgnoresHarmlessText: pure digit strings, plain

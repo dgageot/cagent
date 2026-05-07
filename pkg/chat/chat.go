@@ -29,9 +29,11 @@ const (
 type MessagePartType string
 
 const (
-	MessagePartTypeText     MessagePartType = "text"
+	MessagePartTypeText MessagePartType = "text"
+	// MessagePartTypeImageURL is superseded by MessagePartTypeDocument. Will be removed in a future release.
 	MessagePartTypeImageURL MessagePartType = "image_url"
-	MessagePartTypeFile     MessagePartType = "file"
+	// MessagePartTypeFile is superseded by MessagePartTypeDocument. Will be removed in a future release.
+	MessagePartTypeFile MessagePartType = "file"
 )
 
 type ImageURLDetail string
@@ -106,10 +108,14 @@ type MessageFile struct {
 }
 
 type MessagePart struct {
-	Type     MessagePartType  `json:"type,omitempty"`
-	Text     string           `json:"text,omitempty"`
+	Type MessagePartType `json:"type,omitempty"`
+	Text string          `json:"text,omitempty"`
+	// Note: superseded by Document+MessagePartTypeDocument. Will be removed in a future release.
 	ImageURL *MessageImageURL `json:"image_url,omitempty"`
-	File     *MessageFile     `json:"file,omitempty"`
+	// Note: superseded by Document+MessagePartTypeDocument. Will be removed in a future release.
+	File *MessageFile `json:"file,omitempty"`
+	// Document is set when Type is MessagePartTypeDocument.
+	Document *Document `json:"document,omitempty"`
 }
 
 // FinishReason represents the reason why the model finished generating a response

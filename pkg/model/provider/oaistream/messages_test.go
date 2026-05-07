@@ -62,7 +62,7 @@ func TestConvertMultiContent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := ConvertMultiContent(tt.multiContent)
+			result := ConvertMultiContent(t.Context(), tt.multiContent, "")
 			assert.Len(t, result, tt.wantCount)
 		})
 	}
@@ -137,7 +137,7 @@ func TestConvertMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := ConvertMessages(tt.messages)
+			result := ConvertMessages(t.Context(), tt.messages, "")
 			assert.Len(t, result, tt.want)
 		})
 	}

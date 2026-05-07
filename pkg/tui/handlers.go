@@ -71,7 +71,7 @@ func (m *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 	if m.tuiStore != nil {
 		oldPersistedID := m.persistedSessionID(activeID)
 		if err := m.tuiStore.UpdateTabSessionID(ctx, oldPersistedID, newSess.ID); err != nil {
-			slog.Warn("Failed to update tab session ID after branch", "error", err)
+			slog.WarnContext(ctx, "Failed to update tab session ID after branch", "error", err)
 		}
 	}
 	m.persistActiveTab(newSess.ID)
@@ -135,7 +135,7 @@ func (m *appModel) handleForkSession() (tea.Model, tea.Cmd) {
 
 	if m.tuiStore != nil {
 		if err := m.tuiStore.AddTab(ctx, forkedSession.ID, forkedSession.WorkingDir); err != nil {
-			slog.Warn("Failed to persist forked tab", "error", err)
+			slog.WarnContext(ctx, "Failed to persist forked tab", "error", err)
 		}
 	}
 
@@ -245,6 +245,56 @@ func (m *appModel) handleCopyLastResponseToClipboard() (tea.Model, tea.Cmd) {
 		return m, notification.InfoCmd("No assistant response to copy.")
 	}
 	return m, copyToClipboard(lastResponse, "Last response copied to clipboard.")
+}
+
+func (m *appModel) handleUndoSnapshot() (tea.Model, tea.Cmd) {
+	if m.chatPage.IsWorking() {
+		return m, notification.WarningCmd("Wait for the current response to finish before undoing")
+	}
+	result, err := m.application.UndoLastSnapshot(context.Background())
+	if err != nil {
+		if errors.Is(err, app.ErrNothingToUndo) {
+			return m, notification.InfoCmd("No snapshot to undo")
+		}
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to undo snapshot: %v", err))
+	}
+
+	text := fmt.Sprintf("Restored %d file%s from the last snapshot", result.RestoredFiles, plural(result.RestoredFiles))
+	return m, notification.SuccessCmd(text)
+}
+
+func (m *appModel) handleShowSnapshotsDialog() (tea.Model, tea.Cmd) {
+	snapshots := m.application.ListSnapshots()
+	return m, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewSnapshotsDialog(snapshots),
+	})
+}
+
+func (m *appModel) handleResetSnapshot(keep int) (tea.Model, tea.Cmd) {
+	if m.chatPage.IsWorking() {
+		return m, notification.WarningCmd("Wait for the current response to finish before resetting")
+	}
+	result, err := m.application.ResetSnapshot(context.Background(), keep)
+	if err != nil {
+		if errors.Is(err, app.ErrNothingToUndo) {
+			return m, notification.InfoCmd("Nothing to reset")
+		}
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to reset snapshot: %v", err))
+	}
+
+	target := "the original state"
+	if keep > 0 {
+		target = fmt.Sprintf("snapshot %d", keep)
+	}
+	text := fmt.Sprintf("Restored %d file%s to %s", result.RestoredFiles, plural(result.RestoredFiles), target)
+	return m, notification.SuccessCmd(text)
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // copyToClipboard returns a sequenced command that copies text to the system

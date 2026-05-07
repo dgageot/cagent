@@ -22,7 +22,7 @@ func SaveRunSessions(ctx context.Context, run *EvalRun, outputDir string) (strin
 	dbPath := filepath.Join(outputDir, run.Name+".db")
 
 	// Create output directory if needed
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o700); err != nil {
 		return "", fmt.Errorf("creating output directory: %w", err)
 	}
 
@@ -493,11 +493,11 @@ func saveJSON(value any, outputPath string) (string, error) {
 		return "", err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o700); err != nil {
 		return "", err
 	}
 
-	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0o600); err != nil {
 		return "", err
 	}
 

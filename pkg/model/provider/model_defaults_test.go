@@ -239,31 +239,6 @@ func TestApplyProviderDefaults(t *testing.T) {
 	}
 }
 
-func TestIsOpenAIThinkingOnlyModel(t *testing.T) {
-	t.Parallel()
-
-	for _, tt := range []struct {
-		model string
-		want  bool
-	}{
-		{"o1", true},
-		{"o1-preview", true},
-		{"o1-mini", true},
-		{"o3", true},
-		{"o3-mini", true},
-		{"o4-mini", true},
-		{"gpt-4o", false},
-		{"gpt-4.1", false},
-		{"gpt-5", false},
-		{"custom-model", false},
-	} {
-		t.Run(tt.model, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, isOpenAIThinkingOnlyModel(tt.model))
-		})
-	}
-}
-
 // TestApplyProviderDefaults_DoesNotModifyOriginal verifies that applyProviderDefaults
 // does not mutate the input config's ProviderOpts map.
 func TestApplyProviderDefaults_DoesNotModifyOriginal(t *testing.T) {
@@ -288,4 +263,48 @@ func TestApplyProviderDefaults_DoesNotModifyOriginal(t *testing.T) {
 
 	// Original custom key must still be there.
 	assert.Equal(t, "original_value", original.ProviderOpts["custom_key"])
+}
+
+// TestApplyProviderDefaults_InheritsAuthFromProviderConfig verifies that a
+// ProviderConfig's Auth block is inherited by models that don't override it,
+// while a model-level Auth always wins.
+func TestApplyProviderDefaults_InheritsAuthFromProviderConfig(t *testing.T) {
+	t.Parallel()
+
+	provAuth := &latest.AuthConfig{
+		Type: latest.AuthTypeWorkloadIdentityFederation,
+		Federation: &latest.FederationAuthConfig{
+			FederationRuleID: "fdrl_provider",
+			OrganizationID:   "org",
+			IdentityToken:    &latest.IdentityTokenSourceConfig{File: "/p"},
+		},
+	}
+	modelAuth := &latest.AuthConfig{
+		Type: latest.AuthTypeWorkloadIdentityFederation,
+		Federation: &latest.FederationAuthConfig{
+			FederationRuleID: "fdrl_model",
+			OrganizationID:   "org",
+			IdentityToken:    &latest.IdentityTokenSourceConfig{File: "/m"},
+		},
+	}
+	custom := map[string]latest.ProviderConfig{
+		"claude": {Provider: "anthropic", Auth: provAuth},
+	}
+
+	t.Run("inherits when model has no auth", func(t *testing.T) {
+		t.Parallel()
+		m := &latest.ModelConfig{Provider: "claude", Model: "claude-x"}
+		res := applyProviderDefaults(m, custom)
+		require.NotNil(t, res.Auth)
+		assert.Equal(t, "fdrl_provider", res.Auth.Federation.FederationRuleID)
+		assert.Nil(t, m.Auth, "original ModelConfig must not be mutated")
+	})
+
+	t.Run("model auth wins over provider auth", func(t *testing.T) {
+		t.Parallel()
+		m := &latest.ModelConfig{Provider: "claude", Model: "claude-x", Auth: modelAuth}
+		res := applyProviderDefaults(m, custom)
+		require.NotNil(t, res.Auth)
+		assert.Equal(t, "fdrl_model", res.Auth.Federation.FederationRuleID)
+	})
 }

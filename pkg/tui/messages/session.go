@@ -47,6 +47,18 @@ type (
 	// CopyLastResponseToClipboardMsg copies the last assistant response to clipboard.
 	CopyLastResponseToClipboardMsg struct{}
 
+	// UndoSnapshotMsg restores files from the latest snapshot.
+	UndoSnapshotMsg struct{}
+
+	// ShowSnapshotsDialogMsg requests opening the snapshots dialog.
+	ShowSnapshotsDialogMsg struct{}
+
+	// ResetSnapshotMsg requests restoring the workspace to a snapshot.
+	// Keep is the number of snapshots to retain in chronological order:
+	// 0 reverts every snapshot (back to the original pre-agent state),
+	// N keeps snapshots 1..N and reverts any later ones.
+	ResetSnapshotMsg struct{ Keep int }
+
 	// ExportSessionMsg exports the session to the specified file.
 	ExportSessionMsg struct{ Filename string }
 

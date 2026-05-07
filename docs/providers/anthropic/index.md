@@ -15,6 +15,64 @@ _Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with docker-
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
+### Workload Identity Federation (no API key)
+
+Authenticate with short-lived tokens minted from your own OIDC identity
+provider instead of a long-lived API key. See Anthropic's
+[Workload Identity Federation guide](https://platform.claude.com/docs/en/build-with-claude/workload-identity-federation)
+to provision a Federation Rule, then configure docker-agent with a typed
+`auth:` block:
+
+```yaml
+providers:
+  anthropic-wif:
+    provider: anthropic
+    auth:
+      type: workload_identity_federation
+      workload_identity_federation:
+        federation_rule_id: fdrl_REPLACE_ME
+        organization_id: 00000000-0000-0000-0000-000000000000
+        # Optional: only required for target_type=SERVICE_ACCOUNT rules.
+        service_account_id: svac_REPLACE_ME
+        identity_token:
+          # Pick exactly one of: file, env, command, url
+          file: /var/run/secrets/anthropic.com/token
+
+models:
+  claude:
+    provider: anthropic-wif
+    model: claude-sonnet-4-5
+```
+
+`identity_token` accepts four mutually exclusive sources:
+
+| Source    | When to use                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `file`    | Kubernetes projected service-account tokens, SPIFFE/SPIRE helpers, Vault sidecars — anything that rotates a file on disk |
+| `env`     | The token is already exported in an environment variable                                                                 |
+| `command` | Shell out to a CLI on every refresh (`gcloud auth print-identity-token`, `az account get-access-token`, ...)              |
+| `url`     | Fetch from an HTTP(S) endpoint (cloud metadata servers, GitHub Actions OIDC token URL, ...)                              |
+
+For `url`, both the URL and any header values support `${VAR}` expansion
+against the runtime environment, which lets you wire the GitHub Actions OIDC
+token endpoint without putting secrets in YAML:
+
+```yaml
+identity_token:
+  url: ${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://api.anthropic.com
+  headers:
+    Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}
+  response_field: value
+```
+
+`auth:` is mutually exclusive with `--gateway`. Token-refresh failures are
+surfaced through the normal error path with a clear `anthropic workload
+identity federation: failed to refresh identity token from <kind> source
+(federation_rule=fdrl_…): ...` message in the TUI.
+
+A complete walkthrough of all four sources lives in
+[`examples/anthropic_wif.yaml`]({{ site.examples_url }}/anthropic_wif.yaml).
+
 ## Configuration
 
 ### Inline

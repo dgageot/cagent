@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -25,22 +25,16 @@ func versionFromDir(dir string) (int, bool) {
 	return n, true
 }
 
-// versionedImportRe matches a versioned config import path of the form
-// ".../pkg/config/vN" at the end of an import path.
-var versionedImportRe = regexp.MustCompile(`pkg/config/v(\d+)$`)
-
 // versionFromImport returns N if importPath ends with "pkg/config/vN".
+// Re-uses [versionFromDir] for the vN suffix, so the two helpers cannot
+// drift apart.
 func versionFromImport(importPath string) (int, bool) {
-	m := versionedImportRe.FindStringSubmatch(importPath)
-	if m == nil {
+	const marker = "pkg/config/"
+	idx := strings.LastIndex(importPath, marker)
+	if idx < 0 {
 		return 0, false
 	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		// Should never happen since regex only captures digits.
-		return 0, false
-	}
-	return n, true
+	return versionFromDir(importPath[idx+len(marker):])
 }
 
 // highestSiblingVersion returns the largest N such that pkg/config/vN/

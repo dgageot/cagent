@@ -2,8 +2,6 @@ package main
 
 import (
 	"go/ast"
-	"slices"
-	"strings"
 
 	"github.com/dgageot/rubocop-go/cop"
 )
@@ -39,54 +37,37 @@ import (
 // Files named builtins.go itself, *_test.go, and testhelpers_test.go are
 // excluded from the constant scan because they are not where new
 // builtins land.
-type HookBuiltinsRegistered struct {
-	cop.Meta
-}
+var HookBuiltinsRegistered = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/HookBuiltinsRegistered",
+		Description: "every builtin name constant under pkg/hooks/builtins/ must appear in a RegisterBuiltin call",
+		Severity:    cop.Error,
+	},
+	Scope: cop.OnlyFile("pkg/hooks/builtins/builtins.go"),
+	Run: func(p *cop.Pass) {
+		declared, err := exportedBuiltinNames(p)
+		if err != nil || len(declared) == 0 {
+			return
+		}
 
-// NewHookBuiltinsRegistered returns a fully configured
-// HookBuiltinsRegistered cop.
-func NewHookBuiltinsRegistered() *HookBuiltinsRegistered {
-	return &HookBuiltinsRegistered{Meta: cop.Meta{
-		CopName:     "Lint/HookBuiltinsRegistered",
-		CopDesc:     "every builtin name constant under pkg/hooks/builtins/ must appear in a RegisterBuiltin call",
-		CopSeverity: cop.Error,
-	}}
-}
+		registered := p.IdentSetFromCalls("RegisterBuiltin", 0)
 
-func (c *HookBuiltinsRegistered) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/hooks/builtins/builtins.go") {
-		return
-	}
+		var missing []string
+		for _, name := range declared {
+			if !registered[name] {
+				missing = append(missing, name)
+			}
+		}
 
-	declared, err := exportedBuiltinNames(p)
-	if err != nil || len(declared) == 0 {
-		return
-	}
-
-	registered := p.IdentSetFromCalls("RegisterBuiltin", 0)
-
-	// Anchor on the first RegisterBuiltin call, falling back to the package
-	// clause if the function was reshaped beyond recognition.
-	var anchor ast.Node = p.File.Name
-	p.ForEachMethodCall("RegisterBuiltin", func(call *ast.CallExpr) {
-		if anchor == p.File.Name {
+		// Anchor on the first RegisterBuiltin call, falling back to the
+		// package clause if the function was reshaped beyond recognition.
+		var anchor ast.Node = p.File.Name
+		if call := p.FirstMethodCall("RegisterBuiltin"); call != nil {
 			anchor = call
 		}
-	})
-
-	var missing []string
-	for _, name := range declared {
-		if !registered[name] {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) == 0 {
-		return
-	}
-	slices.Sort(missing)
-	p.Report(anchor,
-		"pkg/hooks/builtins/builtins.go is missing RegisterBuiltin call(s) for: %s",
-		strings.Join(missing, ", "))
+		p.ReportMissing(anchor,
+			"pkg/hooks/builtins/builtins.go is missing RegisterBuiltin call(s) for: %s", missing)
+	},
 }
 
 // exportedBuiltinNames returns the identifiers of every exported `const Name = "..."`
@@ -110,6 +91,5 @@ func exportedBuiltinNames(p *cop.Pass) ([]string, error) {
 	for n := range seen {
 		names = append(names, n)
 	}
-	slices.Sort(names)
 	return names, nil
 }

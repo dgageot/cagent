@@ -12,22 +12,23 @@ import (
 	"github.com/dgageot/rubocop-go/runner"
 )
 
-// allCops returns the project-specific cops, in declaration order.
-// To add a cop: implement cop.Cop and append it here.
-func allCops() []cop.Cop {
-	return []cop.Cop{
-		NewConfigVersionImport(),
-		NewConfigPackageName(),
-		NewConfigVersionConstant(),
-		NewLatestImportsPredecessor(),
-		NewConfigLatestTagConsistency(),
-		NewConfigVersionsRegistered(),
-		NewTUIViewPurity(),
-		NewRuntimeEventRegistry(),
-		NewRuntimeSessionScoped(),
-		NewHookConfigSync(),
-		NewHookBuiltinsRegistered(),
-	}
+// cops lists every project-specific cop, in declaration order.
+//
+// To add a cop: declare it as a var in its own file using cop.New (or a
+// cop.Func literal when it needs Scope/Types) and append it here.
+var cops = []cop.Cop{
+	ConfigVersionImport,
+	ConfigPackageName,
+	ConfigVersionConstant,
+	LatestImportsPredecessor,
+	ConfigLatestTagConsistency,
+	ConfigVersionsRegistered,
+	TUIViewPurity,
+	RuntimeEventRegistry,
+	RuntimeSessionScoped,
+	HookConfigSync,
+	HookBuiltinsRegistered,
+	SlogContextual,
 }
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 		paths = []string{"."}
 	}
 
-	r := runner.New(allCops(), config.DefaultConfig(), os.Stdout)
+	r := runner.New(cops, config.DefaultConfig(), os.Stdout)
 	offenseCount, err := r.Run(paths)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

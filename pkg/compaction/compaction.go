@@ -2,6 +2,7 @@ package compaction
 
 import (
 	_ "embed"
+	"slices"
 
 	"github.com/docker/docker-agent/pkg/chat"
 )
@@ -80,7 +81,7 @@ func SplitIndexForKeep(messages []chat.Message, maxTokens int64) int {
 
 	var tokens int64
 	lastValidBoundary := len(messages)
-	for i := len(messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(messages) {
 		tokens += EstimateMessageTokens(&messages[i])
 		if tokens > maxTokens {
 			return lastValidBoundary
@@ -108,7 +109,7 @@ func SplitIndexForKeep(messages []chat.Message, maxTokens int64) int {
 func FirstIndexInBudget(messages []chat.Message, contextLimit int64) int {
 	var tokens int64
 	lastValidMessageSeen := len(messages)
-	for i := len(messages) - 1; i >= 0; i-- {
+	for i := range slices.Backward(messages) {
 		tokens += EstimateMessageTokens(&messages[i])
 		if tokens > contextLimit {
 			return lastValidMessageSeen

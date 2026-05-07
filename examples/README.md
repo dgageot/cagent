@@ -221,6 +221,7 @@ remote MCP endpoints.
 | File | What it shows |
 |------|---------------|
 | [`hooks.yaml`](hooks.yaml) | Comprehensive tour of every hook event (`pre_tool_use`, `post_tool_use`, `before_llm_call`, `after_llm_call`, `transform`, `notification`, `session_*`, …). |
+| [`unload_on_switch.yaml`](unload_on_switch.yaml) | `on_agent_switch` builtin (`command: unload`) that unloads the previous agent's models (DMR `_unload`) so two heavy local models can share a single GPU. |
 | [`lifecycle.yaml`](lifecycle.yaml) | Per-toolset lifecycle policies (`strict`, `resilient`, `best-effort`) and restart/back-off tuning. |
 | [`post_edit.yaml`](post_edit.yaml) | Filesystem `post_edit` actions running after every file edit. |
 

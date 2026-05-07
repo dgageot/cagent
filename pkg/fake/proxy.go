@@ -107,7 +107,7 @@ func StartStreamingRecordingProxy(
 		case err := <-stopDone:
 			return err
 		case <-ctx.Done():
-			slog.Warn("Recording proxy cleanup timed out, cassette may be incomplete")
+			slog.WarnContext(ctx, "Recording proxy cleanup timed out, cassette may be incomplete")
 			return nil
 		}
 	}
@@ -192,7 +192,7 @@ func StartProxyWithOptions(
 		case err := <-stopDone:
 			return err
 		case <-ctx.Done():
-			slog.Warn("Recording proxy cleanup timed out, cassette may be incomplete")
+			slog.WarnContext(ctx, "Recording proxy cleanup timed out, cassette may be incomplete")
 			return nil
 		}
 	}
@@ -321,7 +321,7 @@ func Handle(transport http.RoundTripper, headerUpdater func(host string, req *ht
 
 		resp, err := client.Do(req)
 		if err != nil {
-			slog.Error("VCR proxy request failed", "url", targetURL, "error", err)
+			slog.ErrorContext(ctx, "VCR proxy request failed", "url", targetURL, "error", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to run request: "+err.Error())
 		}
 		defer resp.Body.Close()

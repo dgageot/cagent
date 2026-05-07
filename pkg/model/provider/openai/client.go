@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/model/provider/oaistream"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/modelinfo"
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -179,8 +180,8 @@ func (c *Client) Close() {
 
 // convertMessages converts chat.Message to openai.ChatCompletionMessageParamUnion
 // using the shared oaistream implementation.
-func convertMessages(messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
-	return oaistream.ConvertMessages(messages)
+func (c *Client) convertMessages(ctx context.Context, messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
+	return oaistream.ConvertMessages(ctx, messages, c.ModelConfig.Model)
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request
@@ -209,7 +210,7 @@ func (c *Client) CreateChatCompletionStream(
 	default:
 		// Auto-detect based on model name for OpenAI provider
 		// Use Responses API for newer models that support it (gpt-4.1+, o-series, gpt-5)
-		if c.ModelConfig.Provider == "openai" && isResponsesModel(c.ModelConfig.Model) {
+		if c.ModelConfig.Provider == "openai" && modelinfo.SupportsResponsesAPI(c.ModelConfig.Model) {
 			slog.DebugContext(ctx, "Auto-selecting Responses API", "model", c.ModelConfig.Model)
 			return c.CreateResponseStream(ctx, messages, requestTools)
 		}
@@ -224,7 +225,7 @@ func (c *Client) CreateChatCompletionStream(
 
 	params := openai.ChatCompletionNewParams{
 		Model:    c.ModelConfig.Model,
-		Messages: convertMessages(messages),
+		Messages: c.convertMessages(ctx, messages),
 		StreamOptions: openai.ChatCompletionStreamOptionsParam{
 			IncludeUsage: openai.Bool(trackUsage),
 		},
@@ -244,7 +245,7 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
-		if !isResponsesModel(c.ModelConfig.Model) {
+		if !modelinfo.SupportsResponsesAPI(c.ModelConfig.Model) {
 			params.MaxTokens = openai.Int(*maxToken)
 			slog.DebugContext(ctx, "OpenAI request configured with max tokens", "max_tokens", *maxToken, "model", c.ModelConfig.Model)
 		} else {
@@ -289,13 +290,13 @@ func (c *Client) CreateChatCompletionStream(
 	// noThinkingMinOutputTokens so residual hidden reasoning can't starve
 	// visible output. The nil-guard is intentional: when MaxTokens is unset
 	// the caller has imposed no cap, so there is nothing to floor.
-	if isOpenAIReasoningModel(c.ModelConfig.Model) {
+	if modelinfo.UsesReasoningEffort(c.ModelConfig.Model) {
 		if c.ModelOptions.NoThinking() {
 			params.ReasoningEffort = shared.ReasoningEffort("low")
 			// Hidden reasoning tokens count against the output budget even
 			// with low effort. Enforce a floor so visible text isn't starved.
 			if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens < noThinkingMinOutputTokens {
-				if !isResponsesModel(c.ModelConfig.Model) {
+				if !modelinfo.SupportsResponsesAPI(c.ModelConfig.Model) {
 					params.MaxTokens = openai.Int(noThinkingMinOutputTokens)
 				} else {
 					params.MaxCompletionTokens = openai.Int(noThinkingMinOutputTokens)
@@ -363,7 +364,7 @@ func (c *Client) CreateResponseStream(
 		return nil, errors.New("at least one message is required")
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	input := c.convertMessagesToResponseInput(ctx, messages)
 
 	params := responses.ResponseNewParams{
 		Model: c.ModelConfig.Model,
@@ -422,7 +423,7 @@ func (c *Client) CreateResponseStream(
 	// noThinkingMinOutputTokens so residual hidden reasoning can't starve
 	// visible output. The nil-guard is intentional: when MaxTokens is unset
 	// the caller has imposed no cap, so there is nothing to floor.
-	if isOpenAIReasoningModel(c.ModelConfig.Model) {
+	if modelinfo.UsesReasoningEffort(c.ModelConfig.Model) {
 		if c.ModelOptions.NoThinking() {
 			// Use low effort so the model spends as few output tokens as
 			// possible on reasoning, leaving room for visible text.
@@ -563,7 +564,7 @@ func getTransport(cfg *latest.ModelConfig) string {
 	return "sse"
 }
 
-func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
+func (c *Client) convertMessagesToResponseInput(ctx context.Context, messages []chat.Message) []responses.ResponseInputItemUnionParam {
 	var input []responses.ResponseInputItemUnionParam
 	for _, msg := range messages {
 		// Skip invalid messages
@@ -594,6 +595,7 @@ func convertMessagesToResponseInput(messages []chat.Message) []responses.Respons
 							},
 						})
 					case chat.MessagePartTypeImageURL:
+						// Note: superseded by MessagePartTypeDocument.
 						if part.ImageURL != nil {
 							detail := responses.ResponseInputImageContentDetailAuto
 							switch part.ImageURL.Detail {
@@ -608,6 +610,15 @@ func convertMessagesToResponseInput(messages []chat.Message) []responses.Respons
 									Detail:   responses.ResponseInputImageDetail(detail),
 								},
 							})
+						}
+					case chat.MessagePartTypeDocument:
+						if part.Document != nil {
+							docParts, err := convertDocumentToResponseInput(ctx, *part.Document, c.ModelConfig.Model)
+							if err != nil {
+								slog.WarnContext(ctx, "failed to convert document attachment", "error", err, "doc", part.Document.Name)
+								continue
+							}
+							contentParts = append(contentParts, docParts...)
 						}
 					}
 				}
@@ -748,7 +759,7 @@ func convertMessagesToResponseInput(messages []chat.Message) []responses.Respons
 		}
 	}
 	for callID := range pendingCalls {
-		slog.Warn("Injecting placeholder output for orphaned function call", "call_id", callID)
+		slog.WarnContext(ctx, "Injecting placeholder output for orphaned function call", "call_id", callID)
 		input = append(input, responses.ResponseInputItemUnionParam{
 			OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
 				CallID: callID,
@@ -1069,33 +1080,6 @@ func getAPIType(cfg *latest.ModelConfig) string {
 // (defined in the providers: section). Custom providers have api_type set in ProviderOpts.
 func isCustomProvider(cfg *latest.ModelConfig) bool {
 	return getAPIType(cfg) != ""
-}
-
-// isResponsesModel returns true for OpenAI models that should use the Responses API.
-// This includes newer models (gpt-4.1+, o-series, gpt-5) and special variants (-codex).
-func isResponsesModel(model string) bool {
-	m := strings.ToLower(model)
-	return strings.HasPrefix(m, "gpt-4.1") ||
-		strings.HasPrefix(m, "o1") ||
-		strings.HasPrefix(m, "o3") ||
-		strings.HasPrefix(m, "o4") ||
-		strings.HasPrefix(m, "gpt-5") ||
-		strings.HasPrefix(m, "codex") ||
-		strings.Contains(m, "-codex")
-}
-
-func isOpenAIReasoningModel(model string) bool {
-	m := strings.ToLower(model)
-
-	// gpt-5-chat variants are non-reasoning chat models.
-	if strings.HasPrefix(m, "gpt-5-chat") {
-		return false
-	}
-
-	return strings.HasPrefix(m, "o1") ||
-		strings.HasPrefix(m, "o3") ||
-		strings.HasPrefix(m, "o4") ||
-		strings.HasPrefix(m, "gpt-5")
 }
 
 // noThinkingMinOutputTokens is the minimum output-token budget we enforce for

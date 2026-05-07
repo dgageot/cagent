@@ -16,6 +16,16 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
+// newAPIToolForTest constructs an APITool that bypasses SSRF dial-time
+// protection so tests can talk to httptest.NewServer (which binds to
+// 127.0.0.1). It is defined in a *_test.go file so it is not compiled
+// into release binaries. Production callers must use [NewAPITool].
+func newAPIToolForTest(config latest.APIToolConfig, expander *js.Expander) *Tool {
+	t := NewAPITool(config, expander)
+	t.unsafe = true
+	return t
+}
+
 type testServer struct {
 	serverURL       string
 	receivedURL     string
@@ -56,7 +66,7 @@ func TestAPITool_GET(t *testing.T) {
 	t.Parallel()
 	ts := getTestServer(t)
 
-	tool := NewAPITool(latest.APIToolConfig{
+	tool := newAPIToolForTest(latest.APIToolConfig{
 		Method:   http.MethodGet,
 		Endpoint: ts.serverURL + "/api?key=${key}&value=${value}",
 	}, testExpander())
@@ -77,7 +87,7 @@ func TestAPITool_POST(t *testing.T) {
 	t.Parallel()
 	ts := getTestServer(t)
 
-	tool := NewAPITool(latest.APIToolConfig{
+	tool := newAPIToolForTest(latest.APIToolConfig{
 		Method:   http.MethodPost,
 		Endpoint: ts.serverURL,
 	}, testExpander())
@@ -104,7 +114,7 @@ func TestAPITool_Headers(t *testing.T) {
 	t.Parallel()
 	ts := getTestServer(t)
 
-	tool := NewAPITool(latest.APIToolConfig{
+	tool := newAPIToolForTest(latest.APIToolConfig{
 		Method:   http.MethodGet,
 		Endpoint: ts.serverURL,
 		Headers: map[string]string{
@@ -173,6 +183,34 @@ func TestAPITool_CustomOutputSchema(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, props, "first_name")
 	assert.Contains(t, props, "age")
+}
+
+func TestAPITool_RejectsLocalAddresses(t *testing.T) {
+	t.Parallel()
+
+	// Production constructor — must refuse loopback at dial time so a
+	// crafted endpoint cannot be used to probe internal services or the
+	// cloud metadata endpoint at 169.254.169.254.
+	tests := []string{
+		"http://127.0.0.1/api",
+		"http://[::1]/api",
+		"http://10.0.0.1/api",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://0.0.0.0/api",
+	}
+	for _, target := range tests {
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+			tool := NewAPITool(latest.APIToolConfig{
+				Method:   http.MethodGet,
+				Endpoint: target,
+			}, testExpander())
+
+			_, err := tool.callTool(t.Context(), tools.ToolCall{})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "non-public address")
+		})
+	}
 }
 
 type noopEnvProvider struct{}

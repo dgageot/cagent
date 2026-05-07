@@ -3,7 +3,6 @@ package main
 import (
 	"go/ast"
 	"reflect"
-	"strings"
 
 	"github.com/dgageot/rubocop-go/cop"
 )
@@ -31,89 +30,57 @@ import (
 //
 // Fields without a `yaml` tag are skipped — yaml.v3 derives a default name
 // from the field, which is a separate concern handled elsewhere.
-type ConfigLatestTagConsistency struct {
-	cop.Meta
-}
+var ConfigLatestTagConsistency = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/ConfigLatestTagConsistency",
+		Description: "json and yaml tags in pkg/config/latest must agree on omitempty/omitzero",
+		Severity:    cop.Error,
+	},
+	Scope: cop.And(
+		cop.InPathSegment("pkg/config", func(seg string) bool { return seg == "latest" }),
+		// Black-box test files don't ship struct definitions for the wire format.
+		cop.NotBlackBoxTest(),
+	),
+	Run: func(p *cop.Pass) {
+		p.ForEachStructField(func(_ *ast.TypeSpec, field *ast.Field, tag reflect.StructTag) {
+			if field.Tag == nil {
+				return
+			}
+			j, hasJSON := cop.ParseTagOptions(tag, "json")
+			y, hasYAML := cop.ParseTagOptions(tag, "yaml")
+			if !hasJSON || !hasYAML {
+				return
+			}
+			// Embedded fields use ",inline" on both sides; nothing to compare.
+			if j.Has("inline") || y.Has("inline") {
+				return
+			}
 
-// NewConfigLatestTagConsistency returns a fully configured
-// ConfigLatestTagConsistency cop.
-func NewConfigLatestTagConsistency() *ConfigLatestTagConsistency {
-	return &ConfigLatestTagConsistency{Meta: cop.Meta{
-		CopName:     "Lint/ConfigLatestTagConsistency",
-		CopDesc:     "json and yaml tags in pkg/config/latest must agree on omitempty/omitzero",
-		CopSeverity: cop.Error,
-	}}
-}
+			jsonOmit, jsonMod := jsonOmitModifier(j)
+			yamlOmit := y.Has("omitempty")
 
-func (c *ConfigLatestTagConsistency) Check(p *cop.Pass) {
-	dir, _ := p.PathSegment("pkg/config")
-	if dir != "latest" {
-		return
-	}
-	// Black-box test files don't ship struct definitions for the wire format.
-	if p.IsBlackBoxTest() {
-		return
-	}
-
-	p.ForEachStructField(func(_ *ast.TypeSpec, field *ast.Field, tag reflect.StructTag) {
-		if field.Tag == nil {
-			return
-		}
-		jsonTag, hasJSON := tag.Lookup("json")
-		yamlTag, hasYAML := tag.Lookup("yaml")
-		if !hasJSON || !hasYAML {
-			return
-		}
-		// Embedded fields use ",inline" on both sides; nothing to compare.
-		if isInline(jsonTag) || isInline(yamlTag) {
-			return
-		}
-
-		jsonOmit, jsonMod := jsonOmitModifier(jsonTag)
-		yamlOmit := hasOption(yamlTag, "omitempty")
-
-		if jsonOmit != yamlOmit {
-			p.Report(field.Tag,
-				"json and yaml tags disagree on omit-when-empty: json has %q, yaml has %q (field %s)",
-				modifierLabel(jsonOmit, jsonMod), modifierLabel(yamlOmit, "omitempty"),
-				fieldNames(field))
-		}
-	})
+			if jsonOmit != yamlOmit {
+				p.Reportf(field.Tag,
+					"json and yaml tags disagree on omit-when-empty: json has %q, yaml has %q (field %s)",
+					modifierLabel(jsonOmit, jsonMod), modifierLabel(yamlOmit, "omitempty"),
+					cop.FieldNames(field))
+			}
+		})
+	},
 }
 
 // jsonOmitModifier reports whether the json tag opts out of empty values,
 // returning the specific modifier that triggered the match (omitempty or
 // omitzero). When neither is present, it returns false and "".
-func jsonOmitModifier(tag string) (bool, string) {
+func jsonOmitModifier(opts cop.TagOptions) (bool, string) {
 	switch {
-	case hasOption(tag, "omitempty"):
+	case opts.Has("omitempty"):
 		return true, "omitempty"
-	case hasOption(tag, "omitzero"):
+	case opts.Has("omitzero"):
 		return true, "omitzero"
 	default:
 		return false, ""
 	}
-}
-
-// hasOption reports whether the comma-separated options on tag include opt.
-// The first comma-separated entry is the field name; only later entries are
-// modifiers (`omitempty`, `omitzero`, `inline`, …).
-func hasOption(tag, opt string) bool {
-	for i, part := range strings.Split(tag, ",") {
-		if i == 0 {
-			continue
-		}
-		if part == opt {
-			return true
-		}
-	}
-	return false
-}
-
-// isInline reports whether the tag carries a ",inline" option, which is used
-// by both json/yaml libraries to flatten an embedded struct into the parent.
-func isInline(tag string) bool {
-	return hasOption(tag, "inline")
 }
 
 // modifierLabel renders a human-readable description of the modifier for an
@@ -123,17 +90,4 @@ func modifierLabel(present bool, name string) string {
 		return "<none>"
 	}
 	return name
-}
-
-// fieldNames returns the comma-separated list of field identifiers for use in
-// diagnostic messages. Anonymous (embedded) fields fall back to "<embedded>".
-func fieldNames(field *ast.Field) string {
-	if len(field.Names) == 0 {
-		return "<embedded>"
-	}
-	names := make([]string, 0, len(field.Names))
-	for _, n := range field.Names {
-		names = append(names, n.Name)
-	}
-	return strings.Join(names, ", ")
 }

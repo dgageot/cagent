@@ -25,7 +25,7 @@ func TestConvertMessages_UserText(t *testing.T) {
 		Content: "Hello, world!",
 	}}
 
-	bedrockMsgs, system := convertMessages(msgs, false)
+	bedrockMsgs, system := convertMessages(t.Context(), msgs, "", false)
 
 	require.Len(t, bedrockMsgs, 1)
 	assert.Empty(t, system)
@@ -45,7 +45,7 @@ func TestConvertMessages_SystemExtraction(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "Hi"},
 	}
 
-	bedrockMsgs, system := convertMessages(msgs, false)
+	bedrockMsgs, system := convertMessages(t.Context(), msgs, "", false)
 
 	require.Len(t, bedrockMsgs, 1) // Only user message
 	require.Len(t, system, 1)      // System extracted
@@ -70,7 +70,7 @@ func TestConvertMessages_AssistantWithToolCalls(t *testing.T) {
 		}},
 	}}
 
-	bedrockMsgs, _ := convertMessages(msgs, false)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", false)
 
 	require.Len(t, bedrockMsgs, 1)
 	require.Len(t, bedrockMsgs[0].Content, 1)
@@ -91,7 +91,7 @@ func TestConvertMessages_ToolResult(t *testing.T) {
 		Content:    "Weather is sunny",
 	}}
 
-	bedrockMsgs, _ := convertMessages(msgs, false)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", false)
 
 	require.Len(t, bedrockMsgs, 1)
 	assert.Equal(t, types.ConversationRoleUser, bedrockMsgs[0].Role)
@@ -115,7 +115,7 @@ func TestConvertMessages_EmptyContent(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "   "},
 	}
 
-	bedrockMsgs, _ := convertMessages(msgs, false)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", false)
 	// Both messages now produce user turns with empty or whitespace content blocks.
 	assert.Len(t, bedrockMsgs, 2)
 }
@@ -181,7 +181,7 @@ func TestConvertMessages_MultiContent(t *testing.T) {
 		},
 	}}
 
-	bedrockMsgs, _ := convertMessages(msgs, false)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", false)
 
 	require.Len(t, bedrockMsgs, 1)
 	require.Len(t, bedrockMsgs[0].Content, 2)
@@ -205,7 +205,7 @@ func TestConvertMessages_ConsecutiveToolResults(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "Continue"},
 	}
 
-	bedrockMsgs, _ := convertMessages(msgs, false)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", false)
 
 	// Expect: user, assistant, user (grouped tool results), user
 	require.Len(t, bedrockMsgs, 4)
@@ -1136,7 +1136,7 @@ func TestConvertMessages_WithCaching(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "How are you?"},
 	}
 
-	bedrockMsgs, system := convertMessages(msgs, true)
+	bedrockMsgs, system := convertMessages(t.Context(), msgs, "", true)
 
 	// System should have text block + cache point
 	require.Len(t, system, 2)
@@ -1167,7 +1167,7 @@ func TestConvertMessages_WithoutCaching(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "Hello"},
 	}
 
-	bedrockMsgs, system := convertMessages(msgs, false)
+	bedrockMsgs, system := convertMessages(t.Context(), msgs, "", false)
 
 	// System should only have text block, no cache point
 	require.Len(t, system, 1)
@@ -1258,7 +1258,7 @@ func TestConvertMessages_EmptyWithCaching(t *testing.T) {
 	t.Parallel()
 
 	// Empty message list should not panic with caching enabled
-	bedrockMsgs, system := convertMessages([]chat.Message{}, true)
+	bedrockMsgs, system := convertMessages(t.Context(), []chat.Message{}, "", true)
 
 	assert.Empty(t, bedrockMsgs)
 	assert.Empty(t, system)
@@ -1271,7 +1271,7 @@ func TestConvertMessages_SingleMessageWithCaching(t *testing.T) {
 		{Role: chat.MessageRoleUser, Content: "Hello"},
 	}
 
-	bedrockMsgs, _ := convertMessages(msgs, true)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", true)
 
 	require.Len(t, bedrockMsgs, 1)
 	// Single message should get a cache point appended
@@ -1291,7 +1291,7 @@ func TestConvertMessages_MultiContentWithCaching(t *testing.T) {
 		},
 	}}
 
-	bedrockMsgs, _ := convertMessages(msgs, true)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", true)
 
 	require.Len(t, bedrockMsgs, 1)
 	// 2 text blocks + cache point = 3 content blocks
@@ -1314,7 +1314,7 @@ func TestConvertMessages_ToolResultWithCaching(t *testing.T) {
 		{Role: chat.MessageRoleTool, ToolCallID: "tool-1", Content: "Result"},
 	}
 
-	bedrockMsgs, _ := convertMessages(msgs, true)
+	bedrockMsgs, _ := convertMessages(t.Context(), msgs, "", true)
 
 	// Expect: user, assistant, user (tool result)
 	require.Len(t, bedrockMsgs, 3)

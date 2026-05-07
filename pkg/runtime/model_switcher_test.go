@@ -238,6 +238,67 @@ func TestGetAvailableProviders(t *testing.T) {
 	}
 }
 
+// TestGetAvailableProviders_AnthropicWIF verifies that a workspace configured
+// with Workload Identity Federation surfaces the anthropic provider in the
+// model picker even without ANTHROPIC_API_KEY in the env.
+func TestGetAvailableProviders_AnthropicWIF(t *testing.T) {
+	t.Parallel()
+
+	wifAuth := &latest.AuthConfig{
+		Type: latest.AuthTypeWorkloadIdentityFederation,
+		Federation: &latest.FederationAuthConfig{
+			FederationRuleID: "fdrl_x",
+			OrganizationID:   "org",
+			IdentityToken:    &latest.IdentityTokenSourceConfig{File: "/t"},
+		},
+	}
+
+	t.Run("model-level auth", func(t *testing.T) {
+		t.Parallel()
+		r := &LocalRuntime{
+			modelSwitcherCfg: &ModelSwitcherConfig{
+				EnvProvider: environment.NewMapEnvProvider(nil),
+				Models: map[string]latest.ModelConfig{
+					"claude": {Provider: "anthropic", Model: "claude-x", Auth: wifAuth},
+				},
+			},
+		}
+		got := r.getAvailableProviders(t.Context())
+		assert.True(t, got["anthropic"], "WIF should surface anthropic in available providers")
+	})
+
+	t.Run("provider-level auth", func(t *testing.T) {
+		t.Parallel()
+		r := &LocalRuntime{
+			modelSwitcherCfg: &ModelSwitcherConfig{
+				EnvProvider: environment.NewMapEnvProvider(nil),
+				Providers: map[string]latest.ProviderConfig{
+					"claude": {Provider: "anthropic", Auth: wifAuth},
+				},
+				Models: map[string]latest.ModelConfig{
+					"claude": {Provider: "claude", Model: "claude-x"},
+				},
+			},
+		}
+		got := r.getAvailableProviders(t.Context())
+		assert.True(t, got["anthropic"], "WIF on provider should surface anthropic")
+	})
+
+	t.Run("no auth and no api key", func(t *testing.T) {
+		t.Parallel()
+		r := &LocalRuntime{
+			modelSwitcherCfg: &ModelSwitcherConfig{
+				EnvProvider: environment.NewMapEnvProvider(nil),
+				Models: map[string]latest.ModelConfig{
+					"claude": {Provider: "anthropic", Model: "claude-x"},
+				},
+			},
+		}
+		got := r.getAvailableProviders(t.Context())
+		assert.False(t, got["anthropic"], "plain anthropic config without API key must not be available")
+	})
+}
+
 func TestBuildCatalogChoices(t *testing.T) {
 	t.Parallel()
 

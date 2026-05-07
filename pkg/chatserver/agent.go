@@ -159,8 +159,7 @@ func convertParts(in []ContentPart) []chat.MessagePart {
 // the session already contains the full prior history and we just need
 // to inject what the client just said.
 func appendLatestUser(sess *session.Session, msgs []ChatCompletionMessage) {
-	for i := len(msgs) - 1; i >= 0; i-- {
-		m := msgs[i]
+	for _, m := range slices.Backward(msgs) {
 		role := strings.ToLower(strings.TrimSpace(m.Role))
 		// Treat any non-system/assistant/tool role as user (matches
 		// buildSession's policy).

@@ -26,7 +26,7 @@ func TestConvertMessagesToResponseInput_OrphanedFunctionCall(t *testing.T) {
 		// call_2 has no result — orphaned
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	input := (&Client{}).convertMessagesToResponseInput(t.Context(), messages)
 
 	// Count function calls and outputs
 	var callIDs, outputIDs []string
@@ -61,7 +61,7 @@ func TestConvertMessagesToResponseInput_AssistantTextWithToolCalls(t *testing.T)
 		{Role: chat.MessageRoleTool, Content: "result", ToolCallID: "call_1"},
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	input := (&Client{}).convertMessagesToResponseInput(t.Context(), messages)
 
 	// We expect: user message, assistant text message, function call, function call output.
 	var foundAssistantText bool
@@ -94,7 +94,7 @@ func TestConvertMessagesToResponseInput_NoOrphans(t *testing.T) {
 		{Role: chat.MessageRoleTool, Content: "result a", ToolCallID: "call_1"},
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	input := (&Client{}).convertMessagesToResponseInput(t.Context(), messages)
 
 	var outputCount int
 	for _, item := range input {

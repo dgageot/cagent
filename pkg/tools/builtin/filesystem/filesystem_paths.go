@@ -155,52 +155,52 @@ func expandPathToken(workingDir, token string) (string, error) {
 	}
 }
 
-// contains reports whether absPath is inside any of the roots in the set.
-// absPath must be absolute and symlink-resolved (see resolveRealPath).
-//
-// For each root, we first do a lexical check (filepath.Rel) to short-circuit
-// the obvious "outside" cases. When the path is lexically inside the root and
-// an [*os.Root] is available, we additionally probe the path through the
-// rooted handle: the kernel will reject any access that escapes the root via
-// "..", an absolute symlink, or a relative symlink that climbs above the
-// boundary, regardless of timing or on-disk changes. Non-existent paths are
-// accepted (the caller may be about to create them) — a subsequent write
-// goes through [resolveAndCheckPath] again before any I/O.
-func (rs *pathRootSet) contains(absPath string) bool {
+// entryFor returns the entry that lexically contains realAbsPath plus the
+// slash-separated relative path within it. realAbsPath must already be a
+// canonical (symlink-resolved) absolute path — see [resolveRealPath].
+// Returns (nil, "") when the path is outside every entry.
+func (rs *pathRootSet) entryFor(realAbsPath string) (*pathRoot, string) {
 	if rs == nil {
-		return false
+		return nil, ""
 	}
 	for i := range rs.entries {
 		entry := &rs.entries[i]
-		rel, err := filepath.Rel(entry.real, absPath)
+		rel, err := filepath.Rel(entry.real, realAbsPath)
 		if err != nil {
 			continue
 		}
 		if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue // lexically outside this root
 		}
-		// Lexically inside. If we have an [*os.Root] for this entry, confirm
-		// containment with a kernel-enforced rooted lookup. This catches the
-		// case where the lexical path is inside the root but a symlink along
-		// the way escapes it (e.g. workingDir/link -> /etc/passwd).
-		if entry.root == nil || rel == "." {
-			return true
-		}
-		if _, err := entry.root.Lstat(filepath.ToSlash(rel)); err == nil {
-			return true
-		} else if errors.Is(err, fs.ErrNotExist) {
-			// The path doesn't exist yet but every existing ancestor we
-			// looked at is inside the root, so creating it inside the
-			// rooted handle would also stay contained. Accept.
-			return true
-		} else {
-			// e.g. ELOOP from a symlink that escapes the root: treat as
-			// outside.
-			slog.Debug("filesystem allow/deny: rooted Lstat rejected path",
-				"root", entry.real, "rel", rel, "error", err)
-			continue
-		}
+		return entry, filepath.ToSlash(rel)
 	}
+	return nil, ""
+}
+
+// contains reports whether absPath is inside any of the roots in the set.
+// absPath must be absolute and symlink-resolved (see [resolveRealPath]).
+//
+// When the matching entry has an [*os.Root] handle we additionally probe
+// the path through it: the kernel will reject any access that escapes the
+// root via an absolute symlink or a relative symlink that climbs above the
+// boundary, regardless of timing or on-disk changes. Non-existent paths
+// are accepted (the caller may be about to create them) — a subsequent
+// write goes through [resolveAndCheckPath] again before any I/O.
+func (rs *pathRootSet) contains(absPath string) bool {
+	entry, rel := rs.entryFor(absPath)
+	if entry == nil {
+		return false
+	}
+	if entry.root == nil || rel == "." {
+		return true
+	}
+	_, err := entry.root.Lstat(rel)
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	// e.g. ELOOP from a symlink that escapes the root: treat as outside.
+	slog.Debug("filesystem allow/deny: rooted Lstat rejected path",
+		"root", entry.real, "rel", rel, "error", err)
 	return false
 }
 

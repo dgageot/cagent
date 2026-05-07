@@ -186,3 +186,36 @@ func TestSchemaToMap_DeeplyNestedPropertyWithoutType(t *testing.T) {
 		},
 	}, m)
 }
+
+func TestSchemaToMap_StripsNullFromRequiredArrayTypes(t *testing.T) {
+	m, err := SchemaToMap(map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"paths": map[string]any{
+				"type":  []any{"null", "array"},
+				"items": map[string]any{"type": "string"},
+			},
+			"excludePatterns": map[string]any{
+				"type":  []any{"null", "array"},
+				"items": map[string]any{"type": "string"},
+			},
+		},
+		"required": []any{"paths"},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"paths": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"type": "string"},
+			},
+			"excludePatterns": map[string]any{
+				"type":  []any{"null", "array"},
+				"items": map[string]any{"type": "string"},
+			},
+		},
+		"required": []any{"paths"},
+	}, m)
+}

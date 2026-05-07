@@ -1,7 +1,6 @@
 package config
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -349,75 +348,6 @@ func TestURLSource_Read_RejectsLocalAddresses(t *testing.T) {
 			_, err := NewURLSource(rawURL, nil).Read(t.Context())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "non-public address")
-		})
-	}
-}
-
-func TestIsPublicIP(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		ip       string
-		isPublic bool
-	}{
-		{"8.8.8.8", true},
-		{"1.1.1.1", true},
-		{"2001:4860:4860::8888", true}, // public IPv6
-		{"127.0.0.1", false},
-		{"::1", false},
-		{"10.0.0.1", false},
-		{"172.16.0.1", false},
-		{"192.168.0.1", false},
-		{"169.254.169.254", false}, // AWS/GCP/Azure metadata
-		{"fe80::1", false},         // link-local IPv6
-		{"224.0.0.1", false},       // multicast
-		{"0.0.0.0", false},
-		{"::", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.ip, func(t *testing.T) {
-			t.Parallel()
-			ip := net.ParseIP(tt.ip)
-			require.NotNil(t, ip, "failed to parse IP %q", tt.ip)
-			assert.Equal(t, tt.isPublic, isPublicIP(ip))
-		})
-	}
-}
-
-func TestSSRFCheckRedirect(t *testing.T) {
-	t.Parallel()
-
-	mustParse := func(s string) *url.URL {
-		u, err := url.Parse(s)
-		require.NoError(t, err)
-		return u
-	}
-
-	tests := []struct {
-		name    string
-		target  string
-		via     int    // length of the via slice
-		wantErr string // empty means no error
-	}{
-		{"https redirect allowed", "https://example.com/agent.yaml", 1, ""},
-		{"http redirect rejected", "http://example.com/agent.yaml", 1, "non-https"},
-		{"file redirect rejected", "file:///etc/passwd", 1, "non-https"},
-		{"javascript redirect rejected", "javascript:alert(1)", 1, "non-https"},
-		{"ftp redirect rejected", "ftp://example.com/x", 1, "non-https"},
-		{"redirect loop bounded", "https://example.com/agent.yaml", 10, "10 redirects"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			req := &http.Request{URL: mustParse(tt.target)}
-			via := make([]*http.Request, tt.via)
-			err := ssrfCheckRedirect(req, via)
-			if tt.wantErr == "" {
-				assert.NoError(t, err)
-				return
-			}
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
 }

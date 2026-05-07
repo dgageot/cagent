@@ -17,34 +17,29 @@ import (
 //
 // Files under pkg/config/latest/ are intentionally exempt: their `Version`
 // is the next, work-in-progress value (one greater than the highest vN).
-type ConfigVersionConstant struct {
-	cop.Meta
-}
+var ConfigVersionConstant = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/ConfigVersionConstant",
+		Description: `Version constant in pkg/config/vN/ must equal "N"`,
+		Severity:    cop.Error,
+	},
+	Scope: cop.InPathSegment("pkg/config", func(seg string) bool {
+		_, ok := versionFromDir(seg)
+		return ok
+	}),
+	Run: func(p *cop.Pass) {
+		dir, _ := p.PathSegment("pkg/config")
+		dirVersion, _ := versionFromDir(dir)
+		expected := strconv.Itoa(dirVersion)
 
-// NewConfigVersionConstant returns a fully configured ConfigVersionConstant cop.
-func NewConfigVersionConstant() *ConfigVersionConstant {
-	return &ConfigVersionConstant{Meta: cop.Meta{
-		CopName:     "Lint/ConfigVersionConstant",
-		CopDesc:     "Version constant in pkg/config/vN/ must equal \"N\"",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *ConfigVersionConstant) Check(p *cop.Pass) {
-	dir, _ := p.PathSegment("pkg/config")
-	dirVersion, ok := versionFromDir(dir)
-	if !ok {
-		return
-	}
-	expected := strconv.Itoa(dirVersion)
-
-	lit, ok := p.StringConstNodes()["Version"]
-	if !ok {
-		return
-	}
-	got, err := strconv.Unquote(lit.Value)
-	if err != nil || got == expected {
-		return
-	}
-	p.Report(lit, "Version in pkg/config/v%s/ must be %q, got %q", expected, expected, got)
+		lit, ok := p.StringConstNodes()["Version"]
+		if !ok {
+			return
+		}
+		got, err := strconv.Unquote(lit.Value)
+		if err != nil || got == expected {
+			return
+		}
+		p.Reportf(lit, "Version in pkg/config/v%s/ must be %q, got %q", expected, expected, got)
+	},
 }

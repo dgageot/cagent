@@ -101,9 +101,9 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 }
 
 type RunShellArgs struct {
-	Cmd     string `json:"cmd" jsonschema:"The shell command to execute"`
-	Cwd     string `json:"cwd,omitempty" jsonschema:"The working directory to execute the command in (default: \".\")"`
-	Timeout int    `json:"timeout,omitempty" jsonschema:"Command execution timeout in seconds (default: 30)"`
+	Cmd     string `json:"cmd" jsonschema:"Shell command"`
+	Cwd     string `json:"cwd,omitempty" jsonschema:"Working directory (default \".\")"`
+	Timeout int    `json:"timeout,omitempty" jsonschema:"Timeout in seconds (default 30)"`
 }
 
 // UnmarshalJSON accepts both the canonical "cmd" key and the common alias
@@ -133,8 +133,8 @@ func (a *RunShellArgs) UnmarshalJSON(data []byte) error {
 }
 
 type RunShellBackgroundArgs struct {
-	Cmd string `json:"cmd" jsonschema:"The shell command to execute in the background"`
-	Cwd string `json:"cwd,omitempty" jsonschema:"The working directory to execute the command in (default: \".\")"`
+	Cmd string `json:"cmd" jsonschema:"Shell command to run in background"`
+	Cwd string `json:"cwd,omitempty" jsonschema:"Working directory (default \".\")"`
 }
 
 // UnmarshalJSON accepts both "cmd" (canonical) and "command" (common alias),
@@ -165,11 +165,11 @@ func preferNonBlank(primary, fallback string) string {
 }
 
 type ViewBackgroundJobArgs struct {
-	JobID string `json:"job_id" jsonschema:"The ID of the background job to view"`
+	JobID string `json:"job_id" jsonschema:"Background job ID"`
 }
 
 type StopBackgroundJobArgs struct {
-	JobID string `json:"job_id" jsonschema:"The ID of the background job to stop"`
+	JobID string `json:"job_id" jsonschema:"Background job ID"`
 }
 
 // statusStrings maps job status constants to their string representations

@@ -217,6 +217,40 @@ func isRetryableStatusCode(statusCode int) bool {
 	}
 }
 
+// transientStatusCodePatterns contains error message substrings that indicate
+// a transient failure even when the HTTP status code would otherwise classify
+// the error as non-retryable (e.g. 4xx). Patterns MUST be lowercase: they are
+// compared against a lowercased error message (see [matchesTransientPattern]).
+//
+// Currently:
+//   - Vertex AI / Gemini intermittently returns 400 INVALID_ARGUMENT with the
+//     message "Please ensure that the number of function response parts is
+//     equal to the number of function call parts of the function call turn."
+//     even for well-formed requests; the same payload succeeds on retry.
+//     Without this override the run would surface a fatal error to the user
+//     and exit non-zero, see https://github.com/docker/docker-agent/issues/2683.
+var transientStatusCodePatterns = []string{
+	"number of function response parts",
+}
+
+// matchesTransientPattern reports whether the error's message matches one of
+// [transientStatusCodePatterns]. Used to override an otherwise non-retryable
+// HTTP status classification. Patterns are pre-lowercased (enforced by
+// declaration convention) and additionally lowercased here for defence in
+// depth, so a mixed-case pattern slipping into the list will still match.
+func matchesTransientPattern(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, p := range transientStatusCodePatterns {
+		if strings.Contains(msg, strings.ToLower(p)) {
+			return true
+		}
+	}
+	return false
+}
+
 // retryablePatterns contains error message substrings that indicate a
 // transient/retryable failure. Numeric status codes (500, 502, etc.) are
 // handled separately by extractHTTPStatusCode + isRetryableStatusCode.
@@ -293,7 +327,7 @@ func isRetryableModelError(err error) bool {
 
 	// First, try to extract HTTP status code from known SDK error types
 	if statusCode := extractHTTPStatusCode(err); statusCode != 0 {
-		retryable := isRetryableStatusCode(statusCode)
+		retryable := isRetryableStatusCode(statusCode) || matchesTransientPattern(err)
 		slog.Debug("Classified error by status code",
 			"status_code", statusCode,
 			"retryable", retryable)
@@ -387,7 +421,7 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 		if statusErr.StatusCode == http.StatusTooManyRequests {
 			return false, true, statusErr.RetryAfter
 		}
-		return isRetryableStatusCode(statusErr.StatusCode), false, 0
+		return isRetryableStatusCode(statusErr.StatusCode) || matchesTransientPattern(err), false, 0
 	}
 
 	// Fallback: providers that don't yet wrap (e.g. Bedrock), or non-provider
@@ -397,7 +431,7 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 		return false, true, 0 // No Retry-After without StatusError
 	}
 	if statusCode != 0 {
-		return isRetryableStatusCode(statusCode), false, 0
+		return isRetryableStatusCode(statusCode) || matchesTransientPattern(err), false, 0
 	}
 	return isRetryableModelError(err), false, 0
 }

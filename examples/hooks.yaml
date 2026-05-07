@@ -46,6 +46,9 @@
 #               add_user_info         (session_start)
 #               add_recent_commits    (session_start; args = ["<N>"], default 10)
 #               max_iterations        (before_llm_call; args = ["<N>"], hard stop)
+#               snapshot              (session_start / turn_start / turn_end /
+#                                      pre_tool_use / post_tool_use / session_end;
+#                                      shadow-git filesystem snapshots)
 #
 # Requirements: the command-style hooks below pipe stdin through `jq` for
 # convenient JSON access. If you don't have jq installed (`brew install jq`

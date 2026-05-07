@@ -148,7 +148,7 @@ func summaryFromHook(sess *session.Session, a *agent.Agent, pre *hooks.Result) *
 		"session_id", sess.ID, "agent", a.Name(), "summary_length", len(pre.Summary))
 	return &compactor.Result{
 		Summary:        pre.Summary,
-		FirstKeptEntry: compactor.ComputeFirstKeptEntry(sess, a),
+		FirstKeptEntry: compactor.ComputeFirstKeptEntry(sess),
 		// Estimate the summary's token count for session bookkeeping;
 		// no LLM was called so Cost stays at the zero value.
 		InputTokens: compaction.EstimateMessageTokens(&chat.Message{

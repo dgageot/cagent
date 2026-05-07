@@ -86,12 +86,12 @@ func buildRuntime(ctx context.Context, cfg *latest.Config, env environment.Provi
 		for _, fbModel := range agentCfg.GetFallbackModels() {
 			fbCfg, err := resolveModel(cfg, fbModel)
 			if err != nil {
-				slog.Warn("Skipping fallback model", "agent", agentCfg.Name, "model", fbModel, "error", err)
+				slog.WarnContext(ctx, "Skipping fallback model", "agent", agentCfg.Name, "model", fbModel, "error", err)
 				continue
 			}
 			fbProv, err := provider.NewWithModels(ctx, &fbCfg, cfg.Models, env, options.WithProviders(cfg.Providers))
 			if err != nil {
-				slog.Warn("Skipping fallback model", "agent", agentCfg.Name, "model", fbModel, "error", err)
+				slog.WarnContext(ctx, "Skipping fallback model", "agent", agentCfg.Name, "model", fbModel, "error", err)
 				continue
 			}
 			rt.fallbacks[agentCfg.Name] = append(rt.fallbacks[agentCfg.Name], fbProv)
@@ -293,7 +293,7 @@ func (rt *wasmRuntime) runAgentLoop(ctx context.Context, agentName string, messa
 		// Get tools for this agent.
 		agentTools, err := a.Tools(ctx)
 		if err != nil {
-			slog.Warn("Failed to get tools", "agent", rt.currentAgent, "error", err)
+			slog.WarnContext(ctx, "Failed to get tools", "agent", rt.currentAgent, "error", err)
 			agentTools = nil
 		}
 
@@ -420,7 +420,7 @@ func (rt *wasmRuntime) streamWithFallback(ctx context.Context, a *agent.Agent, m
 		result, err := rt.streamCompletion(ctx, p, a, messages, agentTools)
 		if err != nil {
 			lastErr = err
-			slog.Warn("Model attempt failed", "model", p.ID(), "attempt", i+1, "error", err)
+			slog.WarnContext(ctx, "Model attempt failed", "model", p.ID(), "attempt", i+1, "error", err)
 			continue
 		}
 		return result, nil
@@ -758,7 +758,7 @@ func (rt *wasmRuntime) fireHook(ctx context.Context, agentName string, event hoo
 
 	result, err := exec.Dispatch(ctx, event, input)
 	if err != nil {
-		slog.Warn("Hook dispatch failed", "event", event, "agent", agentName, "error", err)
+		slog.WarnContext(ctx, "Hook dispatch failed", "event", event, "agent", agentName, "error", err)
 		return nil
 	}
 	return result

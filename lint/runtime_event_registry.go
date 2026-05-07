@@ -3,7 +3,6 @@ package main
 import (
 	"go/ast"
 	"go/token"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -34,59 +33,46 @@ import (
 // finds in pkg/runtime/event.go. Each event type whose Type-string is
 // missing from the registry is reported with a diagnostic anchored on
 // the registry map literal, where the fix lives.
-type RuntimeEventRegistry struct {
-	cop.Meta
-}
-
-// NewRuntimeEventRegistry returns a fully configured RuntimeEventRegistry cop.
-func NewRuntimeEventRegistry() *RuntimeEventRegistry {
-	return &RuntimeEventRegistry{Meta: cop.Meta{
-		CopName:     "Lint/RuntimeEventRegistry",
-		CopDesc:     "pkg/runtime/client.go must register every runtime event type",
-		CopSeverity: cop.Error,
-	}}
-}
-
-func (c *RuntimeEventRegistry) Check(p *cop.Pass) {
-	if !p.FileMatches("pkg/runtime/client.go") {
-		return
-	}
-
-	// Sibling event.go is the source of truth for the set of emitted events.
-	eventFile, err := p.ParseSibling("event.go")
-	if err != nil {
-		return
-	}
-	emitted := emittedEventTypes(eventFile)
-	if len(emitted) == 0 {
-		return
-	}
-
-	registryNode, registered := registryEntries(p)
-	if registryNode == nil {
-		return
-	}
-
-	var missing []string
-	for typeName, typeStr := range emitted {
-		if got, ok := registered[typeStr]; !ok {
-			missing = append(missing, typeName+" (Type: "+strconv.Quote(typeStr)+")")
-		} else if got != typeName {
-			// The registry key is correct but it constructs the wrong
-			// concrete type. That is a different bug from "missing entry"
-			// so we keep it as a separate diagnostic anchored on the
-			// registry map for clarity.
-			p.Report(registryNode,
-				"registry key %q constructs %s but %s emits Type=%q",
-				typeStr, got, typeName, typeStr)
+var RuntimeEventRegistry = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/RuntimeEventRegistry",
+		Description: "pkg/runtime/client.go must register every runtime event type",
+		Severity:    cop.Error,
+	},
+	Scope: cop.OnlyFile("pkg/runtime/client.go"),
+	Run: func(p *cop.Pass) {
+		// Sibling event.go is the source of truth for the set of emitted events.
+		eventFile, err := p.ParseSibling("event.go")
+		if err != nil {
+			return
 		}
-	}
-	if len(missing) == 0 {
-		return
-	}
-	slices.Sort(missing)
-	p.Report(registryNode,
-		"pkg/runtime/client.go is missing registry entries for: %s", strings.Join(missing, ", "))
+		emitted := emittedEventTypes(eventFile)
+		if len(emitted) == 0 {
+			return
+		}
+
+		registryNode, registered := registryEntries(p)
+		if registryNode == nil {
+			return
+		}
+
+		var missing []string
+		for typeName, typeStr := range emitted {
+			if got, ok := registered[typeStr]; !ok {
+				missing = append(missing, typeName+" (Type: "+strconv.Quote(typeStr)+")")
+			} else if got != typeName {
+				// The registry key is correct but it constructs the wrong
+				// concrete type. That is a different bug from "missing entry"
+				// so we keep it as a separate diagnostic anchored on the
+				// registry map for clarity.
+				p.Reportf(registryNode,
+					"registry key %q constructs %s but %s emits Type=%q",
+					typeStr, got, typeName, typeStr)
+			}
+		}
+		p.ReportMissing(registryNode,
+			"pkg/runtime/client.go is missing registry entries for: %s", missing)
+	},
 }
 
 // emittedEventTypes returns a map of EventTypeName -> wire-format Type
@@ -104,23 +90,7 @@ func emittedEventTypes(file *ast.File) map[string]string {
 		if !ok || !strings.HasSuffix(id.Name, "Event") {
 			return true
 		}
-		for _, elt := range cl.Elts {
-			kv, ok := elt.(*ast.KeyValueExpr)
-			if !ok {
-				continue
-			}
-			k, ok := kv.Key.(*ast.Ident)
-			if !ok || k.Name != "Type" {
-				continue
-			}
-			lit, ok := kv.Value.(*ast.BasicLit)
-			if !ok || lit.Kind != token.STRING {
-				continue
-			}
-			val, err := strconv.Unquote(lit.Value)
-			if err != nil {
-				continue
-			}
+		if val, ok := cop.StringField(cl, "Type"); ok {
 			emitted[id.Name] = val
 		}
 		return true
@@ -140,10 +110,7 @@ func registryEntries(p *cop.Pass) (ast.Node, map[string]string) {
 	registered := map[string]string{}
 	ast.Inspect(p.File, func(n ast.Node) bool {
 		cl, ok := n.(*ast.CompositeLit)
-		if !ok {
-			return true
-		}
-		if !isEventRegistryType(cl.Type) {
+		if !ok || !isEventRegistryType(cl.Type) {
 			return true
 		}
 		found = cl
@@ -180,22 +147,14 @@ func isEventRegistryType(expr ast.Expr) bool {
 	if !ok {
 		return false
 	}
-	keyID, ok := mt.Key.(*ast.Ident)
-	if !ok || keyID.Name != "string" {
+	if k, ok := mt.Key.(*ast.Ident); !ok || k.Name != "string" {
 		return false
 	}
 	ft, ok := mt.Value.(*ast.FuncType)
 	if !ok {
 		return false
 	}
-	if ft.Params != nil && len(ft.Params.List) != 0 {
-		return false
-	}
-	if ft.Results == nil || len(ft.Results.List) != 1 {
-		return false
-	}
-	rid, ok := ft.Results.List[0].Type.(*ast.Ident)
-	return ok && rid.Name == "Event"
+	return cop.IsNullarySig(ft, "Event")
 }
 
 // returnedEventType pulls "FooEvent" out of a `func() Event { return &FooEvent{} }`
@@ -213,18 +172,16 @@ func returnedEventType(expr ast.Expr) (string, bool) {
 			continue
 		}
 		ue, ok := ret.Results[0].(*ast.UnaryExpr)
-		if !ok || ue.Op != token.AND {
+		if !ok {
 			continue
 		}
 		cl, ok := ue.X.(*ast.CompositeLit)
 		if !ok {
 			continue
 		}
-		id, ok := cl.Type.(*ast.Ident)
-		if !ok {
-			continue
+		if id, ok := cl.Type.(*ast.Ident); ok {
+			return id.Name, true
 		}
-		return id.Name, true
 	}
 	return "", false
 }

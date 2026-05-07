@@ -43,7 +43,7 @@ func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) (commandEr
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	registryRef := args[0]
-	slog.Debug("Starting pull", "registry_ref", registryRef)
+	slog.DebugContext(ctx, "Starting pull", "registry_ref", registryRef)
 
 	out.Println("Pulling agent", registryRef)
 

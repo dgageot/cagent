@@ -96,6 +96,28 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.undo",
+			Label:        "Undo",
+			SlashCommand: "/undo",
+			Description:  "Restore file changes from the latest snapshot",
+			Category:     "Session",
+			Immediate:    true,
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.UndoSnapshotMsg{})
+			},
+		},
+		{
+			ID:           "session.snapshots",
+			Label:        "Snapshots",
+			SlashCommand: "/snapshots",
+			Description:  "List captured snapshots",
+			Category:     "Session",
+			Immediate:    true,
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ShowSnapshotsDialogMsg{})
+			},
+		},
+		{
 			ID:           "session.cost",
 			Label:        "Cost",
 			SlashCommand: "/cost",
@@ -381,10 +403,32 @@ func sortByLabel(items []Item) []Item {
 	return items
 }
 
+// snapshotCommandIDs is the set of IDs that depend on the snapshot feature.
+// They are stripped from the palette and the slash-command parser when
+// snapshots are turned off.
+var snapshotCommandIDs = map[string]bool{
+	"session.undo":      true,
+	"session.snapshots": true,
+}
+
+// removeByIDs returns items whose IDs are not in ids.
+func removeByIDs(items []Item, ids map[string]bool) []Item {
+	out := make([]Item, 0, len(items))
+	for _, item := range items {
+		if !ids[item.ID] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 // BuildCommandCategories builds the list of command categories for the command palette
 func BuildCommandCategories(ctx context.Context, application *app.App) []Category {
 	// Get session commands and filter based on model capabilities
 	sessionCommands := builtInSessionCommands()
+	if !application.SnapshotsEnabled() {
+		sessionCommands = removeByIDs(sessionCommands, snapshotCommandIDs)
+	}
 
 	categories := []Category{
 		{

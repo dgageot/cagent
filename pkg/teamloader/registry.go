@@ -335,6 +335,9 @@ func createFetchTool(ctx context.Context, toolset latest.Toolset, _ string, runC
 	if len(toolset.BlockedDomains) > 0 {
 		opts = append(opts, fetch.WithBlockedDomains(toolset.BlockedDomains))
 	}
+	if toolset.AllowPrivateIPs {
+		opts = append(opts, fetch.WithAllowPrivateIPs(true))
+	}
 	opts = append(opts, fetch.WithHeaders(expander.ExpandMap(ctx, toolset.Headers)))
 	return fetch.NewFetchTool(opts...), nil
 }

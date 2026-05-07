@@ -90,6 +90,16 @@ func gatherEnvVarsForModel(cfg *latest.Config, modelName string, requiredEnv map
 // addEnvVarsForModelConfig adds required environment variables for a model config.
 // It checks custom providers first, then built-in aliases, then hardcoded fallbacks.
 func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[string]latest.ProviderConfig, requiredEnv map[string]bool) {
+	// A model with non-API-key auth (e.g. Workload Identity Federation) does
+	// not require a TokenKey or the hardcoded API-key env var. Instead, the
+	// env vars referenced by its identity-token source are required.
+	if auth := latest.EffectiveAuth(*model, customProviders); auth != nil {
+		for _, name := range auth.EnvVars() {
+			requiredEnv[name] = true
+		}
+		return
+	}
+
 	if model.TokenKey != "" {
 		requiredEnv[model.TokenKey] = true
 	} else if customProviders != nil {

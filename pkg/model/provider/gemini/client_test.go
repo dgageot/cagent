@@ -362,10 +362,10 @@ func TestConvertMessagesToGemini_ThoughtSignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			contents := convertMessagesToGemini([]chat.Message{
+			contents := convertMessagesToGemini(t.Context(), []chat.Message{
 				{Role: chat.MessageRoleUser, Content: "go"},
 				tt.message,
-			})
+			}, "")
 
 			require.Len(t, contents, 2)
 			assistant := contents[1]

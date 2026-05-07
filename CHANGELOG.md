@@ -3,6 +3,170 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.56.0] - 2026-05-07
+
+This release adds snapshot management capabilities and expands secret detection with 20 new patterns.
+
+## What's New
+- Adds `/snapshots` command to list and restore captured snapshots from the current session
+- Adds 20 new secret detection patterns including Discord bot tokens, Telegram bot tokens, Fly.io macaroons, Groq API keys, Perplexity API keys, and xAI/Grok API keys
+
+## Technical Changes
+- Freezes config v8 and starts v9 as the latest configuration schema version
+- Moves non-migration config tests to pkg/config for better organization
+- Updates logging to use slog.WarnContext when a context is in scope
+- Simplifies snapshot plumbing implementation
+
+### Pull Requests
+
+- [#2688](https://github.com/docker/docker-agent/pull/2688) - freeze config v8 and start v9 as latest
+- [#2689](https://github.com/docker/docker-agent/pull/2689) - docs: update CHANGELOG.md for v1.55.0
+- [#2690](https://github.com/docker/docker-agent/pull/2690) - feat(tui): add /snapshots command to list and restore captured snapshots
+- [#2692](https://github.com/docker/docker-agent/pull/2692) - feat(secretsscan): add 20 more secret patterns
+- [#2693](https://github.com/docker/docker-agent/pull/2693) - move non-migration config tests to pkg/config
+
+
+## [v1.55.0] - 2026-05-07
+
+This release introduces significant security hardening, attachment system foundations, and enhanced configuration capabilities.
+
+## What's New
+
+- Adds HCL configuration format support as an alternative to YAML for agent configurations
+- Adds `/pause` command to toggle the runtime loop at iteration boundaries
+- Adds `turn_end` hook that fires once per turn regardless of how the turn ended
+- Adds shadow snapshots and `/undo` command for restoring file changes without modifying session transcript
+- Adds Anthropic Workload Identity Federation support for OIDC-derived authentication
+- Adds attachment system foundations with `chat.Document` and per-provider document conversion
+- Adds JavaScript/WebAssembly browser build with OpenRouter PKCE support
+- Adds custom request headers support for the fetch toolset with environment variable expansion
+- Adds allow/deny lists for filesystem toolset to sandbox file access
+- Adds wildcard and CIDR pattern support in fetch toolset domain filtering
+- Adds input-shape repair layer for tool calls to handle common model mistakes
+- Adds MCP embedded resource content type support
+- Adds `--hook-stop` CLI flag for the existing stop event
+- Adds `--tool-name` flag to override MCP tool identifier
+- Adds `--mcp-keepalive` flag for MCP server connections
+
+## Improvements
+
+- Expands secret detection with additional patterns for OpenAI, Anthropic, Google, Stripe, Notion, GitLab, Vault, and Slack tokens
+- Speeds up secret redaction with aho-corasick keyword pre-filter
+- Improves markdown rendering performance with single-pass URL scanner optimizations
+- Enhances session ID and install UUID forwarding on gateway-bound requests for better tracing
+- Pauses animation ticks while terminal is blurred to reduce CPU usage
+- Propagates non-interactive mode to child sessions and declines elicitation automatically
+
+## Bug Fixes
+
+- Fixes crash on startup when configuration file is empty
+- Fixes environment variable race in script shell tool execution
+- Fixes data races on session token and message writes
+- Fixes lifecycle supervisor state race condition
+- Fixes infinite loop on hash-prefixed paragraphs in markdown renderer
+- Fixes tab switching and chat scroll functionality while prompts are open
+- Fixes compaction kept-tail mapping after prior summaries
+- Fixes IPv4-mapped IPv6 SSRF bypass in fetch domain matcher
+- Fixes finish_reason stop when tracking usage in OpenAI streams
+- Fixes comment-only SSE events that crash openai-go client
+
+## Technical Changes
+
+- Replaces mise with go-task as the project task runner
+- Splits builtin tools into individual sub-packages for better organization
+- Centralizes model-specific behavior in pkg/modelinfo package
+- Tightens file and directory permissions for per-user data to 0o700/0o600
+- Adds contextual logging throughout codebase for better trace correlation
+- Adds 7 new architectural-sync linting cops that caught 10 real bugs
+- Hardens OAuth with constant-time state comparison and SSRF protection
+- Blocks non-public IPs in API and OpenAPI tools by default
+- Updates jose2go to v1.7.0 to address security vulnerabilities
+- Bumps various Go dependencies including Anthropic SDK, Docker CLI, and OpenTelemetry packages
+
+### Pull Requests
+
+- [#2505](https://github.com/docker/docker-agent/pull/2505) - fix(runtime): add OpenTelemetry tracer to runtime initialization
+- [#2506](https://github.com/docker/docker-agent/pull/2506) - feat(otel): configure W3C trace propagation for distributed tracing
+- [#2586](https://github.com/docker/docker-agent/pull/2586) - Bump direct Go dependencies
+- [#2587](https://github.com/docker/docker-agent/pull/2587) - docs: document toon and per-toolset model routing
+- [#2588](https://github.com/docker/docker-agent/pull/2588) - docs: update CHANGELOG.md for v1.54.0
+- [#2589](https://github.com/docker/docker-agent/pull/2589) - Finish secret redaction
+- [#2591](https://github.com/docker/docker-agent/pull/2591) - simplify pkg/hooks: drop unused EventSpec abstraction
+- [#2592](https://github.com/docker/docker-agent/pull/2592) - Add turn_end hook
+- [#2593](https://github.com/docker/docker-agent/pull/2593) - lint: add 7 architectural-sync cops (catches 10 real bugs)
+- [#2594](https://github.com/docker/docker-agent/pull/2594) - Use the latest rubocop-go
+- [#2596](https://github.com/docker/docker-agent/pull/2596) - update PR review workflow with fork-supporting trigger
+- [#2597](https://github.com/docker/docker-agent/pull/2597) - Bump direct Go dependencies
+- [#2598](https://github.com/docker/docker-agent/pull/2598) - Support HCL as an alternative agent config format
+- [#2599](https://github.com/docker/docker-agent/pull/2599) - Bump direct Go dependencies
+- [#2600](https://github.com/docker/docker-agent/pull/2600) - docs: fix outdated content and document missing commands
+- [#2601](https://github.com/docker/docker-agent/pull/2601) - feat(filesystem): add allow_list / deny_list to sandbox the toolset
+- [#2602](https://github.com/docker/docker-agent/pull/2602) - fetch: support wildcard and CIDR patterns in domain allow/deny lists
+- [#2603](https://github.com/docker/docker-agent/pull/2603) - Add detection rules for more secret formats
+- [#2604](https://github.com/docker/docker-agent/pull/2604) - harden docker agent serve api: warn on non-loopback, fix runtime race, block SSRF
+- [#2605](https://github.com/docker/docker-agent/pull/2605) - Add /pause command to toggle the runtime loop
+- [#2606](https://github.com/docker/docker-agent/pull/2606) - Handle case when session started with Docker Desktop proxy available, and the Desktop is stopped
+- [#2609](https://github.com/docker/docker-agent/pull/2609) - deps: bump direct Go dependencies
+- [#2610](https://github.com/docker/docker-agent/pull/2610) - docs: refresh outdated examples, missing env vars, and CLI options
+- [#2612](https://github.com/docker/docker-agent/pull/2612) - feat(mcp): add support for embedded resource content type
+- [#2614](https://github.com/docker/docker-agent/pull/2614) - expand js placeholders in agent and toolset instructions (#2614)
+- [#2616](https://github.com/docker/docker-agent/pull/2616) - fix(tools): prevent environment variable race in script shell tool
+- [#2618](https://github.com/docker/docker-agent/pull/2618) - docs: fix outdated and incorrect references
+- [#2619](https://github.com/docker/docker-agent/pull/2619) - fix(security): bump jose2go to v1.7.0 (GO-2025-4123, GO-2023-2409)
+- [#2621](https://github.com/docker/docker-agent/pull/2621) - fix(lifecycle): order state transition before waking restart waiters
+- [#2622](https://github.com/docker/docker-agent/pull/2622) - fix(session): close data races on session token and message writes
+- [#2623](https://github.com/docker/docker-agent/pull/2623) - feat(runtime): propagate non-interactive mode to child sessions and decline elicitation
+- [#2624](https://github.com/docker/docker-agent/pull/2624) - feat(mcp-server): add keep-alive support
+- [#2625](https://github.com/docker/docker-agent/pull/2625) - feat(mcp-server): add `--tool-name` flag to override the MCP tool identifier
+- [#2627](https://github.com/docker/docker-agent/pull/2627) - feat(hooks): expose `stop` hook via CLI
+- [#2631](https://github.com/docker/docker-agent/pull/2631) - feat(gateway): add `X-Cagent-Session-Id` header to models gateway requests
+- [#2633](https://github.com/docker/docker-agent/pull/2633) - docs: fill in missing CLI flags and fix outdated content
+- [#2635](https://github.com/docker/docker-agent/pull/2635) - feat(tools): generic input-shape repair for tool calls (validate-then-repair)
+- [#2637](https://github.com/docker/docker-agent/pull/2637) - bump direct Go dependencies
+- [#2638](https://github.com/docker/docker-agent/pull/2638) - Fix perf regression urls
+- [#2639](https://github.com/docker/docker-agent/pull/2639) - feat: Phase 1 attachment system – chat.Document, pkg/attachment, per-provider convertDocument
+- [#2641](https://github.com/docker/docker-agent/pull/2641) - Fix finish_reason stop when tracking usage
+- [#2642](https://github.com/docker/docker-agent/pull/2642) - HCL: add a file() function
+- [#2643](https://github.com/docker/docker-agent/pull/2643) - docs: add HCL configuration documentation
+- [#2644](https://github.com/docker/docker-agent/pull/2644) - docs(agents): expand AGENTS.md with guidelines and standards
+- [#2645](https://github.com/docker/docker-agent/pull/2645) - docs(github): update issue templates and triage workflow
+- [#2646](https://github.com/docker/docker-agent/pull/2646) - fix compaction kept-tail mapping after prior summaries
+- [#2647](https://github.com/docker/docker-agent/pull/2647) - avoid duplicate compaction system prompt
+- [#2648](https://github.com/docker/docker-agent/pull/2648) - Update pr-review.yml
+- [#2650](https://github.com/docker/docker-agent/pull/2650) - docs: fix broken links and outdated/incorrect snippets
+- [#2651](https://github.com/docker/docker-agent/pull/2651) - fetch: support custom request headers
+- [#2652](https://github.com/docker/docker-agent/pull/2652) - Add JS placeholders support in instructions
+- [#2653](https://github.com/docker/docker-agent/pull/2653) - feat(httpclient): forward cagent install UUID on gateway-bound requests
+- [#2654](https://github.com/docker/docker-agent/pull/2654) - fix: keep tab switching and chat scroll working while a prompt is open
+- [#2655](https://github.com/docker/docker-agent/pull/2655) - bump direct go dependencies
+- [#2656](https://github.com/docker/docker-agent/pull/2656) - docs: refresh outdated model examples and add Chat Server page
+- [#2658](https://github.com/docker/docker-agent/pull/2658) - feat: Anthropic Workload Identity Federation
+- [#2659](https://github.com/docker/docker-agent/pull/2659) - chore: replace mise with go-task
+- [#2661](https://github.com/docker/docker-agent/pull/2661) - split builtin tools into individual sub-packages
+- [#2662](https://github.com/docker/docker-agent/pull/2662) - fix(httpclient): drop comment-only SSE events that crash openai-go
+- [#2663](https://github.com/docker/docker-agent/pull/2663) - chore: tighten file/directory permissions for per-user data
+- [#2664](https://github.com/docker/docker-agent/pull/2664) - redact_secrets: catch more token shapes and bare unquoted values
+- [#2665](https://github.com/docker/docker-agent/pull/2665) - docs: refresh examples README
+- [#2666](https://github.com/docker/docker-agent/pull/2666) - refactor: centralize model-specific behavior in pkg/modelinfo
+- [#2667](https://github.com/docker/docker-agent/pull/2667) - perf(secretsscan): speed up secret redaction with an aho-corasick pre-filter
+- [#2668](https://github.com/docker/docker-agent/pull/2668) - tui: pause animation ticks while the terminal is blurred
+- [#2669](https://github.com/docker/docker-agent/pull/2669) - refactor(logging): pass context to all slog calls for correlation
+- [#2670](https://github.com/docker/docker-agent/pull/2670) - security: SSRF / TOCTOU / OAuth state hardening
+- [#2671](https://github.com/docker/docker-agent/pull/2671) - fix(shell): do not enforce "assisted-by" by default.
+- [#2672](https://github.com/docker/docker-agent/pull/2672) - add js/wasm browser build with OpenRouter PKCE, agentic loop, and demo page
+- [#2673](https://github.com/docker/docker-agent/pull/2673) - fix: stop matching category in command palette filter
+- [#2674](https://github.com/docker/docker-agent/pull/2674) - lint: add SlogContextual cop and fix remaining bare slog calls
+- [#2675](https://github.com/docker/docker-agent/pull/2675) - fix(markdown): avoid infinite loop on hash-prefixed paragraphs; simplify renderer
+- [#2676](https://github.com/docker/docker-agent/pull/2676) - chore(deps): bump github.com/anthropics/anthropic-sdk-go from v1.40.0 to v1.41.0
+- [#2677](https://github.com/docker/docker-agent/pull/2677) - feat: add shadow snapshots and undo
+- [#2678](https://github.com/docker/docker-agent/pull/2678) - Lint
+- [#2679](https://github.com/docker/docker-agent/pull/2679) - chore(deps): bump python-multipart from 0.0.22 to 0.0.27 in /examples/dhi/dhi_mcp_server in the pip group across 1 directory
+- [#2680](https://github.com/docker/docker-agent/pull/2680) - update PR reviewer
+- [#2681](https://github.com/docker/docker-agent/pull/2681) - bump github.com/docker/cli from v29.4.2 to v29.4.3
+- [#2682](https://github.com/docker/docker-agent/pull/2682) - use slices.Backward in CompactionInput
+- [#2685](https://github.com/docker/docker-agent/pull/2685) - feat: attach-time processing – transcode/resize images and resolve URLs at message add time
+
+
 ## [v1.54.0] - 2026-04-29
 
 This release introduces clickable terminal links, domain filtering for fetch operations, and enhanced toolset lifecycle management with configurable supervision profiles.
@@ -2395,3 +2559,7 @@ This release improves the terminal user interface with better error handling and
 [v1.53.0]: https://github.com/docker/docker-agent/releases/tag/v1.53.0
 
 [v1.54.0]: https://github.com/docker/docker-agent/releases/tag/v1.54.0
+
+[v1.55.0]: https://github.com/docker/docker-agent/releases/tag/v1.55.0
+
+[v1.56.0]: https://github.com/docker/docker-agent/releases/tag/v1.56.0

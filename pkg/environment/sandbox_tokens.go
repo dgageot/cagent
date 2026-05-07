@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/natefinch/atomic"
+	"github.com/docker/docker-agent/pkg/atomicfile"
 )
 
 // sandboxTokens is the JSON schema for the file.
@@ -158,8 +158,8 @@ func (w *SandboxTokenWriter) writeOnce(ctx context.Context) {
 		return
 	}
 
-	if err := atomic.WriteFile(w.path, bytes.NewReader(data)); err != nil {
-		slog.DebugContext(ctx, "Failed to rename sandbox tokens file", "to", w.path, "error", err)
+	if err := atomicfile.Write(w.path, bytes.NewReader(data), 0o600); err != nil {
+		slog.DebugContext(ctx, "Failed to write sandbox tokens file", "path", w.path, "error", err)
 		return
 	}
 

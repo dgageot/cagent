@@ -4,9 +4,9 @@ import (
 	"cmp"
 	"log/slog"
 	"maps"
-	"strings"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/modelinfo"
 )
 
 // ---------------------------------------------------------------------------
@@ -96,6 +96,12 @@ func mergeFromProviderConfig(dst *latest.ModelConfig, src latest.ProviderConfig)
 	if dst.TokenKey == "" {
 		dst.TokenKey = src.TokenKey
 	}
+	// Plumb the provider-level unload endpoint into ProviderOpts so the
+	// provider implementation can pick it up at unload time without
+	// needing a back-reference to the parent ProviderConfig.
+	if src.UnloadAPI != "" {
+		setProviderOptIfAbsent(dst, "unload_api", src.UnloadAPI)
+	}
 	setIfNil(&dst.Temperature, src.Temperature)
 	setIfNil(&dst.MaxTokens, src.MaxTokens)
 	setIfNil(&dst.TopP, src.TopP)
@@ -105,6 +111,11 @@ func mergeFromProviderConfig(dst *latest.ModelConfig, src latest.ProviderConfig)
 	setIfNil(&dst.TrackUsage, src.TrackUsage)
 	setIfNil(&dst.ThinkingBudget, src.ThinkingBudget)
 	setIfNil(&dst.TaskBudget, src.TaskBudget)
+	// Inherit Auth from the provider config when the model does not
+	// override it. Auth is a pointer so a model-level value (even a
+	// stub like {type: workload_identity_federation}) wins as a whole;
+	// we deliberately do not merge field-by-field across the levels.
+	setIfNil(&dst.Auth, src.Auth)
 
 	// Merge provider_opts from provider config (model opts take precedence).
 	for k, v := range src.ProviderOpts {
@@ -196,10 +207,10 @@ func applyModelDefaults(cfg *latest.ModelConfig) {
 		return
 	}
 
-	// No thinking_budget configured — only thinking-only models get a default.
+	// No thinking_budget configured — only models that always reason get a default.
 	switch providerType {
 	case "openai", "openai_chatcompletions", "openai_responses":
-		if isOpenAIThinkingOnlyModel(cfg.Model) {
+		if modelinfo.AlwaysReasons(cfg.Model) {
 			cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "medium"}
 			slog.Debug("Applied default thinking for thinking-only OpenAI model",
 				"provider", cfg.Provider, "model", cfg.Model)
@@ -208,11 +219,14 @@ func applyModelDefaults(cfg *latest.ModelConfig) {
 }
 
 // ensureInterleavedThinking sets interleaved_thinking=true in ProviderOpts
-// for Anthropic and Bedrock-Claude models, unless the user already set it.
+// for any Claude model, unless the user already set it.
+//
+// Anthropic's Claude API requires the `interleaved-thinking-2025-05-14` beta
+// header to interleave tool use with extended thinking. The same goes for the
+// Bedrock-hosted Claude models. We auto-enable it whenever a thinking budget
+// is configured on a Claude model so users don't have to remember the flag.
 func ensureInterleavedThinking(cfg *latest.ModelConfig, providerType string) {
-	needsInterleaved := providerType == "anthropic" ||
-		(providerType == "amazon-bedrock" && isBedrockClaudeModel(cfg.Model))
-	if !needsInterleaved {
+	if !needsInterleavedThinking(providerType, cfg.Model) {
 		return
 	}
 	if cfg.ProviderOpts == nil {
@@ -225,59 +239,14 @@ func ensureInterleavedThinking(cfg *latest.ModelConfig, providerType string) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Model-name predicates
-// ---------------------------------------------------------------------------
-
-// isOpenAIThinkingOnlyModel returns true for OpenAI models that require thinking
-// to function properly (o-series reasoning models).
-func isOpenAIThinkingOnlyModel(model string) bool {
-	m := strings.ToLower(model)
-	return strings.HasPrefix(m, "o1") ||
-		strings.HasPrefix(m, "o3") ||
-		strings.HasPrefix(m, "o4")
-}
-
-// isBedrockClaudeModel returns true if the model ID is a Claude model on Bedrock.
-// Claude model IDs on Bedrock start with "anthropic.claude-" or "global.anthropic.claude-".
-func isBedrockClaudeModel(model string) bool {
-	m := strings.ToLower(model)
-	return strings.HasPrefix(m, "anthropic.claude-") || strings.HasPrefix(m, "global.anthropic.claude-")
-}
-
-// gemini3Family extracts the model family (e.g. "pro", "flash") from a
-// Gemini 3+ model name, or returns "" if the model is not Gemini 3+.
-// It handles both "gemini-3-<family>" and "gemini-3.X-<family>" patterns.
-//
-// Examples:
-//
-//	gemini3Family("gemini-3-pro")              → "pro"
-//	gemini3Family("gemini-3.1-flash-preview")  → "flash-preview"
-//	gemini3Family("gemini-2.5-flash")          → ""
-func gemini3Family(model string) string {
-	if !strings.HasPrefix(model, "gemini-3") {
-		return ""
+// needsInterleavedThinking reports whether a (provider, model) pair refers to
+// a Claude model on a host that supports the interleaved-thinking beta.
+func needsInterleavedThinking(providerType, model string) bool {
+	switch providerType {
+	case "anthropic":
+		return true
+	case "amazon-bedrock":
+		return modelinfo.IsBedrockClaudeID(model)
 	}
-	rest := model[len("gemini-3"):]
-	if rest == "" {
-		return ""
-	}
-	// Accept "gemini-3-..." or "gemini-3.X-..." (e.g. gemini-3.1-pro-preview)
-	switch rest[0] {
-	case '-':
-		return rest[1:] // "gemini-3-pro" → "pro"
-	case '.':
-		if _, family, ok := strings.Cut(rest, "-"); ok {
-			return family // "gemini-3.1-pro-preview" → "pro-preview"
-		}
-	}
-	return ""
-}
-
-func isGeminiProModel(model string) bool {
-	return strings.HasPrefix(gemini3Family(model), "pro")
-}
-
-func isGeminiFlashModel(model string) bool {
-	return strings.HasPrefix(gemini3Family(model), "flash")
+	return false
 }

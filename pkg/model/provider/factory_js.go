@@ -53,7 +53,7 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 
 	factory, ok := providerFactories[providerType]
 	if !ok {
-		slog.Error("Unknown or unsupported provider type under js/wasm", "type", providerType)
+		slog.ErrorContext(ctx, "Unknown or unsupported provider type under js/wasm", "type", providerType)
 		return nil, fmt.Errorf("provider type %q is not supported under js/wasm (only openai/anthropic/google work in the browser)", providerType)
 	}
 	return factory(ctx, enhancedCfg, env, opts...)

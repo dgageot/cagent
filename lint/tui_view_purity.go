@@ -29,36 +29,30 @@ import (
 //
 // Per-line suppression is provided centrally by the runner: annotate the
 // line with `//rubocop:disable Lint/TUIViewPurity` to opt out.
-type TUIViewPurity struct {
-	cop.Meta
+var TUIViewPurity = &cop.Func{
+	Meta: cop.Meta{
+		Name:        "Lint/TUIViewPurity",
+		Description: "View() methods on TUI models must not mutate the receiver",
+		Severity:    cop.Warning,
+	},
+	Scope: cop.UnderDir("pkg/tui"),
+	Run: func(p *cop.Pass) {
+		p.ForEachFunc(func(fn *ast.FuncDecl) {
+			recv, ok := cop.Receiver(fn)
+			if !ok || !recv.IsPointer || recv.Name == "" {
+				return
+			}
+			if fn.Name.Name != "View" || !cop.IsNullaryFunc(fn, "string") {
+				return
+			}
+			checkViewBody(p, fn.Body, recv.Name)
+		})
+	},
 }
 
-// NewTUIViewPurity returns a fully configured TUIViewPurity cop.
-func NewTUIViewPurity() *TUIViewPurity {
-	return &TUIViewPurity{Meta: cop.Meta{
-		CopName:     "Lint/TUIViewPurity",
-		CopDesc:     "View() methods on TUI models must not mutate the receiver",
-		CopSeverity: cop.Warning,
-	}}
-}
-
-func (c *TUIViewPurity) Check(p *cop.Pass) {
-	if !p.FileUnder("pkg/tui") {
-		return
-	}
-
-	p.ForEachFunc(func(fn *ast.FuncDecl) {
-		recv, ok := cop.Receiver(fn)
-		if !ok || !recv.IsPointer || recv.Name == "" || !isViewMethod(fn) {
-			return
-		}
-		c.checkBody(p, fn.Body, recv.Name)
-	})
-}
-
-// checkBody walks fn body and reports an offense for every assignment to a
+// checkViewBody walks fn body and reports an offense for every assignment to a
 // receiver field that is not part of the slice-cache exemption set.
-func (c *TUIViewPurity) checkBody(p *cop.Pass, body *ast.BlockStmt, recv string) {
+func checkViewBody(p *cop.Pass, body *ast.BlockStmt, recv string) {
 	if body == nil {
 		return
 	}
@@ -75,30 +69,13 @@ func (c *TUIViewPurity) checkBody(p *cop.Pass, body *ast.BlockStmt, recv string)
 			if i < len(assign.Rhs) && isSliceCachePattern(assign.Rhs[i], recv, field) {
 				continue
 			}
-			p.Report(assign,
+			p.Reportf(assign,
 				"View() must not mutate %s.%s; move the side effect to Update or compute it in a local variable"+
 					" (or annotate the line with //rubocop:disable Lint/TUIViewPurity if it is an intentional click-zone cache)",
 				recv, field)
 		}
 		return true
 	})
-}
-
-// isViewMethod reports whether fn is exactly `func (...) View() string`.
-// The cop intentionally ignores helpers that happen to be called View*
-// because they are not part of the Bubble Tea contract.
-func isViewMethod(fn *ast.FuncDecl) bool {
-	if fn.Name.Name != "View" {
-		return false
-	}
-	if fn.Type.Params != nil && len(fn.Type.Params.List) > 0 {
-		return false
-	}
-	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
-		return false
-	}
-	id, ok := fn.Type.Results.List[0].Type.(*ast.Ident)
-	return ok && id.Name == "string"
 }
 
 // isSliceCachePattern reports whether rhs is one of the recognised

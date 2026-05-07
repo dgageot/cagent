@@ -19,7 +19,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/docker/docker-agent/pkg/httpclient"
-	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/useragent"
 )
@@ -39,10 +38,11 @@ var (
 )
 
 type fetchHandler struct {
-	timeout        time.Duration
-	allowedDomains []string
-	blockedDomains []string
-	headers        map[string]string
+	timeout         time.Duration
+	allowedDomains  []string
+	blockedDomains  []string
+	headers         map[string]string
+	allowPrivateIPs bool
 }
 
 type ToolArgs struct {
@@ -96,10 +96,20 @@ func (h *fetchHandler) CallTool(ctx context.Context, params ToolArgs) (*tools.To
 		span.SetAttributes(attrs...)
 	}
 
-	// Set timeout if specified
+	// Transport: by default we install [httpclient.SSRFDialControl] on the
+	// dialer so the fetch tool refuses connections to loopback, RFC1918,
+	// link-local (incl. cloud metadata at 169.254.169.254), multicast and
+	// the unspecified address — even when DNS for an otherwise-public host
+	// resolves there. Operators who legitimately need to call internal
+	// services opt in via `allow_private_ips: true`.
+	var transport http.RoundTripper = httpclient.NewSSRFSafeTransport()
+	if h.allowPrivateIPs {
+		transport = http.DefaultTransport
+	}
+
 	client := &http.Client{
 		Timeout:   h.timeout,
-		Transport: httpclient.WrapWithOTel(remote.NewTransport(ctx)),
+		Transport: httpclient.WrapWithOTel(transport),
 		// Re-check the domain allow/deny lists on every redirect: without this,
 		// an allowed origin could redirect into a denied one and bypass the
 		// policy. The 10-redirect cap mirrors the net/http default.
@@ -521,6 +531,18 @@ func WithAllowedDomains(domains []string) ToolOption {
 func WithBlockedDomains(domains []string) ToolOption {
 	return func(t *Tool) {
 		t.handler.blockedDomains = domains
+	}
+}
+
+// WithAllowPrivateIPs controls whether the fetch tool may dial non-public
+// IP addresses (loopback, RFC1918, link-local incl. cloud metadata at
+// 169.254.169.254, multicast and the unspecified address). The default is
+// false: such addresses are refused at dial time, after DNS resolution,
+// so DNS rebinding cannot bypass the check. Set to true only when an
+// agent legitimately needs to reach internal services.
+func WithAllowPrivateIPs(allow bool) ToolOption {
+	return func(t *Tool) {
+		t.handler.allowPrivateIPs = allow
 	}
 }
 

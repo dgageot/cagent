@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/effort"
+	"github.com/docker/docker-agent/pkg/modelinfo"
 )
 
 // Valid values for the `thinking_display` provider option.
@@ -34,7 +35,7 @@ func (c *Client) adjustMaxTokensForThinking(maxTokens int64) (int64, error) {
 	}
 	// Models that require adaptive thinking will have their token budget coerced
 	// to adaptive at request time, so no adjustment is needed here either.
-	if requiresAdaptiveThinking(c.ModelConfig.Model) {
+	if modelinfo.RejectsTokenThinking(c.ModelConfig.Model) {
 		return maxTokens, nil
 	}
 
@@ -110,24 +111,6 @@ func validThinkingTokens(tokens, maxTokens int64) (int64, bool) {
 	return tokens, true
 }
 
-// requiresAdaptiveThinking reports whether the given Anthropic model rejects
-// `thinking.type=enabled` (token-based extended thinking) and instead requires
-// `thinking.type=adaptive`.
-//
-// Anthropic's API rejects token-based thinking budgets for Claude Opus 4.6 and
-// 4.7 (and their dated variants). For these models we transparently switch
-// token-based budgets to adaptive thinking. See:
-// https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking
-func requiresAdaptiveThinking(model string) bool {
-	m := strings.ToLower(strings.TrimSpace(model))
-	for _, prefix := range []string{"claude-opus-4-6", "claude-opus-4-7"} {
-		if m == prefix || strings.HasPrefix(m, prefix+"-") {
-			return true
-		}
-	}
-	return false
-}
-
 // coerceAdaptiveThinking returns an adaptive ThinkingBudget when the configured
 // model rejects token-based thinking budgets but the user supplied one.
 // Otherwise it returns the configured budget unchanged. It never mutates
@@ -146,7 +129,7 @@ func (c *Client) coerceAdaptiveThinking() *latest.ThinkingBudget {
 	if budget.IsDisabled() || budget.Tokens <= 0 {
 		return budget
 	}
-	if !requiresAdaptiveThinking(c.ModelConfig.Model) {
+	if !modelinfo.RejectsTokenThinking(c.ModelConfig.Model) {
 		return budget
 	}
 	slog.Warn("Anthropic: model rejects token-based thinking budgets; switching to adaptive thinking",

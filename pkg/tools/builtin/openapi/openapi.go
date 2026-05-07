@@ -19,7 +19,6 @@ import (
 	"go.yaml.in/yaml/v4"
 
 	"github.com/docker/docker-agent/pkg/httpclient"
-	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/upstream"
 	"github.com/docker/docker-agent/pkg/useragent"
@@ -31,6 +30,12 @@ const httpTimeout = 30 * time.Second
 type Tool struct {
 	specURL string
 	headers map[string]string
+
+	// unsafe disables SSRF dial-time protection on both the spec fetch
+	// and the generated tools' HTTP calls. It is only set by the
+	// test-only constructor in openapi_test.go (which exists because
+	// tests use httptest.NewServer that binds to 127.0.0.1).
+	unsafe bool
 }
 
 // Verify interface compliance.
@@ -75,7 +80,7 @@ func (t *Tool) fetchSpec(ctx context.Context) (*v3.Document, error) {
 	req.Header.Set("Accept", "application/json")
 	setHeaders(req, t.headers)
 
-	resp, err := (&http.Client{Timeout: httpTimeout, Transport: httpclient.WrapWithOTel(remote.NewTransport(ctx))}).Do(req)
+	resp, err := httpclient.NewSafeClient(httpTimeout, t.unsafe).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -206,6 +211,7 @@ func (t *Tool) operationToTool(baseURL, path, method string, op *v3.Operation) t
 			path:    path,
 			method:  method,
 			headers: t.headers,
+			unsafe:  t.unsafe,
 		}).callTool),
 		Annotations: tools.ToolAnnotations{
 			ReadOnlyHint: readOnly,
@@ -392,6 +398,8 @@ type openAPIHandler struct {
 	path    string
 	method  string
 	headers map[string]string
+	// unsafe disables SSRF dial-time protection. See OpenAPITool.unsafe.
+	unsafe bool
 }
 
 type openAPICallArgs map[string]any
@@ -424,7 +432,7 @@ func (h *openAPIHandler) callTool(ctx context.Context, params openAPICallArgs) (
 	req.Header.Set("Accept", "application/json")
 	setHeaders(req, h.headers)
 
-	resp, err := (&http.Client{Timeout: httpTimeout, Transport: httpclient.WrapWithOTel(remote.NewTransport(ctx))}).Do(req)
+	resp, err := httpclient.NewSafeClient(httpTimeout, h.unsafe).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

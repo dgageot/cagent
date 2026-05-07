@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"html"
@@ -175,8 +176,8 @@ func (cs *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request)
 	expectedState := cs.expectedState
 	cs.mu.Unlock()
 
-	if expectedState == "" || state != expectedState {
-		cs.errCh <- fmt.Errorf("state mismatch: expected %s, got %s", expectedState, state)
+	if expectedState == "" || subtle.ConstantTimeCompare([]byte(state), []byte(expectedState)) != 1 {
+		cs.errCh <- errors.New("OAuth state mismatch (possible CSRF attempt or stale callback)")
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Invalid state parameter")
 		return

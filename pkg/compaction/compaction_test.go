@@ -227,6 +227,90 @@ func TestSplitIndexForKeep(t *testing.T) {
 	}
 }
 
+// TestSplitIndexForKeep_NeverReturnsZeroForNonEmptyInput pins the
+// invariant that for any non-empty messages slice, SplitIndexForKeep
+// returns a value in [1, len(messages)] — never 0.
+//
+// This matters because the compactor's firstKeptSessionIndex maps the
+// returned split index back to a sess.Messages position, and when a
+// prior summary exists, sessIndices[0] points at the prior summary
+// item rather than at the start of the prior kept-tail. If 0 were
+// reachable, the new FirstKeptEntry would land on the prior summary
+// item and the next reconstruction would skip the prior kept-tail
+// (the synthetic-summary user message inserted by
+// session.buildSessionSummaryMessages would still appear, but the
+// kept conversation between the prior FirstKeptEntry and the prior
+// summary index would be lost).
+//
+// The implementation makes 0 unreachable: lastValidBoundary is
+// initialised to len(messages); the only update path sets it to i
+// (the current index), but that update happens AFTER the overflow
+// check at iteration i, so a lastValidBoundary of 0 set at i=0 is
+// never returned — the loop exits and the function falls through to
+// `return len(messages)`. The overflow-path return therefore yields
+// values ≥ 1, and the no-overflow path yields len(messages).
+func TestSplitIndexForKeep_NeverReturnsZeroForNonEmptyInput(t *testing.T) {
+	t.Parallel()
+
+	msg := func(role chat.MessageRole, content string) chat.Message {
+		return chat.Message{Role: role, Content: content}
+	}
+
+	cases := []struct {
+		name      string
+		messages  []chat.Message
+		maxTokens int64
+	}{
+		{
+			name:      "single user message that fits",
+			messages:  []chat.Message{msg(chat.MessageRoleUser, "hi")},
+			maxTokens: 1_000_000,
+		},
+		{
+			name:      "single user message that overflows",
+			messages:  []chat.Message{msg(chat.MessageRoleUser, strings.Repeat("x", 10_000))},
+			maxTokens: 1,
+		},
+		{
+			name: "first message is user/assistant and fits, rest overflows",
+			messages: []chat.Message{
+				msg(chat.MessageRoleUser, "u0"),
+				msg(chat.MessageRoleAssistant, strings.Repeat("a", 40_000)),
+				msg(chat.MessageRoleUser, strings.Repeat("b", 40_000)),
+			},
+			maxTokens: 5_000,
+		},
+		{
+			name: "every message is user/assistant and everything fits (returns len)",
+			messages: []chat.Message{
+				msg(chat.MessageRoleUser, "u0"),
+				msg(chat.MessageRoleAssistant, "a0"),
+				msg(chat.MessageRoleUser, "u1"),
+			},
+			maxTokens: 1_000_000,
+		},
+		{
+			name: "first message is the synthetic Session Summary user message (the prior-summary case)",
+			messages: []chat.Message{
+				msg(chat.MessageRoleUser, "Session Summary: "+strings.Repeat("s", 80_000)),
+				msg(chat.MessageRoleUser, strings.Repeat("u", 40_000)),
+				msg(chat.MessageRoleAssistant, strings.Repeat("a", 40_000)),
+			},
+			maxTokens: 5_000,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := SplitIndexForKeep(tc.messages, tc.maxTokens)
+			assert.NotZero(t, got, "SplitIndexForKeep must not return 0 for non-empty input (would land FirstKeptEntry on the prior summary item and drop the prior kept-tail)")
+			assert.GreaterOrEqual(t, got, 1)
+			assert.LessOrEqual(t, got, len(tc.messages))
+		})
+	}
+}
+
 func TestFirstIndexInBudget(t *testing.T) {
 	t.Parallel()
 

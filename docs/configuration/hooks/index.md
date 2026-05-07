@@ -34,31 +34,31 @@ Hooks allow you to execute shell commands or scripts at key points in an agent's
 
 docker-agent dispatches the following hook events:
 
-| Event                       | When it fires                                                                       | Can block? |
-| --------------------------- | ----------------------------------------------------------------------------------- | ---------- |
-| `pre_tool_use`              | Before a tool call executes                                                         | Yes        |
-| `tool_response_transform`   | Between a tool's execution and the runtime's emission/record of the response        | No         |
-| `post_tool_use`             | After a tool completes — fires for both success and failure                         | Yes        |
-| `permission_request`        | Just before the runtime would prompt the user to approve a tool                     | Yes        |
-| `session_start`             | When a session begins or resumes                                                    | No         |
-| `user_prompt_submit`        | Once per user message, after submission and before the model runs                   | Yes        |
-| `turn_start`                | At the start of every agent turn (each model call)                                  | No         |
-| `turn_end`                  | At the end of every agent turn — fires no matter why the turn ended                 | No         |
-| `before_llm_call`           | Just before every model call (after `turn_start`)                                   | Yes        |
-| `after_llm_call`            | After every successful model call, before the response is recorded                  | No         |
-| `session_end`               | When a session terminates                                                           | No         |
-| `pre_compact`               | Just before the runtime compacts the session transcript                             | Yes        |
-| `before_compaction`         | Just before a compaction runs — can veto or supply a custom summary                 | Yes        |
-| `after_compaction`          | After a successful compaction (summary applied to the session)                      | No         |
-| `subagent_stop`             | When a sub-agent (transferred task / background / skill sub-session) finishes       | No         |
-| `on_user_input`             | When the agent is waiting for user input                                            | No         |
-| `stop`                      | When the model finishes responding                                                  | No         |
-| `notification`              | When the agent emits a notification (error or warning)                              | No         |
-| `on_error`                  | When the runtime hits an error during a turn (fires alongside `notification`)       | No         |
-| `on_max_iterations`         | When the runtime reaches its configured `max_iterations` limit                      | No         |
-| `on_agent_switch`           | When the runtime moves the active agent (transfer_task, handoff, return)            | No         |
-| `on_session_resume`         | When the user explicitly approves continuation past `max_iterations`                | No         |
-| `on_tool_approval_decision` | After the runtime's approval chain (yolo / permissions / readonly / ask) resolves   | No         |
+| Event                       | When it fires                                                                     | Can block? |
+| --------------------------- | --------------------------------------------------------------------------------- | ---------- |
+| `pre_tool_use`              | Before a tool call executes                                                       | Yes        |
+| `tool_response_transform`   | Between a tool's execution and the runtime's emission/record of the response      | No         |
+| `post_tool_use`             | After a tool completes — fires for both success and failure                       | Yes        |
+| `permission_request`        | Just before the runtime would prompt the user to approve a tool                   | Yes        |
+| `session_start`             | When a session begins or resumes                                                  | No         |
+| `user_prompt_submit`        | Once per user message, after submission and before the model runs                 | Yes        |
+| `turn_start`                | At the start of every agent turn (each model call)                                | No         |
+| `turn_end`                  | At the end of every agent turn — fires no matter why the turn ended               | No         |
+| `before_llm_call`           | Just before every model call (after `turn_start`)                                 | Yes        |
+| `after_llm_call`            | After every successful model call, before the response is recorded                | No         |
+| `session_end`               | When a session terminates                                                         | No         |
+| `pre_compact`               | Just before the runtime compacts the session transcript                           | Yes        |
+| `before_compaction`         | Just before a compaction runs — can veto or supply a custom summary               | Yes        |
+| `after_compaction`          | After a successful compaction (summary applied to the session)                    | No         |
+| `subagent_stop`             | When a sub-agent (transferred task / background / skill sub-session) finishes     | No         |
+| `on_user_input`             | When the agent is waiting for user input                                          | No         |
+| `stop`                      | When the model finishes responding                                                | No         |
+| `notification`              | When the agent emits a notification (error or warning)                            | No         |
+| `on_error`                  | When the runtime hits an error during a turn (fires alongside `notification`)     | No         |
+| `on_max_iterations`         | When the runtime reaches its configured `max_iterations` limit                    | No         |
+| `on_agent_switch`           | When the runtime moves the active agent (transfer_task, handoff, return)          | No         |
+| `on_session_resume`         | When the user explicitly approves continuation past `max_iterations`              | No         |
+| `on_tool_approval_decision` | After the runtime's approval chain (yolo / permissions / readonly / ask) resolves | No         |
 
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Two compaction events
@@ -143,18 +143,20 @@ Built-ins are typically zero-config and faster than equivalent shell hooks becau
 
 ### Available built-ins
 
-| Builtin                 | Event             | Args                   | What it does                                                                                                          |
-| ----------------------- | ----------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `add_date`              | `turn_start`      | _none_                 | Prepends `Today's date: YYYY-MM-DD` so the model always knows the current date.                                       |
-| `add_environment_info`  | `session_start`   | _none_                 | Adds the working directory, git-repo status, OS, and CPU architecture.                                                |
-| `add_prompt_files`      | `turn_start`      | `[file1, file2, ...]`  | Reads each named file from the workdir hierarchy (walking up) and the home directory, and appends their contents.     |
-| `add_git_status`        | `turn_start`      | _none_                 | Adds the output of `git status --short --branch` (no-op outside a git repo or when git isn't installed).              |
-| `add_git_diff`          | `turn_start`      | _none_, or `["full"]`  | Adds `git diff --stat` by default. Pass `args: ["full"]` to emit the full unified diff. Output is capped to 4 KB.     |
-| `add_directory_listing` | `session_start`   | _none_                 | Adds an alphabetical listing of the cwd's top-level entries (skips dot-files, capped at 100 with a "... and N more"). |
-| `add_user_info`         | `session_start`   | _none_                 | Adds the current OS user (username and full name) and the hostname.                                                   |
-| `add_recent_commits`    | `session_start`   | _none_, or `["<N>"]`   | Adds `git log --oneline -n N`. `N` defaults to 10; pass a positive integer to override.                               |
-| `max_iterations`        | `before_llm_call` | `["<N>"]` (required)   | Hard-stops the agent after `N` model calls. State is per-session and reset at `session_end`.                          |
-| `redact_secrets`        | `pre_tool_use`, `before_llm_call`, `tool_response_transform` | _none_ | Scrubs detected secrets (API keys, tokens, private keys, …) out of tool call arguments, outgoing chat content, and tool output. The same builtin handles all three events and dispatches on the event name. Auto-registered on all three events by `redact_secrets: true` on the agent — see [`examples/redact_secrets_hooks.yaml`](https://github.com/docker/docker-agent/blob/main/examples/redact_secrets_hooks.yaml) for the manual wiring. |
+| Builtin                 | Event                                                                                     | Args                  | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add_date`              | `turn_start`                                                                              | _none_                | Prepends `Today's date: YYYY-MM-DD` so the model always knows the current date.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `add_environment_info`  | `session_start`                                                                           | _none_                | Adds the working directory, git-repo status, OS, and CPU architecture.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `add_prompt_files`      | `turn_start`                                                                              | `[file1, file2, ...]` | Reads each named file from the workdir hierarchy (walking up) and the home directory, and appends their contents.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `add_git_status`        | `turn_start`                                                                              | _none_                | Adds the output of `git status --short --branch` (no-op outside a git repo or when git isn't installed).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `add_git_diff`          | `turn_start`                                                                              | _none_, or `["full"]` | Adds `git diff --stat` by default. Pass `args: ["full"]` to emit the full unified diff. Output is capped to 4 KB.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `add_directory_listing` | `session_start`                                                                           | _none_                | Adds an alphabetical listing of the cwd's top-level entries (skips dot-files, capped at 100 with a "... and N more").                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `add_user_info`         | `session_start`                                                                           | _none_                | Adds the current OS user (username and full name) and the hostname.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `add_recent_commits`    | `session_start`                                                                           | _none_, or `["<N>"]`  | Adds `git log --oneline -n N`. `N` defaults to 10; pass a positive integer to override.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `max_iterations`        | `before_llm_call`                                                                         | `["<N>"]` (required)  | Hard-stops the agent after `N` model calls. State is per-session and reset at `session_end`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `snapshot`              | `session_start`, `turn_start`, `turn_end`, `pre_tool_use`, `post_tool_use`, `session_end` | _none_                | Records filesystem snapshots in a shadow git repo under the docker-agent data directory. No-op outside git repos; respects the source repo's ignore rules and skips newly-added files larger than 2 MiB.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `redact_secrets`        | `pre_tool_use`, `before_llm_call`, `tool_response_transform`                              | _none_                | Scrubs detected secrets (API keys, tokens, private keys, …) out of tool call arguments, outgoing chat content, and tool output. The same builtin handles all three events and dispatches on the event name. Auto-registered on all three events by `redact_secrets: true` on the agent — see [`examples/redact_secrets_hooks.yaml`](https://github.com/docker/docker-agent/blob/main/examples/redact_secrets_hooks.yaml) for the manual wiring.                                                                                                                                                                                     |
+| `unload`                | `on_agent_switch`                                                                         | _none_                | Walks the previous agent's models and calls `Unload()` on every provider that implements [`provider.Unloader`](https://pkg.go.dev/github.com/docker/docker-agent/pkg/model/provider#Unloader) — typically Docker Model Runner — to free the GPU/RAM the just-departing model was holding. Cloud-only providers don't implement the interface and are silently skipped. Errors are logged and swallowed; agent switching never blocks on a slow or unreachable engine (each Unload call has a 10 s timeout). See [`examples/unload_on_switch.yaml`](https://github.com/docker/docker-agent/blob/main/examples/unload_on_switch.yaml). |
 
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Per-turn vs. per-session
@@ -167,6 +169,32 @@ Built-ins are typically zero-config and faster than equivalent shell hooks becau
 </div>
   <p>The agent flags <code>add_date: true</code>, <code>add_environment_info: true</code>, <code>add_prompt_files: [...]</code>, and <code>redact_secrets: true</code> are shorthands that auto-register the matching built-in hook. You don't need to repeat them under <code>hooks:</code> — set the flag <em>or</em> the hook entry(ies), not both. <code>redact_secrets: true</code> auto-registers the same builtin on all three of <code>pre_tool_use</code>, <code>before_llm_call</code>, and <code>tool_response_transform</code>; you can also wire any subset of them by hand for finer-grained control (per-tool matchers, ordering with other rewriters, …).</p>
 </div>
+
+A minimal snapshot wiring looks like this:
+
+```yaml
+hooks:
+  turn_start:
+    - type: builtin
+      command: snapshot
+  turn_end:
+    - type: builtin
+      command: snapshot
+  session_end:
+    - type: builtin
+      command: snapshot
+```
+
+The shadow repository stores tree objects only; it never writes commits or touches the source repository's `.git` directory. The source repository's `.gitignore` and `info/exclude` rules are mirrored before each capture so ignored files do not appear in snapshots. The built-in only records undo checkpoints when files changed, so a final no-op model response does not hide the last changed snapshot.
+
+You can also enable snapshots globally for every agent with user config:
+
+```yaml
+settings:
+  snapshot: true
+```
+
+Omit `snapshot` or set it to `false` to leave automatic snapshots off; manually configured snapshot hooks still run.
 
 <div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Two flavors of <code>max_iterations</code>
@@ -207,41 +235,41 @@ Hooks receive JSON input via stdin with context about the event:
 
 Every hook event carries:
 
-| Field             | Description                                      |
-| ----------------- | ------------------------------------------------ |
-| `session_id`      | The current session's ID.                        |
-| `cwd`             | The runtime's working directory.                 |
-| `hook_event_name` | The event name (e.g. `pre_tool_use`).            |
+| Field             | Description                           |
+| ----------------- | ------------------------------------- |
+| `session_id`      | The current session's ID.             |
+| `cwd`             | The runtime's working directory.      |
+| `hook_event_name` | The event name (e.g. `pre_tool_use`). |
 
 ### Per-Event Extra Fields
 
 In addition to the common fields, each event ships its own payload:
 
-| Event                       | Extra fields                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `pre_tool_use`              | `tool_name`, `tool_use_id`, `tool_input`                                                                      |
-| `tool_response_transform`   | `tool_name`, `tool_use_id`, `tool_input`, `tool_response`                                                     |
-| `post_tool_use`             | `tool_name`, `tool_use_id`, `tool_input`, `tool_response`, `tool_error`                                       |
-| `permission_request`        | `tool_name`, `tool_use_id`, `tool_input`                                                                      |
-| `session_start`             | `source` — one of `startup`, `resume`, `clear`, `compact`                                                     |
-| `user_prompt_submit`        | `prompt` — the text the user just submitted                                                                   |
-| `turn_start`                | _none_ (just the common fields)                                                                               |
+| Event                       | Extra fields                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pre_tool_use`              | `tool_name`, `tool_use_id`, `tool_input`                                                                              |
+| `tool_response_transform`   | `tool_name`, `tool_use_id`, `tool_input`, `tool_response`                                                             |
+| `post_tool_use`             | `tool_name`, `tool_use_id`, `tool_input`, `tool_response`, `tool_error`                                               |
+| `permission_request`        | `tool_name`, `tool_use_id`, `tool_input`                                                                              |
+| `session_start`             | `source` — one of `startup`, `resume`, `clear`, `compact`                                                             |
+| `user_prompt_submit`        | `prompt` — the text the user just submitted                                                                           |
+| `turn_start`                | _none_ (just the common fields)                                                                                       |
 | `turn_end`                  | `agent_name`, `reason` — one of `normal`, `continue`, `steered`, `error`, `canceled`, `hook_blocked`, `loop_detected` |
-| `before_llm_call`           | _none_                                                                                                        |
-| `after_llm_call`            | `agent_name`, `stop_response`, `last_user_message`                                                            |
-| `session_end`               | `reason` — one of `clear`, `logout`, `prompt_input_exit`, `other`                                             |
-| `pre_compact`               | `source` — one of `manual`, `auto`, `overflow`, `tool_overflow`                                               |
-| `before_compaction`         | `input_tokens`, `output_tokens`, `context_limit`, `compaction_reason` (one of `threshold`/`overflow`/`manual`)|
-| `after_compaction`          | `input_tokens`, `output_tokens`, `context_limit`, `compaction_reason`, `summary`                              |
-| `subagent_stop`             | `agent_name` (the sub-agent), `parent_session_id`, `stop_response`                                            |
-| `on_user_input`             | _none_                                                                                                        |
-| `stop`                      | `agent_name`, `stop_response`, `last_user_message`                                                            |
-| `notification`              | `notification_level` (`error` or `warning`), `notification_message`                                           |
-| `on_error`                  | `notification_level` (always `error`), `notification_message`                                                 |
-| `on_max_iterations`         | `notification_level` (always `warning`), `notification_message`                                               |
-| `on_agent_switch`           | `from_agent`, `to_agent`, `agent_switch_kind` (`transfer_task`, `transfer_task_return`, or `handoff`)         |
-| `on_session_resume`         | `previous_max_iterations`, `new_max_iterations`                                                               |
-| `on_tool_approval_decision` | `tool_name`, `tool_use_id`, `tool_input`, `approval_decision`, `approval_source`                              |
+| `before_llm_call`           | _none_                                                                                                                |
+| `after_llm_call`            | `agent_name`, `stop_response`, `last_user_message`                                                                    |
+| `session_end`               | `reason` — one of `clear`, `logout`, `prompt_input_exit`, `other`                                                     |
+| `pre_compact`               | `source` — one of `manual`, `auto`, `overflow`, `tool_overflow`                                                       |
+| `before_compaction`         | `input_tokens`, `output_tokens`, `context_limit`, `compaction_reason` (one of `threshold`/`overflow`/`manual`)        |
+| `after_compaction`          | `input_tokens`, `output_tokens`, `context_limit`, `compaction_reason`, `summary`                                      |
+| `subagent_stop`             | `agent_name` (the sub-agent), `parent_session_id`, `stop_response`                                                    |
+| `on_user_input`             | _none_                                                                                                                |
+| `stop`                      | `agent_name`, `stop_response`, `last_user_message`                                                                    |
+| `notification`              | `notification_level` (`error` or `warning`), `notification_message`                                                   |
+| `on_error`                  | `notification_level` (always `error`), `notification_message`                                                         |
+| `on_max_iterations`         | `notification_level` (always `warning`), `notification_message`                                                       |
+| `on_agent_switch`           | `from_agent`, `to_agent`, `agent_switch_kind` (`transfer_task`, `transfer_task_return`, or `handoff`)                 |
+| `on_session_resume`         | `previous_max_iterations`, `new_max_iterations`                                                                       |
+| `on_tool_approval_decision` | `tool_name`, `tool_use_id`, `tool_input`, `approval_decision`, `approval_source`                                      |
 
 Notes:
 
@@ -299,9 +327,9 @@ The `hook_specific_output` for `pre_tool_use` (and `permission_request`) support
 
 The `hook_specific_output` for `tool_response_transform` supports:
 
-| Field                    | Type   | Description                                       |
-| ------------------------ | ------ | ------------------------------------------------- |
-| `updated_tool_response`  | string | Rewritten tool output (replaces the original)     |
+| Field                   | Type   | Description                                   |
+| ----------------------- | ------ | --------------------------------------------- |
+| `updated_tool_response` | string | Rewritten tool output (replaces the original) |
 
 This is the symmetric counterpart of `pre_tool_use`'s `updated_input`, applied to tool **results** instead of tool **arguments**. The rewrite reaches every downstream consumer — event subscribers, the persisted session file, the `post_tool_use` hook input, and the next LLM call. Use it to truncate excessive output, scrub PII, or normalise tool dialects. The built-in `redact_secrets` registers itself on this event as the third leg of the redact_secrets feature.
 
@@ -503,15 +531,15 @@ Use `on_error` and `on_max_iterations` instead of `notification` when you want a
 
 The `reason` field classifies the exit:
 
-| `reason`        | When |
-| --------------- | ---- |
-| `normal`        | Model finished cleanly with no follow-up |
+| `reason`        | When                                                         |
+| --------------- | ------------------------------------------------------------ |
+| `normal`        | Model finished cleanly with no follow-up                     |
 | `continue`      | More iterations to come (e.g. tool calls, follow-up message) |
-| `steered`       | Drained steered messages prompted a re-entry |
-| `error`         | Model call failed (`handleStreamError` exited the loop) |
-| `canceled`      | Context was cancelled (e.g. Ctrl+C) |
-| `hook_blocked`  | `before_llm_call` or `post_tool_use` denied the call |
-| `loop_detected` | The consecutive-tool-call loop detector terminated the turn |
+| `steered`       | Drained steered messages prompted a re-entry                 |
+| `error`         | Model call failed (`handleStreamError` exited the loop)      |
+| `canceled`      | Context was cancelled (e.g. Ctrl+C)                          |
+| `hook_blocked`  | `before_llm_call` or `post_tool_use` denied the call         |
+| `loop_detected` | The consecutive-tool-call loop detector terminated the turn  |
 
 `turn_end` is observational — the result is ignored. Use it to time turns, accumulate per-turn metrics (token usage, tool counts), or notify external observability pipelines symmetrically with `turn_start`.
 
@@ -533,6 +561,36 @@ The `reason` field classifies the exit:
 ### Agent-Switch and Session-Resume: observability for multi-agent and long runs
 
 `on_agent_switch` fires whenever the runtime moves the active agent to a new one — `transfer_task`, `handoff`, or the return after a transferred task completes. The cause is in `agent_switch_kind`, the source and destination in `from_agent` and `to_agent`. Use it for audit, transcript, and metrics pipelines that track which agent ran which tools.
+
+The built-in [`unload`](#available-built-ins) hooks into this event to release the resources held by the previous agent's models. It's the canonical way to run two heavy local models on a GPU that can only fit one at a time:
+
+```yaml
+agents:
+  coder:
+    model: qwen3-large
+    handoffs: [reviewer]
+    hooks:
+      on_agent_switch:
+        - type: builtin
+          command: unload
+  reviewer:
+    model: qwen3-coder
+    handoffs: [coder]
+    hooks:
+      on_agent_switch:
+        - type: builtin
+          command: unload
+
+models:
+  qwen3-large:
+    provider: dmr
+    model: ai/qwen3-large
+  qwen3-coder:
+    provider: dmr
+    model: ai/qwen3-coder
+```
+
+At every transfer the runtime calls `Unload()` on the previous agent's model providers. For Docker Model Runner this hits the engine's `_unload` endpoint; for cloud providers (OpenAI, Anthropic, …) it is a silent no-op. Cross-provider chains are safe — only the providers that actually implement [`provider.Unloader`](https://pkg.go.dev/github.com/docker/docker-agent/pkg/model/provider#Unloader) are touched. See [`examples/unload_on_switch.yaml`](https://github.com/docker/docker-agent/blob/main/examples/unload_on_switch.yaml) for the full file.
 
 `on_session_resume` fires when the user explicitly approves the runtime to continue past its configured `max_iterations` limit. `previous_max_iterations` carries the cap that was reached and `new_max_iterations` carries the new cap after approval. Useful for alerting on extended-runtime sessions or for billing / quota pipelines that meter resumes.
 
@@ -614,12 +672,12 @@ hooks:
             - Writes to ~/.ssh / ~/.aws / ~/.docker are deny.
 ```
 
-| Field    | Required          | Description                                                                                                                                                                |
-| -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `model`  | yes               | Model spec (`provider/model`, e.g. `openai/gpt-4o-mini`). The judge model — small/cheap is recommended.                                                                    |
-| `prompt` | yes               | Go [`text/template`](https://pkg.go.dev/text/template) body. Sees the hook [Input](#hook-input) as data, plus the `toJSON` and `truncate <n>` helpers.                     |
-| `schema` | no                | Well-known response interpretation. `pre_tool_use_decision` produces a `permission_decision` verdict; omit for free-form text injected as `additional_context`.            |
-| `timeout`| no (default 60s)  | Per-call timeout. **Timeouts fail closed (deny) for `pre_tool_use`** regardless of any other setting. Match it to your judge model's typical latency plus a small buffer. |
+| Field     | Required         | Description                                                                                                                                                               |
+| --------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model`   | yes              | Model spec (`provider/model`, e.g. `openai/gpt-4o-mini`). The judge model — small/cheap is recommended.                                                                   |
+| `prompt`  | yes              | Go [`text/template`](https://pkg.go.dev/text/template) body. Sees the hook [Input](#hook-input) as data, plus the `toJSON` and `truncate <n>` helpers.                    |
+| `schema`  | no               | Well-known response interpretation. `pre_tool_use_decision` produces a `permission_decision` verdict; omit for free-form text injected as `additional_context`.           |
+| `timeout` | no (default 60s) | Per-call timeout. **Timeouts fail closed (deny) for `pre_tool_use`** regardless of any other setting. Match it to your judge model's typical latency plus a small buffer. |
 
 The `pre_tool_use_decision` schema constrains the judge to reply with
 strict `{decision, reason}` JSON. Providers that honor structured
@@ -649,14 +707,14 @@ for a complete configuration.
 
 You can add hooks from the command line without modifying the agent's YAML file. This is useful for one-off debugging, audit logging, or layering hooks onto an existing agent.
 
-| Flag                    | Description                             |
-| ----------------------- | --------------------------------------- |
-| `--hook-pre-tool-use`   | Run a command before every tool call    |
-| `--hook-post-tool-use`  | Run a command after every tool call     |
-| `--hook-session-start`  | Run a command when a session starts     |
-| `--hook-session-end`    | Run a command when a session ends       |
-| `--hook-on-user-input`  | Run a command when waiting for input    |
-| `--hook-stop`           | Run a command when the model finishes responding |
+| Flag                   | Description                                      |
+| ---------------------- | ------------------------------------------------ |
+| `--hook-pre-tool-use`  | Run a command before every tool call             |
+| `--hook-post-tool-use` | Run a command after every tool call              |
+| `--hook-session-start` | Run a command when a session starts              |
+| `--hook-session-end`   | Run a command when a session ends                |
+| `--hook-on-user-input` | Run a command when waiting for input             |
+| `--hook-stop`          | Run a command when the model finishes responding |
 
 All flags are repeatable — pass multiple to register multiple hooks.
 

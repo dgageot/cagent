@@ -49,66 +49,49 @@ func (s ansiStyle) renderTo(b *strings.Builder, text string) {
 	b.WriteString(s.suffix)
 }
 
-// withBold returns a new style with bold formatting added
-// Bold is applied first, then the parent color, to prevent "bright bold" terminals
-// from overriding the color when bold is enabled.
+// withAttribute returns a new style with the given ANSI attribute layered on
+// top of s while preserving s's color/background. on is the SGR sequence that
+// turns the attribute on (e.g. "\x1b[1m" for bold); off is the matching off
+// sequence (e.g. "\x1b[22m"). When s has no styling the off sequence is
+// replaced with a full reset, matching the behaviour of a fresh style.
+//
+// Format attributes are written before the parent's color/background so that
+// terminals which auto-brighten bold colors do not override our color choice.
+func (s ansiStyle) withAttribute(on, off string) ansiStyle {
+	r := s
+	if s.prefix == "" {
+		r.prefix = on
+		r.suffix = "\x1b[m"
+	} else {
+		r.prefix = on + s.prefix
+		r.suffix = off + s.prefix
+	}
+	return r
+}
+
 func (s ansiStyle) withBold() ansiStyle {
-	if s.prefix == "" {
-		return ansiStyle{prefix: "\x1b[1m", suffix: "\x1b[m", hasBold: true}
-	}
-	return ansiStyle{
-		prefix:    "\x1b[1m" + s.prefix,  // Bold first, then color (prevents bright-bold color override)
-		suffix:    "\x1b[22m" + s.prefix, // Turn off bold, re-apply parent style
-		hasBold:   true,
-		hasStrike: s.hasStrike,
-		hasItalic: s.hasItalic,
-	}
+	r := s.withAttribute("\x1b[1m", "\x1b[22m")
+	r.hasBold = true
+	return r
 }
 
-// withItalic returns a new style with italic formatting added
-// Format attribute applied first, then color, for consistency with withBold.
 func (s ansiStyle) withItalic() ansiStyle {
-	if s.prefix == "" {
-		return ansiStyle{prefix: "\x1b[3m", suffix: "\x1b[m", hasItalic: true}
-	}
-	return ansiStyle{
-		prefix:    "\x1b[3m" + s.prefix,  // Italic first, then color
-		suffix:    "\x1b[23m" + s.prefix, // Turn off italic, re-apply parent style
-		hasBold:   s.hasBold,
-		hasStrike: s.hasStrike,
-		hasItalic: true,
-	}
+	r := s.withAttribute("\x1b[3m", "\x1b[23m")
+	r.hasItalic = true
+	return r
 }
 
-// withBoldItalic returns a new style with bold and italic formatting added
-// Format attributes applied first, then color, to prevent "bright bold" terminals
-// from overriding the color when bold is enabled.
 func (s ansiStyle) withBoldItalic() ansiStyle {
-	if s.prefix == "" {
-		return ansiStyle{prefix: "\x1b[1;3m", suffix: "\x1b[m", hasBold: true, hasItalic: true}
-	}
-	return ansiStyle{
-		prefix:    "\x1b[1;3m" + s.prefix,   // Bold+italic first, then color
-		suffix:    "\x1b[22;23m" + s.prefix, // Turn off bold and italic, re-apply parent style
-		hasBold:   true,
-		hasStrike: s.hasStrike,
-		hasItalic: true,
-	}
+	r := s.withAttribute("\x1b[1;3m", "\x1b[22;23m")
+	r.hasBold = true
+	r.hasItalic = true
+	return r
 }
 
-// withStrikethrough returns a new style with strikethrough formatting added
-// Format attribute applied first, then color, for consistency with withBold.
 func (s ansiStyle) withStrikethrough() ansiStyle {
-	if s.prefix == "" {
-		return ansiStyle{prefix: "\x1b[9m", suffix: "\x1b[m", hasStrike: true}
-	}
-	return ansiStyle{
-		prefix:    "\x1b[9m" + s.prefix,  // Strikethrough first, then color
-		suffix:    "\x1b[29m" + s.prefix, // Turn off strikethrough, re-apply parent style
-		hasBold:   s.hasBold,
-		hasStrike: true,
-		hasItalic: s.hasItalic,
-	}
+	r := s.withAttribute("\x1b[9m", "\x1b[29m")
+	r.hasStrike = true
+	return r
 }
 
 // buildAnsiStyle extracts ANSI codes from a lipgloss style by rendering an empty marker.
@@ -128,13 +111,10 @@ func buildAnsiStyle(style lipgloss.Style) ansiStyle {
 }
 
 // cachedStyles holds pre-computed styles to avoid repeated MarkdownStyle() calls.
+// Everything that can be styled once is pre-rendered to ANSI strings, so the
+// hot path never touches lipgloss.
 type cachedStyles struct {
-	// lipgloss styles (for complex rendering like headings)
-	headingStyles   [6]lipgloss.Style
-	headingPrefixes [6]string
-	styleHR         lipgloss.Style
-	styleBlockquote lipgloss.Style
-	styleCodeBg     lipgloss.Style
+	styleCodeBg lipgloss.Style // kept only because chroma styles inherit its bg color
 
 	// ANSI styles (for fast inline rendering)
 	ansiBold       ansiStyle
@@ -150,14 +130,18 @@ type cachedStyles struct {
 	ansiFootnote   ansiStyle    // footnote reference style
 	ansiCodeBg     ansiStyle    // code block background (cached to avoid repeated buildAnsiStyle)
 
+	// Pre-rendered chrome (computed once, reused across renders)
+	headingPrefixes         [6]string // raw prefix strings (e.g. "## ") for width math
+	styledHeadingPrefixes   [6]string // ANSI-styled prefix used at start of heading
+	styledHeadingContIndent [6]string // ANSI-styled spaces for heading continuation lines
+	styledHR                string    // pre-rendered horizontal rule (with trailing blank line)
+	styledTableSep          string    // styled " │ " for table columns
+
 	styleTaskTicked  string
 	styleTaskUntick  string
 	listIndent       int
 	blockquoteIndent int
 	chromaStyle      *chroma.Style
-
-	// Pre-rendered table chrome
-	styledTableSep string // styled " │ " for table columns
 }
 
 var (
@@ -209,49 +193,66 @@ func getGlobalStyles() *cachedStyles {
 		// Build blockquote lipgloss style
 		blockquoteLipStyle := buildStylePrimitive(mdStyle.BlockQuote.StylePrimitive)
 
-		globalStyles = &cachedStyles{
-			headingStyles:   headingLipStyles,
-			headingPrefixes: [6]string{"## ", "## ", "### ", "#### ", "##### ", "###### "},
-			styleBlockquote: blockquoteLipStyle,
-			styleHR:         buildStylePrimitive(mdStyle.HorizontalRule),
-			styleCodeBg:     lipgloss.NewStyle(),
-			ansiBold:        buildAnsiStyle(styleBold),
-			ansiItalic:      buildAnsiStyle(styleItalic),
-			ansiBoldItal:    buildAnsiStyle(styleBold.Inherit(styleItalic)),
-			ansiStrike:      buildAnsiStyle(buildStylePrimitive(mdStyle.Strikethrough)),
-			ansiCode:        buildAnsiStyle(buildStylePrimitive(mdStyle.Code.StylePrimitive)),
-			ansiLink:        buildAnsiStyle(buildStylePrimitive(mdStyle.Link)),
-			ansiLinkText:    buildAnsiStyle(buildStylePrimitive(mdStyle.LinkText)),
-			ansiText:        buildAnsiStyle(textStyle),
-			ansiHeadings: [6]ansiStyle{
-				buildAnsiStyle(headingLipStyles[0]),
-				buildAnsiStyle(headingLipStyles[1]),
-				buildAnsiStyle(headingLipStyles[2]),
-				buildAnsiStyle(headingLipStyles[3]),
-				buildAnsiStyle(headingLipStyles[4]),
-				buildAnsiStyle(headingLipStyles[5]),
-			},
-			ansiBlockquote:   buildAnsiStyle(blockquoteLipStyle),
-			ansiFootnote:     buildAnsiStyle(lipgloss.NewStyle().Foreground(styles.TextSecondary).Italic(true)),
-			styleTaskTicked:  mdStyle.Task.Ticked,
-			styleTaskUntick:  mdStyle.Task.Unticked,
-			listIndent:       int(mdStyle.List.LevelIndent),
-			blockquoteIndent: 1,
-			chromaStyle:      styles.ChromaStyle(),
+		// Heading prefixes used both for display and width math. H1 deliberately
+		// uses the same "## " prefix as H2 so a single hash in the source does not
+		// dominate the TUI with an oversized banner heading.
+		// Note: H1 uses "# " (single hash) for proper visual hierarchy and correct
+		// continuation-indent width (2 spaces instead of 3).
+		headingPrefixes := [6]string{"# ", "## ", "### ", "#### ", "##### ", "###### "}
+		ansiHeadings := [6]ansiStyle{
+			buildAnsiStyle(headingLipStyles[0]),
+			buildAnsiStyle(headingLipStyles[1]),
+			buildAnsiStyle(headingLipStyles[2]),
+			buildAnsiStyle(headingLipStyles[3]),
+			buildAnsiStyle(headingLipStyles[4]),
+			buildAnsiStyle(headingLipStyles[5]),
 		}
-		for i := range globalStyles.ansiHeadings {
-			globalStyles.ansiHeadings[i].hasBold = true
+		for i := range ansiHeadings {
+			ansiHeadings[i].hasBold = true
 		}
-		if mdStyle.BlockQuote.Indent != nil {
-			globalStyles.blockquoteIndent = int(*mdStyle.BlockQuote.Indent)
+
+		var styledPrefixes, styledContIndents [6]string
+		for i, p := range headingPrefixes {
+			styledPrefixes[i] = ansiHeadings[i].render(p)
+			styledContIndents[i] = ansiHeadings[i].render(spaces(len(p)))
 		}
+
+		codeBg := lipgloss.NewStyle()
 		if mdStyle.CodeBlock.BackgroundColor != nil {
-			globalStyles.styleCodeBg = globalStyles.styleCodeBg.Background(lipgloss.Color(*mdStyle.CodeBlock.BackgroundColor))
+			codeBg = codeBg.Background(lipgloss.Color(*mdStyle.CodeBlock.BackgroundColor))
 		}
-		// Cache ANSI version of code background style (must be after styleCodeBg is fully configured)
-		globalStyles.ansiCodeBg = buildAnsiStyle(globalStyles.styleCodeBg)
-		// Cache styled table separator
-		globalStyles.styledTableSep = globalStyles.ansiText.render(" │ ")
+		ansiText := buildAnsiStyle(textStyle)
+
+		blockquoteIndent := 1
+		if mdStyle.BlockQuote.Indent != nil {
+			blockquoteIndent = int(*mdStyle.BlockQuote.Indent)
+		}
+
+		globalStyles = &cachedStyles{
+			styleCodeBg:             codeBg,
+			ansiBold:                buildAnsiStyle(styleBold),
+			ansiItalic:              buildAnsiStyle(styleItalic),
+			ansiBoldItal:            buildAnsiStyle(styleBold.Inherit(styleItalic)),
+			ansiStrike:              buildAnsiStyle(buildStylePrimitive(mdStyle.Strikethrough)),
+			ansiCode:                buildAnsiStyle(buildStylePrimitive(mdStyle.Code.StylePrimitive)),
+			ansiLink:                buildAnsiStyle(buildStylePrimitive(mdStyle.Link)),
+			ansiLinkText:            buildAnsiStyle(buildStylePrimitive(mdStyle.LinkText)),
+			ansiText:                ansiText,
+			ansiHeadings:            ansiHeadings,
+			ansiBlockquote:          buildAnsiStyle(blockquoteLipStyle),
+			ansiFootnote:            buildAnsiStyle(lipgloss.NewStyle().Foreground(styles.TextSecondary).Italic(true)),
+			ansiCodeBg:              buildAnsiStyle(codeBg),
+			headingPrefixes:         headingPrefixes,
+			styledHeadingPrefixes:   styledPrefixes,
+			styledHeadingContIndent: styledContIndents,
+			styledHR:                buildAnsiStyle(buildStylePrimitive(mdStyle.HorizontalRule)).render("--------") + "\n\n",
+			styledTableSep:          ansiText.render(" │ "),
+			styleTaskTicked:         mdStyle.Task.Ticked,
+			styleTaskUntick:         mdStyle.Task.Unticked,
+			listIndent:              int(mdStyle.List.LevelIndent),
+			blockquoteIndent:        blockquoteIndent,
+			chromaStyle:             styles.ChromaStyle(),
+		}
 	})
 	return globalStyles
 }
@@ -287,7 +288,7 @@ func (r *FastRenderer) Render(input string) (string, error) {
 	p.reset(input, r.width)
 	result := p.parse()
 	parserPool.Put(p)
-	return padAllLines(fixHyperlinkWrapping(result), r.width), nil
+	return finalizeOutput(result, r.width), nil
 }
 
 // parser holds the state for parsing markdown.
@@ -374,35 +375,42 @@ func (p *parser) tryCodeBlock(line string) bool {
 	return true
 }
 
+// headingLevel returns the ATX heading level (1-6) for line, or 0 if line is
+// not a valid ATX heading. A valid heading has 1-6 '#' characters followed by
+// a space, tab, or end of line.
+func headingLevel(line string) int {
+	level := 0
+	for level < len(line) && line[level] == '#' {
+		level++
+	}
+	if level == 0 || level > 6 {
+		return 0
+	}
+	if level == len(line) {
+		return level
+	}
+	if c := line[level]; c == ' ' || c == '\t' {
+		return level
+	}
+	return 0
+}
+
 // tryHeading checks for ATX-style headings (# through ######)
 func (p *parser) tryHeading(line string) bool {
 	trimmed := strings.TrimLeft(line, " \t")
-	if !strings.HasPrefix(trimmed, "#") {
+	level := headingLevel(trimmed)
+	if level == 0 {
 		return false
 	}
 
-	// Count heading level
-	level := 0
-	for i := 0; i < len(trimmed) && trimmed[i] == '#'; i++ {
-		level++
-	}
-	if level > 6 || level == 0 {
-		return false
-	}
-
-	// Must have space after #s or be empty
-	rest := trimmed[level:]
-	if rest != "" && rest[0] != ' ' && rest[0] != '\t' {
-		return false
-	}
-
-	content := strings.TrimSpace(rest)
+	content := strings.TrimSpace(trimmed[level:])
 	// Remove trailing #s
 	content = strings.TrimRight(content, "# \t")
 
-	style := p.headingStyle(level)
-	ansiStyle := p.headingAnsiStyle(level)
-	prefix := p.headingPrefix(level)
+	ansiStyle := p.styles.ansiHeadings[level-1]
+	prefix := p.styles.headingPrefixes[level-1]
+	styledPrefix := p.styles.styledHeadingPrefixes[level-1]
+	styledContinuationIndent := p.styles.styledHeadingContIndent[level-1]
 
 	// Headings are bold by default. If the entire heading is wrapped in emphasis,
 	// strip the wrapper and only apply italics when requested.
@@ -437,53 +445,21 @@ func (p *parser) tryHeading(line string) bool {
 	}
 
 	// Wrap the rendered content and style each line
-	// The content already has ANSI codes from renderInlineWithStyle, which uses
-	// the heading's ansiStyle for restoration. We only need to style the prefix.
 	wrapped := p.wrapText(rendered, contentWidth)
-	styledPrefix := style.Render(prefix)
-	// Lazy-compute continuation indent (only computed if we have multiple lines)
-	var styledContinuationIndent string
 	first := true
 	for l := range strings.SplitSeq(wrapped, "\n") {
 		if first {
 			p.out.WriteString(styledPrefix)
-			p.out.WriteString(l)
-			p.out.WriteByte('\n')
 			first = false
 		} else {
-			// Continuation lines get indented to align with content
-			if styledContinuationIndent == "" {
-				styledContinuationIndent = style.Render(spaces(prefixWidth))
-			}
 			p.out.WriteString(styledContinuationIndent)
-			p.out.WriteString(l)
-			p.out.WriteByte('\n')
 		}
+		p.out.WriteString(l)
+		p.out.WriteByte('\n')
 	}
 	p.out.WriteByte('\n')
 	p.lineIdx++
 	return true
-}
-
-func (p *parser) headingStyle(level int) lipgloss.Style {
-	if level >= 1 && level <= 6 {
-		return p.styles.headingStyles[level-1]
-	}
-	return p.styles.headingStyles[0]
-}
-
-func (p *parser) headingAnsiStyle(level int) ansiStyle {
-	if level >= 1 && level <= 6 {
-		return p.styles.ansiHeadings[level-1]
-	}
-	return p.styles.ansiHeadings[0]
-}
-
-func (p *parser) headingPrefix(level int) string {
-	if level >= 1 && level <= 6 {
-		return p.styles.headingPrefixes[level-1]
-	}
-	return ""
 }
 
 // tryHorizontalRule checks for horizontal rules (---, ***, ___)
@@ -491,9 +467,7 @@ func (p *parser) tryHorizontalRule(line string) bool {
 	if !isHorizontalRule(line) {
 		return false
 	}
-	// Render rule with consistent spacing: content + blank line after
-	// Previous elements already end with \n\n, so we get one blank line before
-	p.out.WriteString(p.styles.styleHR.Render("--------") + "\n\n")
+	p.out.WriteString(p.styles.styledHR)
 	p.lineIdx++
 	return true
 }
@@ -586,7 +560,9 @@ func (p *parser) renderBlockquoteContent(lines []string, indent string, availabl
 		rendered := p.renderInlineWithStyle(line, p.styles.ansiBlockquote)
 		wrapped := p.wrapText(rendered, availableWidth)
 		for wl := range strings.SplitSeq(wrapped, "\n") {
-			p.out.WriteString(indent + p.styles.styleBlockquote.Render(wl) + "\n")
+			p.out.WriteString(indent)
+			p.styles.ansiBlockquote.renderTo(&p.out, wl)
+			p.out.WriteByte('\n')
 		}
 		i++
 	}
@@ -1403,87 +1379,13 @@ func (p *parser) renderListBlockquote(bulletWidth int) {
 
 	// Use renderBlockquoteContent for full support including nested code blocks
 	fullIndent := indent + spaces(p.styles.blockquoteIndent)
-	p.renderListBlockquoteContent(quoteLines, fullIndent, availableWidth)
-}
-
-// renderListBlockquoteContent renders blockquote content within a list, including code blocks and nested blockquotes
-func (p *parser) renderListBlockquoteContent(lines []string, indent string, contentWidth int) {
-	i := 0
-	for i < len(lines) {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-
-		// Check for nested blockquote (line starts with >)
-		if strings.HasPrefix(trimmed, ">") {
-			// Collect all consecutive nested blockquote lines
-			var nestedLines []string
-			for i < len(lines) {
-				l := strings.TrimSpace(lines[i])
-				if !strings.HasPrefix(l, ">") {
-					break
-				}
-				// Strip the > and optional space
-				content := strings.TrimPrefix(l, ">")
-				content = strings.TrimPrefix(content, " ")
-				nestedLines = append(nestedLines, content)
-				i++
-			}
-
-			// Render the nested blockquote with additional indentation
-			nestedIndent := indent + spaces(p.styles.blockquoteIndent)
-			nestedWidth := max(contentWidth-p.styles.blockquoteIndent,
-				// Minimum content width
-				10)
-			p.renderListBlockquoteContent(nestedLines, nestedIndent, nestedWidth)
-			continue
-		}
-
-		// Check for fenced code block start
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			fence := trimmed[:3]
-			lang := strings.TrimSpace(trimmed[3:])
-			i++
-
-			// Collect code lines until fence end
-			var codeLines []string
-			for i < len(lines) {
-				codeLine := lines[i]
-				if strings.HasPrefix(strings.TrimSpace(codeLine), fence) {
-					i++
-					break
-				}
-				codeLines = append(codeLines, codeLine)
-				i++
-			}
-
-			// Render the code block within blockquote context
-			code := strings.Join(codeLines, "\n")
-			p.renderListBlockquoteCodeBlock(code, lang, indent, contentWidth)
-			continue
-		}
-
-		// Regular line - render with blockquote-aware inline styling
-		rendered := p.renderInlineWithStyle(line, p.styles.ansiBlockquote)
-		wrapped := p.wrapText(rendered, contentWidth)
-		for wl := range strings.SplitSeq(wrapped, "\n") {
-			p.out.WriteString(indent + p.styles.styleBlockquote.Render(wl) + "\n")
-		}
-		i++
-	}
-}
-
-// renderListBlockquoteCodeBlock renders a code block within a blockquote within a list
-func (p *parser) renderListBlockquoteCodeBlock(code, lang, indent string, availableWidth int) {
-	// Add spacing before code block
-	p.out.WriteString("\n")
-
-	if code == "" {
-		return
-	}
-	p.renderCodeBlockWithIndent(code, lang, indent, availableWidth)
+	p.renderBlockquoteContent(quoteLines, fullIndent, availableWidth)
 }
 
 // renderParagraph collects consecutive non-empty lines and renders them as a paragraph.
+// The first line is always consumed: parse() has already verified it isn't a block,
+// so without that guarantee an approximate isBlockStart check could loop forever on
+// inputs like "####### foo" or "#nospace".
 func (p *parser) renderParagraph() {
 	var paraLines []string
 	for p.lineIdx < len(p.lines) {
@@ -1492,14 +1394,7 @@ func (p *parser) renderParagraph() {
 			p.lineIdx++
 			break
 		}
-		// Check if next line starts a block element
-		trimmed := strings.TrimLeft(line, " \t")
-		if strings.HasPrefix(trimmed, "#") ||
-			strings.HasPrefix(trimmed, "```") ||
-			strings.HasPrefix(trimmed, "~~~") ||
-			strings.HasPrefix(trimmed, ">") ||
-			isListStart(trimmed) ||
-			isHorizontalRule(trimmed) {
+		if len(paraLines) > 0 && isBlockStart(line) {
 			break
 		}
 		paraLines = append(paraLines, line)
@@ -1510,11 +1405,30 @@ func (p *parser) renderParagraph() {
 		return
 	}
 
-	// Join lines and render inline elements
 	text := strings.Join(paraLines, " ")
 	rendered := p.renderInline(text)
 	wrapped := p.wrapText(rendered, p.width)
 	p.out.WriteString(wrapped + "\n\n")
+}
+
+// isBlockStart reports whether line could begin a new block element when
+// encountered inside a paragraph. It mirrors the prefix tests in parse() so a
+// paragraph terminates correctly at the start of the next block.
+func isBlockStart(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	switch {
+	case headingLevel(trimmed) > 0:
+		return true
+	case strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~"):
+		return true
+	case strings.HasPrefix(trimmed, ">"):
+		return true
+	case isListStart(trimmed):
+		return true
+	case isHorizontalRule(trimmed):
+		return true
+	}
+	return false
 }
 
 func isHorizontalRule(line string) bool {
@@ -2139,7 +2053,7 @@ func (p *parser) renderCodeBlockWithIndent(code, lang, indent string, availableW
 // writeCodeSegmentsWithAutoLinks detects URLs in a code segment and wraps them
 // in OSC 8 hyperlink sequences so they become clickable in the TUI.
 // OSC 8 open/close are written directly to lineBuilder (not measured by writeSegment),
-// and fixHyperlinkWrapping in Render() ensures sequences survive line wrapping.
+// and finalizeOutput in Render() ensures sequences survive line wrapping.
 func writeCodeSegmentsWithAutoLinks(segment string, style ansiStyle, lineBuilder *strings.Builder, writeSegment func(string, ansiStyle)) {
 	for segment != "" {
 		idx := findFirstURL(segment)
@@ -2215,34 +2129,8 @@ func ansiStringWidth(s string) int {
 	width := 0
 	for i := 0; i < len(s); {
 		if s[i] == '\x1b' {
-			// Skip CSI sequences (e.g., \x1b[...m)
-			if i+1 < len(s) && s[i+1] == '[' {
-				i += 2
-				for i < len(s) && (s[i] < '@' || s[i] > '~') {
-					i++
-				}
-				if i < len(s) {
-					i++
-				}
-				continue
-			}
-			// Skip OSC sequences (e.g., \x1b]8;...;\x07 for hyperlinks)
-			if i+1 < len(s) && s[i+1] == ']' {
-				i += 2
-				for i < len(s) {
-					if s[i] == '\x07' {
-						i++
-						break
-					}
-					if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
-						i += 2
-						break
-					}
-					i++
-				}
-				continue
-			}
-			i++
+			end, _ := scanAnsiSequence(s, i)
+			i = end
 			continue
 		}
 		if s[i] < utf8.RuneSelf {
@@ -2260,139 +2148,180 @@ func ansiStringWidth(s string) int {
 	return width
 }
 
+// scanAnsiSequence parses an ANSI escape sequence that starts at s[i] (which
+// must be '\x1b'). It returns the byte index just past the end of the sequence
+// and a kind byte:
+//
+//	'[' — a CSI sequence (\x1b[…<final byte in 0x40..0x7E>).
+//	']' — an OSC sequence (\x1b]…<BEL or ESC\>).
+//	0   — a bare \x1b not recognised as either; end = i+1.
+//
+// On malformed input (no terminator) the function advances to the end of s
+// rather than looping or panicking.
+func scanAnsiSequence(s string, i int) (end int, kind byte) {
+	n := len(s)
+	if i+1 >= n {
+		return i + 1, 0
+	}
+	switch s[i+1] {
+	case '[':
+		end = i + 2
+		for end < n && (s[end] < '@' || s[end] > '~') {
+			end++
+		}
+		if end < n {
+			end++
+		}
+		return end, '['
+	case ']':
+		end = i + 2
+		for end < n {
+			if s[end] == 0x07 {
+				return end + 1, ']'
+			}
+			if s[end] == 0x1b && end+1 < n && s[end+1] == '\\' {
+				return end + 2, ']'
+			}
+			end++
+		}
+		return end, ']'
+	}
+	return i + 1, 0
+}
+
+// classifyOSC8 inspects a complete OSC sequence and reports whether it is an
+// OSC 8 hyperlink open (with a non-empty URI) or close (empty URI). Any other
+// OSC sequence returns (false, false).
+func classifyOSC8(seq string) (isOpen, isClose bool) {
+	// Minimum well-formed OSC 8: "\x1b]8;;\x07" (close, 6 bytes).
+	if len(seq) < 6 || seq[0] != 0x1b || seq[1] != ']' || seq[2] != '8' || seq[3] != ';' {
+		return false, false
+	}
+	// Locate the ';' separating params from the URI (after the leading "8;").
+	semi := strings.IndexByte(seq[4:], ';')
+	if semi < 0 {
+		return false, false
+	}
+	uriStart := 4 + semi + 1
+	var termLen int
+	switch {
+	case strings.HasSuffix(seq, "\x07"):
+		termLen = 1
+	case strings.HasSuffix(seq, "\x1b\\"):
+		termLen = 2
+	default:
+		return false, false
+	}
+	if uriStart+termLen > len(seq) {
+		return false, false
+	}
+	if len(seq)-uriStart-termLen == 0 {
+		return false, true
+	}
+	return true, false
+}
+
 // osc8Close is the canonical OSC 8 close sequence (empty URI, BEL terminated).
 const osc8Close = "\x1b]8;;\x07"
 
-// fixHyperlinkWrapping ensures that OSC 8 hyperlink sequences are properly
-// closed before each newline and re-opened after, so that each terminal line
-// is a self-contained clickable link. This is needed because wrapText/breakWord
-// can split a long hyperlinked URL across multiple lines.
+// finalizeOutput rewrites the rendered markdown to make it terminal-ready:
 //
-// The implementation is a single-pass scanner: it tracks the most recent OSC 8
-// open sequence, and whenever a '\n' is encountered while a hyperlink is
-// active, it emits a close, then the newline, then re-opens the hyperlink on
-// the next line. This avoids the per-render allocations of a generic ANSI
-// stream rewriter.
-func fixHyperlinkWrapping(s string) string {
-	// Fast path: no hyperlinks, nothing to fix.
-	if !strings.Contains(s, "\x1b]8;") {
+//   - OSC 8 hyperlinks that crossed a line break are closed before each '\n'
+//     and re-opened on the next line so every line is independently clickable.
+//   - Each line is padded with trailing spaces up to width so background fills
+//     reach the right edge.
+//
+// Both transformations are streamed in a single pass over the input — width is
+// tracked as we copy bytes and ANSI escape sequences (CSI and OSC) are
+// recognised so they are not counted toward visible width.
+func finalizeOutput(s string, width int) string {
+	if s == "" {
 		return s
 	}
-	// Fast path: no line breaks => OSC 8 cannot span a wrap.
-	if !strings.Contains(s, "\n") {
+	needPad := width > 0
+	needLink := strings.Contains(s, "\x1b]8;")
+	if !needPad && !needLink {
 		return s
 	}
 
 	var buf strings.Builder
 	buf.Grow(len(s) + 64)
 
-	// activeOpen is the most recent OSC 8 open sequence ("" when not inside a
-	// hyperlink). When a '\n' is seen with an active link, we close-then-reopen.
-	var activeOpen string
+	var activeOpen string // most recent OSC 8 open sequence; "" when not inside a link
+	lineWidth := 0
 
-	for i := 0; i < len(s); {
+	flushNewline := func() {
+		if activeOpen != "" {
+			buf.WriteString(osc8Close)
+		}
+		if needPad && lineWidth < width {
+			writeSpaces(&buf, width-lineWidth)
+		}
+		buf.WriteByte('\n')
+		if activeOpen != "" {
+			buf.WriteString(activeOpen)
+		}
+		lineWidth = 0
+	}
+
+	n := len(s)
+	for i := 0; i < n; {
 		c := s[i]
 
-		// Detect OSC 8 sequence start: ESC ] 8 ;
-		if c == 0x1b && i+3 < len(s) && s[i+1] == ']' && s[i+2] == '8' && s[i+3] == ';' {
-			// Find the second ';' separating params from URI.
-			second := strings.IndexByte(s[i+4:], ';')
-			if second < 0 {
-				// Malformed; emit the byte and continue.
-				buf.WriteByte(c)
-				i++
-				continue
-			}
-			uriStart := i + 4 + second + 1
-
-			// Find the string terminator: BEL (\x07) or ESC \.
-			j := uriStart
-			for j < len(s) {
-				if s[j] == 0x07 {
-					j++
-					break
-				}
-				if s[j] == 0x1b && j+1 < len(s) && s[j+1] == '\\' {
-					j += 2
-					break
-				}
-				j++
-			}
-			seq := s[i:j]
-			buf.WriteString(seq)
-
-			// A close has an empty URI: the bytes between uriStart and the
-			// terminator are zero (BEL: j == uriStart+1; ESC\\: j == uriStart+2).
-			isClose := (j == uriStart+1 && s[uriStart] == 0x07) ||
-				(j == uriStart+2 && s[uriStart] == 0x1b)
-			if isClose {
-				activeOpen = ""
-			} else {
-				activeOpen = seq
-			}
-			i = j
-			continue
-		}
-
-		if c == '\n' && activeOpen != "" {
-			buf.WriteString(osc8Close)
-			buf.WriteByte('\n')
-			buf.WriteString(activeOpen)
+		if c == '\n' {
+			flushNewline()
 			i++
 			continue
 		}
 
-		buf.WriteByte(c)
-		i++
-	}
-
-	return buf.String()
-}
-
-// padAllLines pads each line to the target width with trailing spaces.
-func padAllLines(s string, width int) string {
-	if width <= 0 || s == "" {
-		return s
-	}
-
-	if !strings.Contains(s, "\n") {
-		lineWidth := ansiStringWidth(s)
-		if lineWidth >= width {
-			return s
-		}
-		var result strings.Builder
-		result.Grow(len(s) + width - lineWidth)
-		result.WriteString(s)
-		writeSpaces(&result, width-lineWidth)
-		return result.String()
-	}
-
-	// Pre-allocate result buffer - estimate final size
-	var result strings.Builder
-	result.Grow(len(s) + len(s)/40*width) // rough estimate for padding
-
-	start := 0
-	for i := range len(s) + 1 {
-		if i != len(s) && s[i] != '\n' {
+		if c == '\x1b' {
+			end, kind := scanAnsiSequence(s, i)
+			if kind == 0 {
+				// Lone ESC byte: copy through without advancing line width.
+				buf.WriteByte(c)
+				i = end
+				continue
+			}
+			seq := s[i:end]
+			buf.WriteString(seq)
+			if kind == ']' {
+				if isOpen, isClose := classifyOSC8(seq); isOpen {
+					activeOpen = seq
+				} else if isClose {
+					activeOpen = ""
+				}
+			}
+			i = end
 			continue
 		}
 
-		line := s[start:i]
-		result.WriteString(line)
-
-		lineWidth := ansiStringWidth(line)
-		if lineWidth < width {
-			// Pad with spaces
-			writeSpaces(&result, width-lineWidth)
+		// ASCII fast path: copy a run of plain bytes and count their width.
+		if c < utf8.RuneSelf {
+			start := i
+			for i < n {
+				b := s[i]
+				if b == '\x1b' || b == '\n' || b >= utf8.RuneSelf {
+					break
+				}
+				i++
+			}
+			buf.WriteString(s[start:i])
+			lineWidth += i - start
+			continue
 		}
 
-		if i < len(s) {
-			result.WriteByte('\n')
-		}
-		start = i + 1
+		r, size := utf8.DecodeRuneInString(s[i:])
+		buf.WriteString(s[i : i+size])
+		lineWidth += runewidth.RuneWidth(r)
+		i += size
 	}
 
-	return result.String()
+	// Trailing line (no terminating newline): pad to width if needed.
+	if needPad && lineWidth < width {
+		writeSpaces(&buf, width-lineWidth)
+	}
+
+	return buf.String()
 }
 
 type token struct {
@@ -2539,20 +2468,19 @@ func chromaToLipgloss(tokenType chroma.TokenType, style *chroma.Style) lipgloss.
 }
 
 // wrapText wraps text to the given width, respecting ANSI escape sequences.
-// It tracks active ANSI styles and re-applies them on continuation lines.
+// It tracks active CSI styles and re-applies them on continuation lines so a
+// styled segment that crosses a wrap is rendered correctly on both lines.
 func (p *parser) wrapText(text string, width int) string {
-	if width <= 0 {
+	if width <= 0 || text == "" {
 		return text
 	}
 
-	// Fast path: if the text fits in one line, return as-is
-	// This avoids expensive word splitting for short strings
-	textVisualWidth := ansiStringWidth(text)
-	if textVisualWidth <= width {
+	// Fast path: if the text fits in one line, return as-is.
+	if ansiStringWidth(text) <= width {
 		return text
 	}
 
-	// Fast path: no spaces means we can only break the word directly
+	// Fast path: no spaces — just break the long word.
 	if !strings.ContainsAny(text, " \t") {
 		broken := breakWord(text, width)
 		if len(broken) == 1 {
@@ -2561,217 +2489,109 @@ func (p *parser) wrapText(text string, width int) string {
 		return strings.Join(broken, "\n")
 	}
 
-	var result strings.Builder
-	result.Grow(len(text) + len(text)/40) // estimate for newlines
+	var out strings.Builder
+	out.Grow(len(text) + len(text)/40)
 
-	var currentLine strings.Builder
-	currentLine.Grow(width + 32) // typical line length + ANSI codes
-	currentWidth := 0
+	var active []string // currently-active CSI styles (cleared on \x1b[m)
+	lineWidth := 0
 
-	// Track active ANSI sequences that should be re-applied after line breaks
-	// We use a single slice and only snapshot when we actually need to wrap
-	var activeStyles []string
-
-	words := splitWordsWithStyles(text)
-	for i := range words {
-		ws := &words[i]
-		wordWidth := ws.width
-
-		// Determine if we need to wrap - only then do we need the previous styles
-		var needsWrap bool
-		if wordWidth > width {
-			needsWrap = currentLine.Len() > 0
-		} else {
-			spaceWidth := 0
-			if currentWidth > 0 {
-				spaceWidth = 1
-			}
-			needsWrap = currentWidth+spaceWidth+wordWidth > width
+	n := len(text)
+	i := 0
+	for i < n {
+		// Skip any whitespace between words.
+		for i < n && (text[i] == ' ' || text[i] == '\t') {
+			i++
+		}
+		if i >= n {
+			break
 		}
 
-		// Only snapshot styles when we actually need to wrap
-		var stylesForWrap []string
-		if needsWrap && len(activeStyles) > 0 {
-			stylesForWrap = make([]string, len(activeStyles))
-			copy(stylesForWrap, activeStyles)
-		}
-
-		// Update active styles based on ANSI sequences in this word
-		activeStyles = updateActiveStyles(activeStyles, ws.ansiCodes)
-
-		if wordWidth > width {
-			if currentLine.Len() > 0 {
-				// Close any active styles before line break
-				if len(stylesForWrap) > 0 {
-					currentLine.WriteString("\x1b[m")
+		// Collect the next word — plain bytes plus any embedded ANSI sequences.
+		wordStart := i
+		wordWidth := 0
+		var wordAnsi []string
+		for i < n && text[i] != ' ' && text[i] != '\t' {
+			c := text[i]
+			if c == '\x1b' {
+				end, kind := scanAnsiSequence(text, i)
+				if kind != 0 {
+					wordAnsi = append(wordAnsi, text[i:end])
 				}
-				result.WriteString(currentLine.String())
-				result.WriteByte('\n')
-				currentLine.Reset()
-				currentWidth = 0
-				// Re-apply styles that were active before this word
-				for _, s := range stylesForWrap {
-					currentLine.WriteString(s)
-				}
-			}
-
-			broken := breakWord(ws.word, width)
-			for j, part := range broken {
-				if j > 0 {
-					result.WriteByte('\n')
-					// Re-apply styles for continuation within long word
-					for _, s := range stylesForWrap {
-						result.WriteString(s)
-					}
-				}
-				result.WriteString(part)
-			}
-			result.WriteByte('\n')
-			continue
-		}
-
-		spaceWidth := 0
-		if currentWidth > 0 {
-			spaceWidth = 1
-		}
-
-		if currentWidth+spaceWidth+wordWidth > width {
-			// Close any active styles before line break
-			if len(stylesForWrap) > 0 {
-				currentLine.WriteString("\x1b[m")
-			}
-			result.WriteString(currentLine.String())
-			result.WriteByte('\n')
-			currentLine.Reset()
-			currentWidth = 0
-			spaceWidth = 0
-			// Re-apply styles that were active before this word
-			for _, s := range stylesForWrap {
-				currentLine.WriteString(s)
-			}
-		}
-
-		if spaceWidth > 0 {
-			currentLine.WriteByte(' ')
-			currentWidth++
-		}
-
-		currentLine.WriteString(ws.word)
-		currentWidth += wordWidth
-	}
-
-	if currentLine.Len() > 0 {
-		result.WriteString(currentLine.String())
-	}
-
-	return result.String()
-}
-
-// styledWord represents a word along with any ANSI codes it contains
-type styledWord struct {
-	word      string   // The full word including ANSI codes (slice of original)
-	ansiCodes []string // ANSI sequences found in this word
-	width     int      // Precomputed visual width
-}
-
-// splitWordsWithStyles splits text into words while tracking ANSI sequences.
-// Words are slices of the original string (no copying), and visual width is precomputed.
-func splitWordsWithStyles(text string) []styledWord {
-	// Count words to pre-allocate
-	wordCount := 1
-	for i := range len(text) {
-		if text[i] == ' ' || text[i] == '\t' {
-			wordCount++
-		}
-	}
-
-	words := make([]styledWord, 0, wordCount)
-	wordStart := -1 // Start index of current word (-1 means no word started)
-	wordWidth := 0  // Visual width of current word
-	var currentAnsi []string
-	inAnsi := false
-	ansiStart := 0
-
-	for i := 0; i < len(text); {
-		if text[i] == '\x1b' {
-			if wordStart == -1 {
-				wordStart = i
-			}
-			// Check for OSC sequence (\x1b]...)
-			if i+1 < len(text) && text[i+1] == ']' {
-				oscStart := i
-				i += 2
-				for i < len(text) {
-					if text[i] == '\x07' {
-						i++
-						break
-					}
-					if text[i] == '\x1b' && i+1 < len(text) && text[i+1] == '\\' {
-						i += 2
-						break
-					}
-					i++
-				}
-				currentAnsi = append(currentAnsi, text[oscStart:i])
+				// Lone ESC: zero-width pass-through (no width change).
+				i = end
 				continue
 			}
-			// Start of CSI ANSI sequence
-			inAnsi = true
-			ansiStart = i
-			i++
-			continue
-		}
-		if inAnsi {
-			if (text[i] >= 'a' && text[i] <= 'z') || (text[i] >= 'A' && text[i] <= 'Z') {
-				// End of ANSI sequence - capture it
-				currentAnsi = append(currentAnsi, text[ansiStart:i+1])
-				inAnsi = false
+			if c < utf8.RuneSelf {
+				wordWidth++
+				i++
+				continue
 			}
-			i++
-			continue
+			r, size := utf8.DecodeRuneInString(text[i:])
+			wordWidth += runewidth.RuneWidth(r)
+			i += size
+		}
+		word := text[wordStart:i]
+
+		// Fold this word's ANSI codes into the active set BEFORE handling it.
+		// For a long word that gets split, this ensures the continuation-line
+		// breaks below close and re-open any styles that were opened inside the
+		// word, instead of replaying only the styles active before it.
+		active = updateActiveStyles(active, wordAnsi)
+		// Layout decision: do we need to wrap before this word?
+		haveLine := lineWidth > 0
+		needsWrap := haveLine && lineWidth+1+wordWidth > width
+		if wordWidth > width && haveLine {
+			needsWrap = true
+		}
+		if needsWrap {
+			writeLineBreak(&out, active)
+			lineWidth = 0
+		} else if haveLine {
+			out.WriteByte(' ')
+			lineWidth++
 		}
 
-		if text[i] == ' ' || text[i] == '\t' {
-			// End of word
-			if wordStart >= 0 {
-				words = append(words, styledWord{
-					word:      text[wordStart:i],
-					ansiCodes: currentAnsi,
-					width:     wordWidth,
-				})
-				wordStart = -1
-				wordWidth = 0
-				currentAnsi = nil
+		if wordWidth > width {
+			// Long word: break it into pieces, separated by line breaks that close
+			// and restore the currently-active styles.
+			broken := breakWord(word, width)
+			for j, part := range broken {
+				if j > 0 {
+					writeLineBreak(&out, active)
+				}
+				out.WriteString(part)
 			}
-			i++
-			continue
+			// Always end a broken-word run with a line break so the following
+			// word starts on a fresh line.
+			writeLineBreak(&out, active)
+			lineWidth = 0
+		} else {
+			out.WriteString(word)
+			lineWidth += wordWidth
 		}
-
-		// Regular character - decode and measure
-		if wordStart == -1 {
-			wordStart = i
-		}
-		r, size := utf8.DecodeRuneInString(text[i:])
-		wordWidth += runewidth.RuneWidth(r)
-		i += size
 	}
 
-	// Don't forget the last word
-	if wordStart >= 0 {
-		words = append(words, styledWord{
-			word:      text[wordStart:],
-			ansiCodes: currentAnsi,
-			width:     wordWidth,
-		})
-	}
-
-	return words
+	return out.String()
 }
 
-// updateActiveStyles updates the list of active ANSI styles based on new codes
+// writeLineBreak emits a styled line break: it closes any active CSI styles,
+// writes '\n', then re-opens those styles so the next line continues with the
+// same formatting.
+func writeLineBreak(out *strings.Builder, active []string) {
+	if len(active) > 0 {
+		out.WriteString("\x1b[m")
+	}
+	out.WriteByte('\n')
+	for _, s := range active {
+		out.WriteString(s)
+	}
+}
+
+// updateActiveStyles folds a sequence of newly-seen ANSI codes into the list
+// of currently-active CSI styles. OSC sequences are line-local and ignored;
+// a full CSI reset (\x1b[m or \x1b[0m) clears the list.
 func updateActiveStyles(active, newCodes []string) []string {
 	for _, code := range newCodes {
-		// Skip OSC sequences (hyperlinks) — they're self-contained, not carried across lines
 		if strings.HasPrefix(code, "\x1b]") {
 			continue
 		}
@@ -2792,43 +2612,12 @@ func breakWord(word string, maxWidth int) []string {
 	var parts []string
 	var current strings.Builder
 	currentWidth := 0
-	inAnsi := false
-	var ansiSeq strings.Builder
 
 	for i := 0; i < len(word); {
 		if word[i] == '\x1b' {
-			// Check for OSC sequence
-			if i+1 < len(word) && word[i+1] == ']' {
-				oscStart := i
-				i += 2
-				for i < len(word) {
-					if word[i] == '\x07' {
-						i++
-						break
-					}
-					if word[i] == '\x1b' && i+1 < len(word) && word[i+1] == '\\' {
-						i += 2
-						break
-					}
-					i++
-				}
-				current.WriteString(word[oscStart:i])
-				continue
-			}
-			// Existing CSI handling
-			inAnsi = true
-			ansiSeq.WriteByte(word[i])
-			i++
-			continue
-		}
-		if inAnsi {
-			ansiSeq.WriteByte(word[i])
-			if (word[i] >= 'a' && word[i] <= 'z') || (word[i] >= 'A' && word[i] <= 'Z') {
-				inAnsi = false
-				current.WriteString(ansiSeq.String())
-				ansiSeq.Reset()
-			}
-			i++
+			end, _ := scanAnsiSequence(word, i)
+			current.WriteString(word[i:end])
+			i = end
 			continue
 		}
 

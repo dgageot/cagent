@@ -655,7 +655,7 @@ func (d *ElicitationDialog) handleMouseClick(msg tea.MouseClickMsg) (layout.Mode
 
 	// Walk backwards: the field whose start is just at or above `line` owns it.
 	// Clicks on the blank separator after a field still focus that field.
-	for i := len(d.fieldStarts) - 1; i >= 0; i-- {
+	for i := range slices.Backward(d.fieldStarts) {
 		start := d.fieldStarts[i]
 		if line < start {
 			continue
