@@ -56,10 +56,8 @@ func NewCallbackServerOnPort(port int) (*CallbackServer, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", cs.handleCallback)
 
-	// Wrap with otelhttp so the OAuth callback span chains onto the
-	// caller's trace when the OAuth provider preserves trace context
-	// in the redirect (most don't, but the wrap is harmless when
-	// they don't, and useful when they do).
+	// Wrap with otelhttp; harmless if the OAuth provider doesn't preserve
+	// trace context across the redirect, useful when it does.
 	cs.server = &http.Server{
 		Handler:      otelhttp.NewHandler(mux, "oauth.callback"),
 		ReadTimeout:  10 * time.Second,

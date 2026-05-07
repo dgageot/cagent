@@ -156,11 +156,6 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 	for i, r := range rawResults {
 		if r.err != nil {
 			errs = append(errs, fmt.Errorf("checking %q: %w", criteria[i], r.err))
-			// Emit gen_ai.evaluation.result with error.type so the
-			// failed checks show up alongside the successful ones in
-			// log-based dashboards. Set ScoreLabel="error" so
-			// dashboards that GROUP BY label still surface these
-			// rows (otherwise the missing label silently drops them).
 			genai.EmitEvaluationResult(ctx, genai.EvaluationResult{
 				Name:       "relevance",
 				ScoreLabel: "error",

@@ -12,11 +12,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Custom (non-spec) attribute keys for runtime-side observability that has
-// no GenAI semconv equivalent yet (fallback chain, response cache,
-// approval pipeline). Kept under the `cagent.` namespace so they are
-// clearly distinguishable from the spec-defined `gen_ai.*` and `mcp.*`
-// attributes when scrolling through a span.
+// Custom (non-spec) attribute keys for runtime-side observability under
+// the cagent.* namespace.
 const (
 	AttrFallbackPrimaryModel = "cagent.fallback.primary_model"
 	AttrFallbackFinalModel   = "cagent.fallback.final_model"
@@ -58,11 +55,7 @@ type FallbackSpan struct {
 }
 
 // StartFallback begins a runtime.fallback span covering the whole fallback
-// chain for one agent turn. Each per-model attempt produces its own
-// `chat {model}` CLIENT child span (created by the provider decorator).
-// Attributes set up front: primary model name, agent name, in-cooldown
-// flag. The caller updates final model / attempts / outcome through the
-// returned handle and calls End to flush.
+// chain for one agent turn.
 func StartFallback(ctx context.Context, agentName, primaryModel string, inCooldown bool) (context.Context, *FallbackSpan) {
 	tracer := otel.Tracer(instrumentationName)
 	attrs := []attribute.KeyValue{
@@ -85,8 +78,7 @@ func StartFallback(ctx context.Context, agentName, primaryModel string, inCooldo
 	}
 }
 
-// IncrementAttempt counts one attempt against the chain. Called once per
-// (model × retry) iteration so the final span carries the total count.
+// IncrementAttempt counts one attempt against the chain.
 func (s *FallbackSpan) IncrementAttempt() {
 	if s == nil {
 		return
@@ -96,9 +88,8 @@ func (s *FallbackSpan) IncrementAttempt() {
 	s.mu.Unlock()
 }
 
-// SetFinalModel records the model that ultimately served the response.
-// Called on the success path; not called on full-failure paths so the
-// attribute remains absent and dashboards can distinguish the cases.
+// SetFinalModel records the model that ultimately served the response. Only
+// called on the success path.
 func (s *FallbackSpan) SetFinalModel(model string) {
 	if s == nil || model == "" {
 		return
@@ -124,8 +115,7 @@ func (s *FallbackSpan) RecordError(err error, errType string) {
 	s.span.SetAttributes(attribute.String("error.type", errType))
 }
 
-// SetOutcome records the terminal outcome of the chain. Use one of the
-// FallbackOutcome* constants.
+// SetOutcome records the terminal outcome of the chain.
 func (s *FallbackSpan) SetOutcome(outcome string) {
 	if s == nil || outcome == "" {
 		return
@@ -173,11 +163,7 @@ type RetrievalSpan struct {
 }
 
 // StartRetrieval begins a `retrieval {data_source.id}` span per the OTel
-// GenAI semconv. providerName identifies the retrieval backend
-// ("sqlite", "rag", an embedding-provider name) and is Required by the
-// spec for retrieval operations. dataSourceID identifies the corpus /
-// index / collection being queried; queryText is captured only when
-// the caller has confirmed the content-capture opt-in.
+// GenAI semconv. queryText is captured only when captureQuery is true.
 func StartRetrieval(ctx context.Context, providerName, dataSourceID string, captureQuery bool, queryText string) (context.Context, *RetrievalSpan) {
 	tracer := otel.Tracer(instrumentationName)
 	name := OperationRetrieval
@@ -206,9 +192,7 @@ func StartRetrieval(ctx context.Context, providerName, dataSourceID string, capt
 	return ctx, &RetrievalSpan{span: span, startedAt: time.Now()}
 }
 
-// SetAttributes adds extra attributes to the retrieval span. Use for
-// retrieval-specific extensions (corpus filter, category, fusion mode,
-// etc.) that don't have a dedicated setter.
+// SetAttributes adds extra attributes to the retrieval span.
 func (s *RetrievalSpan) SetAttributes(attrs ...attribute.KeyValue) {
 	if s == nil {
 		return
@@ -259,8 +243,7 @@ func (s *RetrievalSpan) End() {
 	s.span.End()
 }
 
-// CacheRequest counter — records every cache lookup with `result=hit|miss`
-// and a `backing` attribute for memory-only vs file-backed caches.
+// CacheRequest counter — hit/miss + backing label.
 var (
 	cacheCounterOnce sync.Once
 	cacheCounter     metric.Int64Counter
@@ -282,9 +265,8 @@ func getCacheCounter() metric.Int64Counter {
 	return cacheCounter
 }
 
-// RecordCacheLookup increments the cache counter and returns a small span
-// describing the lookup. Callers `defer span.End()` and the helper sets
-// `cagent.cache.hit` from the value returned by SetHit.
+// RecordCacheLookup increments the cache counter and returns a span; the
+// caller calls SetHit and End.
 func RecordCacheLookup(ctx context.Context, backing string) (context.Context, *CacheSpan) {
 	return startCacheSpan(ctx, "cache.lookup", "lookup", backing)
 }
@@ -312,11 +294,7 @@ func startCacheSpan(ctx context.Context, spanName, op, backing string) (context.
 
 // CacheSpan handles cache-operation span lifecycle.
 type CacheSpan struct {
-	span trace.Span
-	// metricCtx carries the active span context so counter Add calls
-	// produce span-context exemplars (drill Mimir bucket → Tempo
-	// trace). Without this the counter measurement gets only the
-	// resource attributes.
+	span      trace.Span
 	metricCtx context.Context //nolint:containedctx // intentional: needed for OTel exemplar attribution at End time
 	backing   string
 	op        string
@@ -326,9 +304,7 @@ type CacheSpan struct {
 	set bool
 }
 
-// SetHit records whether the lookup found an entry. Increments the
-// cache counter immediately so the metric reflects the result even if End
-// is called late.
+// SetHit records the lookup outcome and increments the cache counter.
 func (s *CacheSpan) SetHit(hit bool) {
 	if s == nil {
 		return
@@ -351,9 +327,6 @@ func (s *CacheSpan) SetHit(hit bool) {
 		if s.backing != "" {
 			attrs = append(attrs, attribute.String(AttrCacheBacking, s.backing))
 		}
-		// Use the active context so the counter measurement carries
-		// the span exemplar — drill from Mimir bucket → Tempo trace
-		// works for cache operations the same way it does for chat.
 		c.Add(s.metricCtx, 1, metric.WithAttributes(attrs...))
 	}
 }

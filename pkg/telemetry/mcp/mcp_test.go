@@ -24,11 +24,7 @@ func TestEnsureMeta(t *testing.T) {
 }
 
 func TestInjectExtractRoundTrip(t *testing.T) {
-	// Mutates the global OTel text-map propagator, so this test cannot
-	// run in parallel with other tests that read or modify it.
-
-	// A propagator must be configured for inject/extract to do anything;
-	// install one for the duration of the test and put it back after.
+	// Mutates the global propagator; cannot run in parallel.
 	prev := otel.GetTextMapPropagator()
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
@@ -36,7 +32,7 @@ func TestInjectExtractRoundTrip(t *testing.T) {
 	))
 	t.Cleanup(func() { otel.SetTextMapPropagator(prev) })
 
-	// Start a sampled span so traceparent has a non-trivial trace id.
+	// Sampled span so traceparent has a non-trivial trace id.
 	tp := trace.NewTracerProvider(trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(t.Context()) })
 
@@ -49,8 +45,7 @@ func TestInjectExtractRoundTrip(t *testing.T) {
 	assert.Contains(t, meta, "traceparent",
 		"propagator should have written W3C traceparent into _meta")
 
-	// Extract from a fresh context and verify the span context lines up
-	// with the parent we started with.
+	// Extracted child should match the parent's span context.
 	childCtx := ExtractMeta(t.Context(), meta)
 	extracted := traceapi.SpanContextFromContext(childCtx)
 	assert.Equal(t, parentSC.TraceID(), extracted.TraceID())
@@ -59,21 +54,17 @@ func TestInjectExtractRoundTrip(t *testing.T) {
 
 func TestInjectMetaNilNoOp(t *testing.T) {
 	t.Parallel()
-	// Should not panic on a nil map.
 	InjectMeta(t.Context(), nil)
 }
 
 func TestExtractMetaNilReturnsParent(t *testing.T) {
 	t.Parallel()
 	got := ExtractMeta(t.Context(), nil)
-	// Without trace context to extract we get back the same context.
 	assert.Equal(t, t.Context(), got)
 }
 
 func TestStartClientReturnsActiveSpan(t *testing.T) {
-	// Mutates the global OTel tracer provider, so this test cannot run
-	// in parallel with other tests that read or modify it.
-
+	// Mutates the global tracer provider; cannot run in parallel.
 	tp := trace.NewTracerProvider(trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(t.Context()) })
 	prev := otel.GetTracerProvider()

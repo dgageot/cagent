@@ -300,11 +300,8 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 	// via HandleStop which calls cancel().
 	taskCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
-	// Capture a link to the current trace so the background task's
-	// new root trace can be navigated back to the spawning agent in
-	// observability-svc. The parent span context comes from the
-	// active `runtime.tool.call` span; the link survives even after
-	// that span ends, while a child-span relationship would not.
+	// Capture parent span context as a link target so the new-root
+	// background trace remains navigable from the spawning trace.
 	parentSpanContext := trace.SpanContextFromContext(ctx)
 
 	t := &task{
@@ -320,19 +317,14 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 	h.wg.Go(func() {
 		defer cancel()
 
-		// Each background task starts its own trace (WithNewRoot)
-		// because it outlives the spawning request — making it a
-		// child would leave a span open after the parent ended.
-		// A span link preserves navigability from the spawning
-		// trace to the background task.
+		// Background tasks outlive the spawning request, so use a new root
+		// trace and a span link rather than a child relationship.
 		spanAttrs := []attribute.KeyValue{
 			attribute.String("cagent.background_agent.task_id", taskID),
 			attribute.String("cagent.background_agent.agent", params.Agent),
 		}
-		// Stamp gen_ai.conversation.id directly: WithNewRoot resets the
-		// span context but baggage flows through context.WithoutCancel,
-		// so the id is reachable yet would not appear as a span attr
-		// without an explicit lift.
+		// WithNewRoot resets span context but baggage flows through ctx;
+		// lift gen_ai.conversation.id explicitly onto the span.
 		if convID := genai.ConversationIDFromContext(taskCtx); convID != "" {
 			spanAttrs = append(spanAttrs, attribute.String(genai.AttrConversationID, convID))
 		}
@@ -349,11 +341,8 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 				},
 			}))
 		}
-		// Static span name; the agent name lives in the
-		// `cagent.background_agent.agent` attribute. Putting the
-		// user-defined agent name into the span name itself would
-		// blow up Tempo's operation-name index when many agents are
-		// configured.
+		// Static span name; the agent name is on the attribute. Embedding
+		// user-defined names in the span name explodes Tempo's index.
 		tracedCtx, span := otel.Tracer("github.com/docker/docker-agent/pkg/tools/builtin/agent").Start(
 			taskCtx,
 			"background_agent.run",

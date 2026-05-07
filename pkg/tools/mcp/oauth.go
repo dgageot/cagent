@@ -481,11 +481,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 
 	slog.DebugContext(ctx, "Attempting silent token refresh", "url", t.baseURL)
 
-	// Wrap the refresh path in a span so the latency and failure
-	// rate of silent OAuth token refreshes are visible — the user
-	// otherwise just sees a stalled MCP request with no obvious
-	// cause. Pull conversation id from baggage so observability-svc
-	// can attribute the refresh to the spawning session.
+	// Span the silent token refresh; ConvID flows in via baggage.
 	refreshAttrs := []attribute.KeyValue{
 		attribute.String("cagent.oauth.base_url", t.baseURL),
 	}
@@ -582,10 +578,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 	if t.managed {
 		kind = "managed"
 	}
-	// Interactive OAuth flows can take seconds to minutes (user
-	// switches to browser, completes the consent screen, comes
-	// back). The span makes that latency attributable and gives
-	// dashboards a way to count auth-failure rates by managed kind.
+	// Span the interactive OAuth flow (browser bounce can take minutes).
 	flowAttrs := []attribute.KeyValue{
 		attribute.String("cagent.oauth.base_url", t.baseURL),
 		attribute.String("cagent.oauth.kind", kind),

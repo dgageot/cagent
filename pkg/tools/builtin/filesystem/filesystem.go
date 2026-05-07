@@ -24,10 +24,8 @@ import (
 )
 
 // annotateFilesystemSpan stamps the operation kind and target path
-// onto the active runtime.tool.handler span. Paths ship unconditionally
-// — they're the main signal of what the agent touched. Drop or hash
-// `cagent.tool.filesystem.path` at the OTel collector if paths
-// routinely reveal identifiers you don't want shipped.
+// onto the active runtime.tool.handler span. Drop or hash the path
+// attribute at the OTel collector if path values reveal identifiers.
 func annotateFilesystemSpan(ctx context.Context, op, path string) {
 	span := trace.SpanFromContext(ctx)
 	if !span.IsRecording() {
@@ -42,15 +40,11 @@ func annotateFilesystemSpan(ctx context.Context, op, path string) {
 	span.SetAttributes(attrs...)
 }
 
-// maxFilesystemPathsAttr caps how many entries from args.Paths land on a
-// span attribute. Many backends drop attributes over a few KiB and per-
-// element string costs add up fast on a multi-hundred-path call. The
-// path_count attribute (always recorded) preserves total fidelity.
+// maxFilesystemPathsAttr caps the number of paths recorded as a span
+// attribute. path_count carries the true total.
 const maxFilesystemPathsAttr = 32
 
-// cappedPaths returns paths truncated to maxFilesystemPathsAttr entries.
-// Callers should also record `path_count = len(paths)` separately so the
-// truncation is visible.
+// cappedPaths truncates paths to maxFilesystemPathsAttr.
 func cappedPaths(paths []string) []string {
 	if len(paths) <= maxFilesystemPathsAttr {
 		return paths

@@ -234,10 +234,7 @@ func (m *Manager) Initialize(ctx context.Context) (err error) {
 // Query searches for relevant documents using all configured strategies
 // If multiple strategies are configured, results are combined using the fusion strategy
 func (m *Manager) Query(ctx context.Context, query string) (results []database.SearchResult, err error) {
-	// Start a `retrieval {rag_name}` span per the OTel GenAI semconv.
-	// The query text itself is sensitive so we never capture it on the
-	// span here — content capture is gated by a separate environment
-	// variable in a later commit and emitted via a span event then.
+	// Retrieval span per OTel GenAI semconv. Query text is intentionally not captured.
 	ctx, retSpan := genai.StartRetrieval(ctx, "rag", m.name, false, "")
 	defer func() {
 		if err != nil {
@@ -263,10 +260,7 @@ func (m *Manager) Query(ctx context.Context, query string) (results []database.S
 				"strategy_limit", strategyCfg.Limit,
 				"strategy_threshold", strategyCfg.Threshold)
 
-			// Assign to the function's named returns (note `=`, not
-			// `:=`) so the deferred span closure sees the live values
-			// even if a future change replaces the explicit
-			// `return X, Y` form below with a bare `return`.
+			// Assign to the named returns so the deferred span observes them.
 			results, err = strategyImpl.Query(ctx, query, strategyCfg.Limit, strategyCfg.Threshold)
 			if err != nil {
 				slog.ErrorContext(ctx, "[RAG Manager] Strategy query failed",

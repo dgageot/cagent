@@ -83,10 +83,6 @@ func NewFileManager(clientFn func(context.Context) (anthropic.Client, error)) *F
 // different extensions will be uploaded separately.
 // Concurrent calls for the same file will wait for a single upload to complete.
 func (fm *FileManager) GetOrUpload(ctx context.Context, filePath string) (result *UploadedFile, err error) {
-	// Span the whole upload — large files take seconds to minutes
-	// over slow links and previously the latency was completely
-	// dark. cache_hit=true paths are short-lived siblings; the
-	// network upload path is the long branch.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/model/provider/anthropic").Start(
 		ctx,
 		"anthropic.files.get_or_upload",

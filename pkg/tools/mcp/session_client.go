@@ -20,12 +20,8 @@ import (
 // duplicating the session-nil guards, notification handlers, and delegating
 // methods.
 //
-// `serverAddress` is captured at construction time (the remote URL for
-// HTTP/SSE clients, the executable name for stdio clients) and stamped on
-// every CLIENT-kind MCP span as the OTel `server.address` attribute. Without
-// it, a `tools/list` failure span carries `mcp.method.name=tools/list` and
-// nothing else identifying which target produced the error — useful in a
-// single-MCP agent, useless in any agent wired to two or more.
+// `serverAddress` is the OTel `server.address` attribute stamped on every
+// CLIENT-kind MCP span (URL host for HTTP/SSE, executable name for stdio).
 type sessionClient struct {
 	session                  *gomcp.ClientSession
 	serverAddress            string
@@ -44,10 +40,7 @@ func (c *sessionClient) setSession(s *gomcp.ClientSession) {
 }
 
 // ServerAddress returns the connection identifier captured at construction
-// time (URL for remote clients, executable name for stdio). Exposed so
-// the parent `toolset.start` span can stamp it as `server.address` —
-// otherwise an Initialize failure surfaces the error message but no
-// indication of which MCP target produced it.
+// time (URL host for remote clients, executable name for stdio).
 func (c *sessionClient) ServerAddress() string {
 	return c.serverAddress
 }
@@ -118,10 +111,8 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 			yield(nil, errors.New("session not initialized"))
 		}
 	}
-	// Start the span and the underlying RPC inside the closure so a
-	// caller that obtains the iterator and never iterates does not
-	// leak the span (and the in-flight RPC). Span lifetime now equals
-	// iteration lifetime.
+	// Start span and RPC inside the closure so an unused iterator doesn't
+	// leak the span / in-flight RPC.
 	return func(yield func(*gomcp.Tool, error) bool) {
 		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
 			Method:        otelmcp.MethodToolsList,
@@ -130,11 +121,8 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 		})
 		defer span.End()
 
-		// Stamp the tool count on the span when iteration finishes —
-		// answers "what did this server actually return?" without
-		// having to walk into the JSON-RPC payload. Counts only the
-		// tools the iterator yielded successfully; partial counts are
-		// preserved when the caller breaks out early.
+		// Stamp returned tool count when iteration finishes (partial counts
+		// are preserved when the caller breaks early).
 		var count int
 		defer func() {
 			span.SetAttributes(attribute.Int("cagent.mcp.tools.count", count))
@@ -146,9 +134,7 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 		}
 		for tool, err := range s.Tools(spanCtx, request) {
 			if err != nil {
-				// Record each error inline rather than only the
-				// last one — paginated lists may yield multiple
-				// failures and the trace should reflect them all.
+				// Record each error so paginated failures all surface.
 				span.RecordError(err, "")
 			} else if tool != nil {
 				count++
@@ -196,8 +182,7 @@ func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListProm
 		}
 	}
 	return func(yield func(*gomcp.Prompt, error) bool) {
-		// Span and RPC start at iteration time so an unused
-		// iterator never leaks either.
+		// Span/RPC start at iteration time to avoid leaks on unused iterators.
 		spanCtx, span := otelmcp.StartClient(ctx, otelmcp.CallOptions{
 			Method:        otelmcp.MethodPromptsList,
 			SessionID:     s.ID(),

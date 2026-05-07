@@ -189,10 +189,8 @@ type commandHandler struct {
 func (h *commandHandler) Run(ctx context.Context, input []byte) (HandlerResult, error) {
 	cmd := exec.CommandContext(ctx, h.shell, append(h.shellArgs, h.command)...)
 	cmd.Dir = h.workingDir
-	// Expand nil to os.Environ() so the child inherits the parent env
-	// (matching the pre-OTel cmd.Env=h.env=nil behaviour), and copy
-	// into a fresh backing array so concurrent hooks don't race on a
-	// shared slice when adding the trace-context vars.
+	// Inherit os.Environ() when h.env is nil and append trace-context vars
+	// into a fresh slice (concurrent hooks must not share the backing array).
 	base := h.env
 	if base == nil {
 		base = os.Environ()

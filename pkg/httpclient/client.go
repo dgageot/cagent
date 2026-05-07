@@ -48,30 +48,16 @@ func NewHTTPClient(ctx context.Context, opts ...Opt) *http.Client {
 	}
 }
 
-// otelEnabled tracks whether the OTel SDK has been initialised in this
-// process. `cmd/root/otel.go:initOTelSDK` calls `SetOTelEnabled(true)`
-// on success; nothing else flips this flag. Gating on a single source
-// of truth (rather than re-reading `OTEL_EXPORTER_OTLP_ENDPOINT`)
-// avoids the previous mismatch where the SDK could be initialised
-// without the HTTP wrap, or the HTTP wrap could fire without the SDK
-// initialising the propagator.
+// otelEnabled is set true once initOTelSDK wires the providers and propagator.
 var otelEnabled atomic.Bool
 
-// SetOTelEnabled toggles the gate consulted by WrapWithOTel. Called by
-// `initOTelSDK` after providers and the propagator are wired so HTTP
-// clients start injecting `traceparent` only once the rest of the SDK
-// can actually use the resulting spans.
+// SetOTelEnabled toggles the gate consulted by WrapWithOTel.
 func SetOTelEnabled(enabled bool) {
 	otelEnabled.Store(enabled)
 }
 
-// WrapWithOTel returns rt wrapped with otelhttp when OpenTelemetry has
-// been enabled via `SetOTelEnabled` (called by `initOTelSDK`), or rt
-// unchanged otherwise. Gating avoids per-request span allocation on
-// the no-OTel path and stops sending a `traceparent` header to
-// upstream LLM providers that have no use for it. Exposed so callers
-// that build their own transports outside of `NewHTTPClient` can opt
-// into the same gating without duplicating the check.
+// WrapWithOTel returns rt wrapped with otelhttp when OTel has been enabled,
+// or rt unchanged otherwise.
 func WrapWithOTel(rt http.RoundTripper) http.RoundTripper {
 	if !otelEnabled.Load() {
 		return rt
@@ -79,20 +65,14 @@ func WrapWithOTel(rt http.RoundTripper) http.RoundTripper {
 	return otelhttp.NewTransport(rt)
 }
 
-// TracedDefaultClient returns an `http.Client` equivalent to
-// `http.DefaultClient` but with the default transport wrapped via
-// `WrapWithOTel`. Use as a drop-in replacement at call sites that
-// previously did `http.DefaultClient.Do(req)` so OAuth metadata fetches,
-// fetch-tool requests, registry probes, and similar one-off HTTP calls
-// chain into the active trace.
+// TracedDefaultClient returns http.DefaultClient with its transport wrapped
+// via WrapWithOTel.
 func TracedDefaultClient() *http.Client {
 	return &http.Client{Transport: WrapWithOTel(http.DefaultTransport)}
 }
 
-// TracedClient returns a configurable `http.Client` with the default
-// transport already wrapped via `WrapWithOTel`. The supplied options
-// (timeout, redirect policy, jar, etc.) are applied after construction.
-// Convenience wrapper for short-lived clients with custom timeouts.
+// TracedClient returns an http.Client whose transport is wrapped via
+// WrapWithOTel. Options are applied after construction.
 func TracedClient(opts ...func(*http.Client)) *http.Client {
 	c := &http.Client{Transport: WrapWithOTel(http.DefaultTransport)}
 	for _, opt := range opts {

@@ -16,16 +16,10 @@ import (
 	"github.com/docker/docker-agent/pkg/telemetry/genai"
 )
 
-// memoryDataSourceID is the `gen_ai.data_source.id` value used on
-// retrieval-shaped memory operations (SearchMemories) so observability-svc
-// can group "agent recalled this memory" timeline entries the same way it
-// groups RAG retrievals.
+// memoryDataSourceID is the gen_ai.data_source.id for memory retrievals.
 const memoryDataSourceID = "memory"
 
 // startMemorySpan opens a small INTERNAL span for a memory CRUD operation.
-// op is recorded as `cagent.memory.op` and the span name is
-// `memory.{op}`. Conversation id flows in via baggage so the span lands
-// on the right session timeline.
 func startMemorySpan(ctx context.Context, op string) (context.Context, trace.Span) {
 	tracer := otel.Tracer("github.com/docker/docker-agent/pkg/memory/database/sqlite")
 	attrs := []attribute.KeyValue{
@@ -125,10 +119,7 @@ func (m *MemoryDatabase) DeleteMemory(ctx context.Context, memory database.UserM
 }
 
 func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category string) (results []database.UserMemory, err error) {
-	// SearchMemories is the retrieval shape per the OTel GenAI semconv:
-	// the agent is recalling stored memories filtered by query/category.
-	// Use the spec'd `retrieval {data_source.id}` span so this lands on
-	// the same dashboard row as RAG retrievals.
+	// Retrieval-shaped span (recall stored memories) per OTel GenAI semconv.
 	ctx, retSpan := genai.StartRetrieval(ctx, "sqlite", memoryDataSourceID, false, "")
 	defer func() {
 		if err != nil {
@@ -141,9 +132,7 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category str
 		retSpan.SetAttributes(attribute.String("cagent.memory.category", category))
 	}
 
-	// Assign to the named returns (not local shadows) so the deferred
-	// span closure observes the live error and result count regardless
-	// of which return path fires.
+	// Named returns are used so the deferred span observes the final values.
 	var conditions []string
 	var args []any
 
@@ -177,16 +166,13 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category str
 
 	for rows.Next() {
 		var memory database.UserMemory
-		// gocritic suggests `:=` here, but we want to assign to the
-		// named return `err` so the deferred span closure observes
-		// the failure. nolint pragma documents the intent.
-		if err = rows.Scan(&memory.ID, &memory.CreatedAt, &memory.Memory, &memory.Category); err != nil { //nolint:gocritic // assigns to named return `err` for deferred span observability
+		if err = rows.Scan(&memory.ID, &memory.CreatedAt, &memory.Memory, &memory.Category); err != nil { //nolint:gocritic // assigns to named return `err`
 			return nil, err
 		}
 		results = append(results, memory)
 	}
 
-	if err = rows.Err(); err != nil { //nolint:gocritic // assigns to named return `err` for deferred span observability
+	if err = rows.Err(); err != nil { //nolint:gocritic // assigns to named return `err`
 		return nil, err
 	}
 

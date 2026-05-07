@@ -110,11 +110,6 @@ type LLMArgs struct {
 // should treat that as "compaction was a no-op" and skip the apply
 // step.
 func RunLLM(ctx context.Context, args LLMArgs) (result *Result, err error) {
-	// One INTERNAL `compaction` span covers the LLM-driven summarization
-	// strategy end-to-end. The inner LLM call gets its own `chat {model}`
-	// CLIENT child span via the provider decorator, so this parent span
-	// is a useful aggregate boundary (context limit, summary tokens,
-	// outcome) without duplicating per-call timing data.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/runtime/compactor").Start(
 		ctx,
 		"compaction",
@@ -129,10 +124,7 @@ func RunLLM(ctx context.Context, args LLMArgs) (result *Result, err error) {
 			span.SetStatus(codes.Error, err.Error())
 		}
 		if result != nil {
-			// `Result.InputTokens` actually holds the compaction
-			// sub-session's *output* token count (the summary length)
-			// per the field's doc — name the span attribute by what the
-			// value is, not by what the source struct field is named.
+			// Result.InputTokens is the summary's *output* token count.
 			span.SetAttributes(
 				attribute.Int("cagent.compaction.summary_output_tokens", int(result.InputTokens)),
 				attribute.Float64("cagent.compaction.cost", result.Cost),

@@ -51,11 +51,9 @@ type ToolArgs struct {
 	Format  string   `json:"format,omitempty"`
 }
 
-// sanitizeFetchURLs strips query strings and userinfo from each URL so
-// the resulting span attribute can ship by default without leaking
-// signed-URL tokens, OAuth codes, or inline credentials. URLs that fail
-// to parse are emitted as a sentinel rather than the raw string, since
-// an unparseable URL could also carry sensitive material.
+// sanitizeFetchURLs strips query strings, fragments, and userinfo so URLs
+// can ship as a span attribute without leaking signed-URL tokens or
+// credentials. Unparseable URLs become a sentinel.
 func sanitizeFetchURLs(urls []string) []string {
 	out := make([]string, len(urls))
 	for i, raw := range urls {
@@ -77,14 +75,7 @@ func (h *fetchHandler) CallTool(ctx context.Context, params ToolArgs) (*tools.To
 		return nil, errors.New("at least one URL is required")
 	}
 
-	// Decorate the active runtime.tool.handler span with the requested
-	// URLs. Strip query params and userinfo first: query strings often
-	// carry signed-URL tokens, OAuth codes, or session IDs, and userinfo
-	// carries credentials inline. The path stays intact so dashboards
-	// can still answer "which sites/endpoints did the agent hit?" — the
-	// HTTP CLIENT child span emitted by `httpclient.WrapWithOTel` below
-	// retains the full URL under `http.url` for callers that opt into
-	// that backend's full-URL capture.
+	// Stamp the active span with sanitized URLs (strip query / userinfo).
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		attrs := []attribute.KeyValue{
 			attribute.Int("cagent.tool.fetch.url_count", len(params.URLs)),

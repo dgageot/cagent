@@ -16,32 +16,22 @@ import (
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
-// ChatRequest carries the inputs needed to start a `chat {model}` span and
-// to record the matching client metrics. Provider-specific extensions
-// (openai service tier, aws.bedrock guardrail, etc.) attach via
-// ChatSpan.SetAttributes after the span has started.
+// ChatRequest carries the inputs needed to start a `chat {model}` span.
 type ChatRequest struct {
-	// Provider is the GenAI provider name. Use one of the Provider*
-	// constants. Set on the span at creation time per the per-provider
-	// semconv MUST clauses.
+	// Provider is the GenAI provider name (use the Provider* constants).
 	Provider string
 
-	// Model is the requested model identifier. Empty model is allowed
-	// (some routers do not commit until inside the call) but produces a
-	// span name of just "chat".
+	// Model is the requested model identifier; empty produces span name "chat".
 	Model string
 
-	// Stream is true if the request is streaming. Recorded as
-	// gen_ai.request.stream.
+	// Stream is true if the request is streaming.
 	Stream bool
 
-	// ServerAddress / ServerPort identify the GenAI endpoint when known
-	// (helpful for routing-aware dashboards). Optional.
+	// ServerAddress / ServerPort identify the GenAI endpoint when known.
 	ServerAddress string
 	ServerPort    int
 
-	// Sampling parameters. Zero values are treated as unset and not
-	// recorded on the span.
+	// Sampling parameters. Zero values are treated as unset.
 	MaxTokens        int
 	Temperature      float64
 	TopP             float64
@@ -52,9 +42,7 @@ type ChatRequest struct {
 	StopSequences    []string
 	ChoiceCount      int
 
-	// HasTemperature / HasTopP / HasTopK / HasFreqPenalty / HasPresPenalty
-	// disambiguate "explicitly zero" from "unset" for the float params.
-	// Callers that use the zero value as meaningful must set these.
+	// Has* flags disambiguate "explicitly zero" from "unset" for floats.
 	HasTemperature bool
 	HasTopP        bool
 	HasTopK        bool
@@ -62,8 +50,7 @@ type ChatRequest struct {
 	HasPresPenalty bool
 }
 
-// ServerAddressFromURL extracts host and port for the ServerAddress /
-// ServerPort fields when callers have a full URL handy.
+// ServerAddressFromURL extracts host and port from a URL string.
 func ServerAddressFromURL(raw string) (string, int) {
 	if raw == "" {
 		return "", 0
@@ -76,18 +63,12 @@ func ServerAddressFromURL(raw string) (string, int) {
 	return u.Hostname(), port
 }
 
-// ChatSpan is the handle returned by StartChat. It wraps an OTel span and
-// captures enough state to emit per-operation metrics on End.
+// ChatSpan is the handle returned by StartChat.
 type ChatSpan struct {
 	span      trace.Span
 	provider  string
 	model     string
 	startedAt time.Time
-	// metricCtx carries the request context captured at StartChat
-	// time so metric Record / Add calls in End preserve the
-	// trace-to-metric exemplar link. Using context.Background() here
-	// would silently strip the active span context and break
-	// drill-from-metric-bucket-to-trace navigation in Tempo/Mimir.
 	metricCtx context.Context //nolint:containedctx // intentional: needed for OTel exemplar attribution at End time
 
 	mu            sync.Mutex
@@ -98,9 +79,7 @@ type ChatSpan struct {
 	usage         chatUsage
 	errType       string
 
-	// Streaming metrics: the first non-empty chunk timestamp and the
-	// previous chunk timestamp drive the time_to_first_chunk and
-	// time_per_output_chunk histograms.
+	// Streaming metrics state.
 	firstChunkAt   time.Time
 	prevChunkAt    time.Time
 	chunkDurations []float64
@@ -114,9 +93,8 @@ type chatUsage struct {
 	reasoningOutput    int64
 }
 
-// StartChat begins a CLIENT-kind `chat {model}` span and records the
-// required gen_ai.* request attributes. The returned context carries the
-// new span; callers MUST call ChatSpan.End to flush the span and metrics.
+// StartChat begins a CLIENT-kind `chat {model}` span. Callers MUST call
+// ChatSpan.End to flush the span and metrics.
 func StartChat(ctx context.Context, req ChatRequest) (context.Context, *ChatSpan) {
 	tracer := otel.Tracer(instrumentationName)
 
@@ -184,9 +162,7 @@ func StartChat(ctx context.Context, req ChatRequest) (context.Context, *ChatSpan
 	}
 }
 
-// SetAttributes adds extra attributes to the span. Use for provider-specific
-// fields (openai.*, aws.bedrock.*) and for response-side attributes the
-// caller learns later.
+// SetAttributes adds extra attributes to the span.
 func (s *ChatSpan) SetAttributes(attrs ...attribute.KeyValue) {
 	if s == nil {
 		return
@@ -194,9 +170,7 @@ func (s *ChatSpan) SetAttributes(attrs ...attribute.KeyValue) {
 	s.span.SetAttributes(attrs...)
 }
 
-// SetResponseModel records gen_ai.response.model. Some providers return a
-// resolved model name that differs from the requested one (alias expansion,
-// version pinning); both values are useful.
+// SetResponseModel records gen_ai.response.model.
 func (s *ChatSpan) SetResponseModel(model string) {
 	if s == nil || model == "" {
 		return
@@ -215,8 +189,7 @@ func (s *ChatSpan) SetResponseID(id string) {
 	s.span.SetAttributes(attribute.String(AttrResponseID, id))
 }
 
-// AddFinishReason accumulates a finish reason. The spec defines the
-// attribute as a string array — multiple values are recorded once on End.
+// AddFinishReason accumulates a finish reason; duplicates are ignored.
 func (s *ChatSpan) AddFinishReason(reason string) {
 	if s == nil || reason == "" {
 		return
@@ -229,11 +202,8 @@ func (s *ChatSpan) AddFinishReason(reason string) {
 	s.finishReasons = append(s.finishReasons, reason)
 }
 
-// RecordUsage stores the token usage for emission as both span attributes
-// and the gen_ai.client.token.usage histogram. Callers pass raw provider
-// values; this package applies the spec-mandated Anthropic input-token sum
-// (`input_tokens` reported by Anthropic excludes cached tokens, so the
-// spec requires summing input + cache_read + cache_creation).
+// RecordUsage stores the token usage. The Anthropic input-token sum (raw +
+// cache_read + cache_creation) is applied at End time.
 func (s *ChatSpan) RecordUsage(inputTokens, outputTokens, cacheReadInput, cacheCreationInput, reasoningOutput int64) {
 	if s == nil {
 		return
@@ -248,9 +218,7 @@ func (s *ChatSpan) RecordUsage(inputTokens, outputTokens, cacheReadInput, cacheC
 	s.usageRecorded = true
 }
 
-// MarkChunk records the timing of a streamed output chunk. The first call
-// drives gen_ai.response.time_to_first_chunk (and the corresponding
-// metric); subsequent calls accumulate per-chunk durations.
+// MarkChunk records the timing of a streamed output chunk.
 func (s *ChatSpan) MarkChunk() {
 	if s == nil {
 		return
@@ -266,13 +234,8 @@ func (s *ChatSpan) MarkChunk() {
 	s.prevChunkAt = now
 }
 
-// RecordError marks the span as failed and stores error.type for the
-// duration metric. errType should be a short, low-cardinality string —
-// "rate_limit", "context_length_exceeded", "auth", "network",
-// "context_canceled", or "_OTHER" as the spec-defined fallback. When
-// errType is empty, ClassifyError(err) is called to derive a value, so
-// callers that don't already have a classification can pass "" without
-// losing it to the "_OTHER" bucket.
+// RecordError marks the span as failed. errType may be empty; ClassifyError
+// derives a value when so.
 func (s *ChatSpan) RecordError(err error, errType string) {
 	if s == nil || err == nil {
 		return
@@ -288,9 +251,8 @@ func (s *ChatSpan) RecordError(err error, errType string) {
 	s.span.SetAttributes(attribute.String("error.type", errType))
 }
 
-// End closes the span, flushes accumulated finish reasons / usage / timing
-// to the span, and records the duration and token-usage histograms. Safe
-// to call multiple times; subsequent calls are no-ops.
+// End closes the span, flushes accumulated state, and records duration +
+// token-usage histograms. Idempotent.
 func (s *ChatSpan) End() {
 	if s == nil {
 		return
@@ -317,8 +279,7 @@ func (s *ChatSpan) End() {
 		s.span.SetAttributes(attribute.Float64(AttrResponseTimeToFirstChunk, ttfc))
 	}
 	if usageRecorded {
-		// Apply the spec-mandated Anthropic input-token math: Anthropic's
-		// API reports input_tokens excluding cache, but spec wants the
+		// Anthropic reports input_tokens excluding cache; spec requires the
 		// inclusive total on gen_ai.usage.input_tokens.
 		spanInputTokens := usage.inputTokens
 		if s.provider == ProviderAnthropic {
@@ -342,8 +303,6 @@ func (s *ChatSpan) End() {
 
 	s.span.End()
 
-	// Emit metrics. Failure to resolve instruments must not block span
-	// completion, so we silently skip when getInstruments returns nil.
 	insts := getInstruments()
 	if insts == nil {
 		return
@@ -353,12 +312,8 @@ func (s *ChatSpan) End() {
 		attribute.String(AttrOperationName, OperationChat),
 		attribute.String(AttrProviderName, s.provider),
 	}
-	// `gen_ai.request.model` is required here by the OTel GenAI
-	// semconv but is unbounded in practice — every dated variant
-	// (e.g. `model-YYYYMMDD`) opens a new metric series. Operators
-	// concerned about backend cardinality should drop or canonicalise
-	// this label at the collector rather than at the agent, so spans
-	// keep full detail while metrics stay bounded.
+	// gen_ai.request.model is required by spec but unbounded in practice;
+	// canonicalise at the collector if backend cardinality matters.
 	if s.model != "" {
 		commonAttrs = append(commonAttrs, attribute.String(AttrRequestModel, s.model))
 	}
@@ -397,12 +352,8 @@ func (s *ChatSpan) End() {
 				metric.WithAttributes(tokenAttrs...),
 			)
 		}
-		// Per-token-type metric data points use raw provider values so a
-		// backend summing across types reconstructs the true total
-		// without double-counting cached tokens. The Anthropic spec sum
-		// (input + cache_read + cache_creation) is only applied to the
-		// span attribute `gen_ai.usage.input_tokens` per the per-provider
-		// semconv MUST clause — see span attribute emission above.
+		// Per-token-type metrics use raw provider values so summing across
+		// types reconstructs the true total without double-counting.
 		recordTokenMetric(TokenTypeInput, usage.inputTokens)
 		recordTokenMetric(TokenTypeOutput, usage.outputTokens)
 		recordTokenMetric(TokenTypeCacheRead, usage.cacheReadInput)
@@ -411,11 +362,8 @@ func (s *ChatSpan) End() {
 	}
 }
 
-// Span returns the underlying OTel span so callers can attach span events
-// or links when they need finer control than the helpers expose. Returns
-// a real no-op span (not a struct embedding a nil trace.Span) when the
-// receiver is nil so callers don't have to nil-check before invoking
-// Span methods like AddEvent / SetAttributes.
+// Span returns the underlying OTel span. Returns a no-op span when the
+// receiver is nil so callers don't have to nil-check.
 func (s *ChatSpan) Span() trace.Span {
 	if s == nil {
 		return tracenoop.Span{}

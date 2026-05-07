@@ -141,9 +141,7 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 		}
 	}
 
-	// Stamp the script_shell call shape onto the active span. Cmd
-	// ships unconditionally for the same reason as shell.RunShell —
-	// see that comment for the redact-at-collector guidance.
+	// Stamp call shape on active span; redact at collector if needed.
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.SetAttributes(
 			attribute.String("cagent.tool.script_shell.tool_name", toolCall.Function.Name),

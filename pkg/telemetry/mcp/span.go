@@ -14,39 +14,33 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// CallOptions describes an MCP request being made or handled. Used by
-// both client- and server-side helpers so call sites depend on a single
-// vocabulary.
+// CallOptions describes an MCP request being made or handled.
 type CallOptions struct {
 	// Method is the MCP method name (e.g. "tools/call"). Required.
 	Method string
 
-	// Target is the low-cardinality target of the operation: tool name
-	// for tools/call, prompt name for prompts/get, etc. When set the
-	// span name becomes "{method} {target}"; otherwise just "{method}".
+	// Target is the low-cardinality target of the operation; when set the
+	// span name becomes "{method} {target}".
 	Target string
 
-	// ToolName, when set, is recorded as gen_ai.tool.name and used as
-	// the default Target for tools/call.
+	// ToolName, when set, is recorded as gen_ai.tool.name and used as the
+	// default Target for tools/call.
 	ToolName string
 
-	// PromptName, when set, is recorded as gen_ai.prompt.name and used
-	// as the default Target for prompts/get.
+	// PromptName, when set, is recorded as gen_ai.prompt.name and used as
+	// the default Target for prompts/get.
 	PromptName string
 
-	// ResourceURI, when set, is recorded as mcp.resource.uri and used
-	// as the default Target for resources/* methods.
+	// ResourceURI, when set, is recorded as mcp.resource.uri.
 	ResourceURI string
 
-	// SessionID identifies the MCP session and is recorded as
-	// mcp.session.id when set.
+	// SessionID is recorded as mcp.session.id when set.
 	SessionID string
 
 	// ProtocolVersion is recorded as mcp.protocol.version when set.
 	ProtocolVersion string
 
-	// JSONRPCRequestID is recorded as jsonrpc.request.id when set
-	// (client-side requests; ignored for notifications).
+	// JSONRPCRequestID is recorded as jsonrpc.request.id when set.
 	JSONRPCRequestID string
 
 	// ServerAddress / ServerPort identify the MCP endpoint when known.
@@ -54,14 +48,9 @@ type CallOptions struct {
 	ServerPort    int
 }
 
-// Span is the handle returned by StartClient / StartServer. It carries
-// enough state to record `mcp.{client,server}.operation.duration` and to
-// flush span attributes as the operation proceeds.
+// Span is the handle returned by StartClient / StartServer.
 type Span struct {
-	span trace.Span
-	// metricCtx carries the active span context so the duration
-	// histogram measurement produces span-context exemplars (drill
-	// Mimir bucket → Tempo trace).
+	span      trace.Span
 	metricCtx context.Context //nolint:containedctx // intentional: needed for OTel exemplar attribution at End time
 	startedAt time.Time
 	method    string
@@ -72,15 +61,13 @@ type Span struct {
 	ended   bool
 }
 
-// StartClient begins a CLIENT-kind MCP span and returns a context carrying
-// it. Callers MUST call Span.End to flush the span and metrics.
+// StartClient begins a CLIENT-kind MCP span. Callers MUST call Span.End.
 func StartClient(ctx context.Context, opts CallOptions) (context.Context, *Span) {
 	return startSpan(ctx, opts, trace.SpanKindClient)
 }
 
 // StartServer begins a SERVER-kind MCP span. Use after extracting trace
-// context from the incoming `params._meta` so the span chains onto the
-// caller. Callers MUST call Span.End.
+// context from the incoming `params._meta`. Callers MUST call Span.End.
 func StartServer(ctx context.Context, opts CallOptions) (context.Context, *Span) {
 	return startSpan(ctx, opts, trace.SpanKindServer)
 }
@@ -158,9 +145,7 @@ func startSpan(ctx context.Context, opts CallOptions, kind trace.SpanKind) (cont
 	}
 }
 
-// SetAttributes adds extra attributes to the span. Use for MCP extensions
-// or for response-side attributes the caller learns later
-// (e.g. rpc.response.status_code).
+// SetAttributes adds extra attributes to the span.
 func (s *Span) SetAttributes(attrs ...attribute.KeyValue) {
 	if s == nil {
 		return
@@ -168,10 +153,8 @@ func (s *Span) SetAttributes(attrs ...attribute.KeyValue) {
 	s.span.SetAttributes(attrs...)
 }
 
-// RecordError marks the span as failed and stores error.type for the
-// duration metric. errType should be a short, low-cardinality string;
-// when empty, ClassifyError(err) supplies a value (one of
-// "context_canceled", "deadline_exceeded", "rpc_error").
+// RecordError marks the span as failed. errType may be empty;
+// ClassifyError(err) supplies a value when so.
 func (s *Span) RecordError(err error, errType string) {
 	if s == nil || err == nil {
 		return
@@ -187,8 +170,7 @@ func (s *Span) RecordError(err error, errType string) {
 	s.span.SetAttributes(attribute.String("error.type", errType))
 }
 
-// End closes the span and records the operation duration metric. Safe to
-// call multiple times; subsequent calls are no-ops.
+// End closes the span and records the operation duration metric. Idempotent.
 func (s *Span) End() {
 	if s == nil {
 		return
@@ -222,17 +204,12 @@ func (s *Span) End() {
 	if histogram == nil {
 		return
 	}
-	// Use the span's started-at as the reference; we already snapshot
-	// errType under the lock above, so no additional locking is needed
-	// for the immutable startedAt field.
 	histogram.Record(s.metricCtx, time.Since(s.startedAt).Seconds(),
 		metric.WithAttributes(attrs...),
 	)
 }
 
 // ClassifyError maps an MCP error to a low-cardinality error.type value.
-// MCP errors are often plain RPC errors; this helper picks reasonable
-// labels for cancellation and falls back to the type name otherwise.
 func ClassifyError(err error) string {
 	if err == nil {
 		return ""

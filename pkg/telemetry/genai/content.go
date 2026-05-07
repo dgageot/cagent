@@ -11,18 +11,11 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// EnvCaptureMessageContent is the OTel-recommended environment variable
-// that toggles capture of GenAI request/response content as span
-// attributes. Default is off because chat history routinely contains
-// PII, secrets, internal documents, and other content that should not
-// be exported by default.
-//
-// Recognised truthy values: "true", "1", "yes", "on" (case-insensitive).
+// EnvCaptureMessageContent is the OTel env var that toggles capture of
+// GenAI request/response content as span attributes. Default off (PII).
 const EnvCaptureMessageContent = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
 
-// IsContentCaptureEnabled reports whether the OTel content-capture
-// opt-in is set. Read on every call so tests and feature flags can
-// flip the value at runtime.
+// IsContentCaptureEnabled reports whether the content-capture opt-in is set.
 func IsContentCaptureEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(EnvCaptureMessageContent))) {
 	case "true", "1", "yes", "on":
@@ -32,14 +25,7 @@ func IsContentCaptureEnabled() bool {
 	}
 }
 
-// messagePart matches the OTel GenAI semconv message part schema
-// (https://opentelemetry.io/docs/specs/semconv/gen-ai/non-normative/examples-llm-calls/).
-//
-// Field choice per spec:
-//   - "text" parts use Content
-//   - "uri" parts use URI (and may set MimeType / Modality)
-//   - "tool_call" / "tool_call_response" parts use ID, Name, Arguments,
-//     Result
+// messagePart matches the OTel GenAI semconv message part schema.
 type messagePart struct {
 	Type      string `json:"type"`
 	Content   string `json:"content,omitempty"`
@@ -58,11 +44,8 @@ type structuredMessage struct {
 }
 
 // SetInputMessages serialises chat history into `gen_ai.input.messages`
-// per the OTel GenAI examples schema (role + parts) and attaches it to
-// the span. System messages are removed from the array and emitted
-// separately as `gen_ai.system_instructions` per the spec.
-//
-// No-op when content capture is disabled or the span is nil.
+// (role + parts). System messages are emitted separately as
+// `gen_ai.system_instructions`. No-op when content capture is disabled.
 func SetInputMessages(span *ChatSpan, messages []chat.Message) {
 	if span == nil || !IsContentCaptureEnabled() {
 		return
@@ -91,9 +74,7 @@ func SetInputMessages(span *ChatSpan, messages []chat.Message) {
 	}
 }
 
-// SetOutputMessages serialises the assembled response into
-// `gen_ai.output.messages`. Use after streaming has completed and the
-// final assistant message is known.
+// SetOutputMessages serialises the assembled response into `gen_ai.output.messages`.
 func SetOutputMessages(span *ChatSpan, content, reasoning string, toolCalls []tools.ToolCall) {
 	if span == nil || !IsContentCaptureEnabled() {
 		return
@@ -136,9 +117,7 @@ func SetToolDefinitions(span *ChatSpan, toolDefs []tools.Tool) {
 }
 
 // messageToStructured converts a chat.Message to the spec-shaped
-// structured message representation. Multi-content messages produce one
-// part per content block; tool calls and tool results map to their
-// respective part types.
+// structured message representation.
 func messageToStructured(m *chat.Message) structuredMessage {
 	role := string(m.Role)
 	parts := []messagePart{}
@@ -170,10 +149,7 @@ func messageToStructured(m *chat.Message) structuredMessage {
 			}
 		}
 	case m.ToolCallID != "":
-		// Tool result messages: the entire content is the tool's
-		// response payload, encoded as a single tool_call_response
-		// part. Skip the default text/reasoning branch so we don't
-		// also emit a duplicate `text` part with the same payload.
+		// Tool result message: emit only the tool_call_response part below.
 	default:
 		if m.ReasoningContent != "" {
 			parts = append(parts, messagePart{Type: "reasoning", Content: m.ReasoningContent})
@@ -192,10 +168,7 @@ func messageToStructured(m *chat.Message) structuredMessage {
 		})
 	}
 	if m.ToolCallID != "" {
-		// Per the OTel GenAI semconv example schema, tool_call_response
-		// parts carry the payload in `result`, not `content` (which is
-		// reserved for `text`/`reasoning` parts). Spec-aware backends
-		// look for the `result` key when decoding tool responses.
+		// tool_call_response carries the payload in `result` per spec.
 		parts = append(parts, messagePart{
 			Type:   "tool_call_response",
 			ID:     m.ToolCallID,

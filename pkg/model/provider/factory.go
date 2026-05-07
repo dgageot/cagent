@@ -77,11 +77,7 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 	if err != nil {
 		return nil, err
 	}
-	// Wrap leaf providers with the GenAI semconv tracer so every chat
-	// completion emits a `chat {model}` CLIENT span and the standard
-	// gen_ai.client.* metrics. The rule-based router constructed by
-	// createRuleBasedRouter is left bare — its routed targets go through
-	// resolveRoutedModel → createDirectProvider and end up wrapped here.
+	// Wrap leaf providers with the GenAI semconv tracer.
 	return instrumentProvider(p), nil
 }
 

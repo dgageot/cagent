@@ -105,16 +105,8 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 	}))
 	e.Use(middleware.RequestLogger())
 
-	// Wrap both A2A endpoints with otelhttp so the configured W3C
-	// propagator extracts `traceparent` / `tracestate` / `baggage`
-	// from incoming requests. The agent runtime started inside
-	// `runDockerAgent` then chains its spans onto the calling agent's
-	// trace, and the `gen_ai.conversation.id` baggage seeded by the
-	// caller flows through into our local runtime spans without
-	// per-call plumbing. The agent-card endpoint is included so
-	// discovery requests carry the same trace context as the
-	// downstream invocation — propagation is uniform across all
-	// public surfaces of the server.
+	// Wrap A2A endpoints with otelhttp so incoming traceparent and baggage
+	// propagate into the runtime spans started by runDockerAgent.
 	cardHandler := otelhttp.NewHandler(
 		a2asrv.NewStaticAgentCardHandler(agentCard),
 		"a2a.agent_card",

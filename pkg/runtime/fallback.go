@@ -238,11 +238,7 @@ func (e *fallbackExecutor) execute(
 	modelChain := buildModelChain(primaryModel, fallbackModels)
 	startIndex := e.chainStartIndex(a, len(fallbackModels))
 
-	// One runtime.fallback span wraps the whole chain. Each per-model
-	// CreateChatCompletionStream call below opens its own `chat {model}`
-	// CLIENT child span via the provider decorator, so the fallback span
-	// is a useful aggregate boundary (total attempts, final model,
-	// terminal outcome) without duplicating per-model timing data.
+	// One runtime.fallback span wraps the whole chain.
 	ctx, fbSpan := genai.StartFallback(ctx, a.Name(), primaryModel.ID(), startIndex > 0)
 	defer fbSpan.End()
 

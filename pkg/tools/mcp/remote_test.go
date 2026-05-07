@@ -12,12 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSanitizeRemoteAddress verifies that URLs with embedded credentials
-// (basic-auth userinfo, query-string secrets) collapse to a host-only
-// string before reaching the `server.address` span attribute. The point
-// is exfiltration safety: a URL like `https://user:token@host/?api_key=…`
-// would otherwise be replicated verbatim into every CLIENT span and
-// shipped to the trace backend.
+// TestSanitizeRemoteAddress checks that URLs with credentials collapse to a
+// host-only string for the `server.address` span attribute.
 func TestSanitizeRemoteAddress(t *testing.T) {
 	t.Parallel()
 

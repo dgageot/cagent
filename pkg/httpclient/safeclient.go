@@ -11,9 +11,7 @@ import (
 // The default refuses connections to non-public IPs at dial time
 // — defeating DNS rebinding to loopback / RFC1918 / link-local incl. cloud
 // metadata at 169.254.169.254 — and bounds the redirect chain at 10 hops.
-// The transport is wrapped with [WrapWithOTel] so outbound calls inject
-// W3C `traceparent` and emit HTTP CLIENT spans when OTel is enabled; the
-// wrap is a no-op otherwise.
+// The transport is wrapped with [WrapWithOTel] when OTel is enabled.
 //
 // When unsafe is true the client uses [http.DefaultTransport]. This branch
 // exists ONLY for tests, which use [httptest.NewServer] (binds to 127.0.0.1)

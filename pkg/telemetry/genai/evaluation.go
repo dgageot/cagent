@@ -7,34 +7,28 @@ import (
 	"go.opentelemetry.io/otel/log/global"
 )
 
-// EvaluationResult describes one evaluation outcome that should be emitted
-// as a `gen_ai.evaluation.result` log record per the OTel GenAI semconv
-// (https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-events/).
+// EvaluationResult is one evaluation outcome emitted as a
+// `gen_ai.evaluation.result` log record per the GenAI semconv.
 type EvaluationResult struct {
-	// Name is the evaluation metric — e.g. "relevance", "factuality",
-	// "tool_calls_f1". Required.
+	// Name is the evaluation metric (e.g. "relevance"). Required.
 	Name string
 
-	// ScoreLabel is the human-readable verdict — e.g. "passed",
-	// "failed", "satisfactory". Optional but commonly set.
+	// ScoreLabel is the human-readable verdict (e.g. "passed").
 	ScoreLabel string
 
-	// ScoreValue is the numeric score (commonly 0.0–1.0). Optional.
+	// ScoreValue is the optional numeric score.
 	ScoreValue    float64
 	HasScoreValue bool
 
-	// Explanation is a free-form reason for the score. Optional.
+	// Explanation is a free-form reason for the score.
 	Explanation string
 
-	// ErrorType is set when the evaluation itself failed (e.g. the
-	// judge model errored out). Mirrors the spec's `error.type` field.
+	// ErrorType is set when the evaluation itself failed.
 	ErrorType string
 }
 
-// EmitEvaluationResult emits a `gen_ai.evaluation.result` log record. The
-// record links to the active span via the supplied context so dashboards
-// can join evaluation outcomes back onto the operation that produced
-// them. No-op when no logger provider is configured.
+// EmitEvaluationResult emits a `gen_ai.evaluation.result` log record linked
+// to the active span via ctx. No-op when no logger provider is configured.
 func EmitEvaluationResult(ctx context.Context, result EvaluationResult) {
 	logger := global.GetLoggerProvider().Logger(instrumentationName)
 

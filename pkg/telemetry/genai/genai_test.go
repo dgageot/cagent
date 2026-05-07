@@ -128,8 +128,7 @@ func TestStartChatAndWrapStream(t *testing.T) {
 	wrapped.Close()
 	assert.True(t, stream.closed)
 
-	// Re-closing should be a no-op (the wrapper guards against
-	// double-Close, which would otherwise emit two End() calls).
+	// Re-closing must be a no-op.
 	wrapped.Close()
 }
 

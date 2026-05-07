@@ -15,10 +15,8 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// unwrapProvider returns the leaf provider underneath any number of
-// instrumentation wrappers. Used by tests and by code paths that need to
-// reach back to the concrete implementation (e.g. capability assertions
-// that the wrappers do not transparently forward).
+// unwrapProvider returns the leaf provider underneath any instrumentation
+// wrappers.
 func unwrapProvider(p Provider) Provider {
 	for {
 		u, ok := p.(interface{ Unwrap() Provider })
@@ -29,20 +27,10 @@ func unwrapProvider(p Provider) Provider {
 	}
 }
 
-// instrumentProvider wraps the leaf provider so every chat completion is
-// surrounded by a GenAI semconv-compliant span and the matching client
-// metrics. The wrapper is added once at the createDirectProvider boundary
-// — the rule-based router (createRuleBasedRouter) is left bare because it
-// dispatches to providers that are themselves already wrapped, so a
-// single chat span is emitted per call regardless of routing depth.
-//
-// To avoid changing the apparent capability of the inner provider, the
-// wrapper that is returned satisfies exactly the same set of interfaces
-// that the inner provider satisfies — chat-only, chat+rerank,
-// chat+embed+rerank, etc. RAG callers do `p.(EmbeddingProvider)` and rely
-// on `ok=false` to fall back to sequential processing; if the wrapper
-// always implemented EmbeddingProvider that fallback would silently
-// disappear.
+// instrumentProvider wraps the leaf provider with GenAI semconv spans and
+// metrics. The returned wrapper satisfies exactly the same interfaces as
+// the inner provider so capability assertions like `p.(EmbeddingProvider)`
+// still behave correctly.
 func instrumentProvider(p Provider) Provider {
 	if p == nil {
 		return nil
@@ -70,9 +58,8 @@ func instrumentProvider(p Provider) Provider {
 	}
 }
 
-// tracedChat is the base wrapper. It satisfies just Provider and is
-// embedded by every richer wrapper. CreateChatCompletionStream is the
-// only method that adds behaviour — everything else delegates.
+// tracedChat is the base wrapper. Only CreateChatCompletionStream adds
+// behaviour; everything else delegates.
 type tracedChat struct {
 	inner Provider
 }
@@ -80,11 +67,7 @@ type tracedChat struct {
 func (t *tracedChat) ID() string              { return t.inner.ID() }
 func (t *tracedChat) BaseConfig() base.Config { return t.inner.BaseConfig() }
 
-// Unwrap returns the wrapped provider. Tests and any other caller that
-// needs the leaf type (e.g. for type assertions on internal helper
-// methods) can use the standard unwrap pattern:
-//
-//	if u, ok := p.(interface{ Unwrap() Provider }); ok { p = u.Unwrap() }
+// Unwrap returns the wrapped provider.
 func (t *tracedChat) Unwrap() Provider { return t.inner }
 
 func (t *tracedChat) CreateChatCompletionStream(ctx context.Context, messages []chat.Message, requestTools []tools.Tool) (chat.MessageStream, error) {
@@ -94,12 +77,7 @@ func (t *tracedChat) CreateChatCompletionStream(ctx context.Context, messages []
 		Model:    cfg.ModelConfig.Model,
 		Stream:   true,
 	}
-	// Populate sampling parameters from the resolved model config so the
-	// `gen_ai.request.max_tokens` / `temperature` / `top_p` / `top_k`
-	// attributes the GenAI semconv conditionally requires actually land
-	// on the span. Without this, the helper's gated emission paths were
-	// unreachable. Pointer fields distinguish "explicitly set" from
-	// "unset"; the matching Has* flags carry that signal through.
+	// Pointer fields on ModelConfig distinguish unset from zero.
 	if mc := cfg.ModelConfig.MaxTokens; mc != nil {
 		req.MaxTokens = int(*mc)
 	}
@@ -113,10 +91,6 @@ func (t *tracedChat) CreateChatCompletionStream(ctx context.Context, messages []
 	}
 	chatCtx, span := genai.StartChat(ctx, req)
 
-	// Opt-in capture of request content. Helpers internally check the
-	// `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` env var and
-	// no-op when unset, so the cost on the default path is the
-	// function-call overhead and nothing else.
 	genai.SetInputMessages(span, messages)
 	genai.SetToolDefinitions(span, requestTools)
 
@@ -130,9 +104,7 @@ func (t *tracedChat) CreateChatCompletionStream(ctx context.Context, messages []
 }
 
 // embeddingRequestForConfig builds an EmbeddingRequest from the inner
-// provider's BaseConfig — same shape as the chat path so the spec
-// `gen_ai.provider.name` / `gen_ai.request.model` attributes use the
-// canonical names.
+// provider's BaseConfig.
 func (t *tracedChat) embeddingRequestForConfig(batchSize int) genai.EmbeddingRequest {
 	cfg := t.inner.BaseConfig()
 	return genai.EmbeddingRequest{
@@ -142,10 +114,8 @@ func (t *tracedChat) embeddingRequestForConfig(batchSize int) genai.EmbeddingReq
 	}
 }
 
-// rerankSpan opens a `cagent.rerank` span. There is no spec-defined
-// rerank span yet; the operation is closely related to retrieval but
-// distinct enough to warrant its own name. Custom attributes use the
-// `cagent.*` namespace.
+// rerankSpan opens a `rerank` CLIENT span. There is no spec span for
+// rerank yet, so custom attributes use the `cagent.*` namespace.
 func (t *tracedChat) rerankSpan(ctx context.Context, docCount int) (context.Context, trace.Span) {
 	cfg := t.inner.BaseConfig()
 	tracer := otel.Tracer("github.com/docker/docker-agent/pkg/model/provider")
@@ -154,11 +124,6 @@ func (t *tracedChat) rerankSpan(ctx context.Context, docCount int) (context.Cont
 		attribute.String(genai.AttrRequestModel, cfg.ModelConfig.Model),
 		attribute.Int("cagent.rerank.document_count", docCount),
 	}
-	// Carry `gen_ai.conversation.id` from baggage like every other
-	// span helper in the branch. The chat / embedding / retrieval /
-	// fallback / sandbox / MCP starters all do this; rerank was the
-	// odd one out, leaving rerank latency unattributable in
-	// per-conversation dashboards.
 	if convID := genai.ConversationIDFromContext(ctx); convID != "" {
 		attrs = append(attrs, attribute.String(genai.AttrConversationID, convID))
 	}
@@ -169,8 +134,7 @@ func (t *tracedChat) rerankSpan(ctx context.Context, docCount int) (context.Cont
 }
 
 // wrapEmbedding wraps a single-input embedding call with a spec
-// `embeddings {model}` span. Records token usage and dimension count on
-// success; classifies errors on failure.
+// `embeddings {model}` span.
 func wrapEmbedding(ctx context.Context, req genai.EmbeddingRequest, fn func(context.Context) (*base.EmbeddingResult, error)) (*base.EmbeddingResult, error) {
 	ctx, span := genai.StartEmbedding(ctx, req)
 	defer span.End()
@@ -186,8 +150,7 @@ func wrapEmbedding(ctx context.Context, req genai.EmbeddingRequest, fn func(cont
 	return res, nil
 }
 
-// wrapBatchEmbedding wraps a batch embedding call. Records the total
-// input tokens across the batch and the per-vector dimensionality.
+// wrapBatchEmbedding wraps a batch embedding call.
 func wrapBatchEmbedding(ctx context.Context, req genai.EmbeddingRequest, fn func(context.Context) (*base.BatchEmbeddingResult, error)) (*base.BatchEmbeddingResult, error) {
 	ctx, span := genai.StartEmbedding(ctx, req)
 	defer span.End()
@@ -205,8 +168,7 @@ func wrapBatchEmbedding(ctx context.Context, req genai.EmbeddingRequest, fn func
 	return res, nil
 }
 
-// wrapRerank wraps a Rerank call with a `rerank` CLIENT span that
-// captures document count and error classification.
+// wrapRerank wraps a Rerank call with a `rerank` CLIENT span.
 func (t *tracedChat) wrapRerank(ctx context.Context, query string, documents []types.Document, criteria string, fn func(context.Context, string, []types.Document, string) ([]float64, error)) ([]float64, error) {
 	ctx, span := t.rerankSpan(ctx, len(documents))
 	defer span.End()
@@ -220,8 +182,7 @@ func (t *tracedChat) wrapRerank(ctx context.Context, query string, documents []t
 	return scores, nil
 }
 
-// tracedRerank adds RerankingProvider while still satisfying just Provider
-// at the chat layer.
+// tracedRerank adds RerankingProvider.
 type tracedRerank struct {
 	*tracedChat
 
@@ -263,8 +224,7 @@ func (t *tracedEmbedRerank) Rerank(ctx context.Context, query string, documents 
 	return t.wrapRerank(ctx, query, documents, criteria, t.rerank.Rerank)
 }
 
-// tracedBatchEmbed satisfies BatchEmbeddingProvider (which embeds
-// EmbeddingProvider).
+// tracedBatchEmbed satisfies BatchEmbeddingProvider.
 type tracedBatchEmbed struct {
 	*tracedChat
 
@@ -283,8 +243,7 @@ func (t *tracedBatchEmbed) CreateBatchEmbedding(ctx context.Context, texts []str
 	})
 }
 
-// tracedBatchEmbedRerank satisfies BatchEmbeddingProvider and
-// RerankingProvider — the broadest combination, used by openai and dmr.
+// tracedBatchEmbedRerank satisfies BatchEmbeddingProvider and RerankingProvider.
 type tracedBatchEmbedRerank struct {
 	*tracedChat
 

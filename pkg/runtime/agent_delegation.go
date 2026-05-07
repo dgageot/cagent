@@ -411,10 +411,6 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 	delegationAttrs := []attribute.KeyValue{
 		attribute.String(genai.AttrOperationName, genai.OperationInvokeAgent),
-		// gen_ai.agent.name identifies the target agent of the invoke_agent
-		// operation per the OTel GenAI semconv (Required). cagent.agent.name
-		// is the same value but in our internal namespace; we emit both so
-		// spec-aware backends and existing cagent dashboards both see it.
 		attribute.String(genai.AttrAgentName, params.Agent),
 		attribute.String("cagent.delegation.from_agent", a.Name()),
 		attribute.String("cagent.delegation.to_agent", params.Agent),
@@ -423,10 +419,6 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		attribute.String(genai.AttrAgentNameRuntime, params.Agent),
 	}
 	if params.Task != "" {
-		// Task length is bounded enough to be useful as a span
-		// attribute for debugging "agent X transferred which task
-		// to Y". The full task body lands on the sub-session's
-		// runtime.session span when content capture is opt-in.
 		delegationAttrs = append(delegationAttrs, attribute.Int("cagent.delegation.task_length", len(params.Task)))
 	}
 	if genai.EmitLegacyAttributes() {
@@ -473,17 +465,9 @@ func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session,
 		return nil, err
 	}
 
-	// Handoff is in-place agent swap (same session, different agent
-	// from the next turn). Span name keeps the runtime.* family;
-	// attributes mirror the transfer_task span shape so dashboards
-	// can union both delegation kinds. Take the returned ctx so
-	// `executeOnAgentSwitchHooks` and any of its children parent
-	// onto this span instead of bypassing it.
+	// Handoff swaps the active agent in place. Mirror the task_transfer attribute shape.
 	ctx, span := r.startSpan(ctx, "runtime.handoff", trace.WithAttributes(
 		attribute.String(genai.AttrOperationName, genai.OperationInvokeAgent),
-		// gen_ai.agent.name — Required by OTel GenAI semconv on invoke_agent
-		// spans; identifies the agent being handed off to. See task_transfer
-		// for the rationale of dual-emitting alongside cagent.agent.name.
 		attribute.String(genai.AttrAgentName, next.Name()),
 		attribute.String("cagent.delegation.from_agent", ca),
 		attribute.String("cagent.delegation.to_agent", next.Name()),

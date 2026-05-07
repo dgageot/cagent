@@ -42,18 +42,9 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 	}
 }
 
-// sanitizeRemoteAddress extracts a span-safe identifier from an MCP URL
-// before stamping it as `server.address`. The URL may legitimately
-// contain credentials in userinfo (`https://user:token@host/`) or query
-// params (`?api_key=...`); sending those to the trace backend would be
-// a real exfiltration risk. OTel's semantic convention for
-// `server.address` is the host (with optional port) anyway, so we keep
-// only `u.Host` and drop everything else.
-//
-// Returns the empty string on parse failure or hostless URLs (file://,
-// stdio commands, malformed input). The caller stamps `server.address`
-// only when it's non-empty, so a sanitisation miss leaves the span
-// without that attribute rather than leaking a raw URL.
+// sanitizeRemoteAddress returns the host part of an MCP URL for use as
+// `server.address`, dropping userinfo, query, and path so credentials
+// don't leak through. Returns "" on parse failure or hostless URLs.
 func sanitizeRemoteAddress(rawURL string) string {
 	u, err := neturl.Parse(rawURL)
 	if err != nil || u.Host == "" {
@@ -156,15 +147,9 @@ func (c *remoteMCPClient) SetManagedOAuth(managed bool) {
 // the most recent server-side failure (via lastServerError) when Connect()
 // returns a bare HTTP-status error and we need to surface the actual cause.
 //
-// The transport chain wraps `httpclient.WrapWithOTel` outermost so every
-// outbound MCP request injects W3C `traceparent` (and creates an HTTP
-// CLIENT span). Without this wrap, the streamable-HTTP / SSE transports
-// the gomcp SDK builds with our `*http.Client` send raw POST/GET requests
-// that never chain onto the calling cagent span — the downstream MCP
-// server's spans then live in a separate root trace, breaking end-to-end
-// observability for any agent talking to a remote MCP. `WrapWithOTel` is
-// a no-op when OTel is disabled at runtime, so the laptop-mode default
-// stays unchanged.
+// The transport chain wraps `httpclient.WrapWithOTel` outermost so MCP
+// requests inject W3C traceparent and emit HTTP CLIENT spans. No-op when
+// OTel is disabled.
 func (c *remoteMCPClient) createHTTPClient() (*http.Client, *oauthTransport) {
 	base := c.headerTransport()
 

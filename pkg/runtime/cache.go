@@ -110,17 +110,11 @@ func (r *LocalRuntime) cacheResponseBuiltin(ctx context.Context, in *hooks.Input
 	}
 	a, err := r.team.Agent(in.AgentName)
 	if err != nil || a == nil {
-		slog.Debug("cache_response: agent lookup failed",
+		slog.DebugContext(ctx, "cache_response: agent lookup failed",
 			"agent", in.AgentName, "error", err)
 		return nil, nil
 	}
 	if c := a.Cache(); c != nil {
-		// Thread the active context so the cache.store span chains
-		// onto the surrounding stop-hook trace instead of starting a
-		// detached one. Mark the operation as a successful write so
-		// the `cagent.cache.requests{operation="store"}` counter is
-		// incremented — without SetHit the store path would never
-		// register on the metric.
 		_, storeSpan := genai.RecordCacheStore(ctx, "")
 		c.Store(in.LastUserMessage, in.StopResponse)
 		storeSpan.SetHit(true)

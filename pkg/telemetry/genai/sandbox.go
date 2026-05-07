@@ -15,10 +15,8 @@ import (
 )
 
 // envCarrier adapts an env-var key/value map to OTel's TextMapCarrier so
-// the configured propagator can write traceparent / tracestate / baggage
-// into a subprocess's environment. Keys are uppercased on Set to match
-// the convention subprocess-propagation tools (otel-cli, OTel SDKs)
-// expect.
+// the propagator can write traceparent / tracestate / baggage into a
+// subprocess's environment. Keys are uppercased on Set.
 type envCarrier map[string]string
 
 func (c envCarrier) Get(key string) string { return c[strings.ToUpper(key)] }
@@ -34,14 +32,7 @@ func (c envCarrier) Keys() []string {
 var _ propagation.TextMapCarrier = envCarrier{}
 
 // InjectSandboxEnv returns docker-style `-e KEY=VALUE` flags carrying the
-// W3C trace context for the current span so the agent process spawned
-// inside a sandbox container inherits the parent trace. Anything OTel-
-// aware running in the container — another agent, an HTTP client with
-// otelhttp transport, otel-cli — auto-parents its spans onto the active
-// CLIENT span on the host side.
-//
-// Returns nil when no propagator is configured or when the active context
-// has no span context to inject.
+// W3C trace context for the current span.
 func InjectSandboxEnv(ctx context.Context) []string {
 	carrier := envCarrier{}
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
@@ -56,13 +47,8 @@ func InjectSandboxEnv(ctx context.Context) []string {
 }
 
 // InjectTraceContextEnv returns `KEY=VALUE` env-var strings carrying the
-// W3C trace context for the current span. Use to extend `exec.Cmd.Env`
-// for direct subprocess spawns (hook scripts, LSP servers) so OTel-aware
-// children chain onto the active span. Companion to `InjectSandboxEnv`,
-// which formats for `docker -e`.
-//
-// Returns nil when no propagator is configured or when the active context
-// has no span context to inject.
+// W3C trace context for the current span. Companion to InjectSandboxEnv
+// for direct subprocess spawns.
 func InjectTraceContextEnv(ctx context.Context) []string {
 	carrier := envCarrier{}
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
@@ -76,15 +62,10 @@ func InjectTraceContextEnv(ctx context.Context) []string {
 	return out
 }
 
-// SandboxSpan handles the lifecycle of a sandbox.exec span and the
-// matching sandbox.exec.duration histogram. Use to wrap the actual
-// `docker sandbox exec` (or equivalent) subprocess invocation so the
-// host side has timing, exit code, runtime kind, and image information
-// alongside the inherited child trace from inside the sandbox.
+// SandboxSpan handles the lifecycle of a sandbox.exec span and the matching
+// duration histogram.
 type SandboxSpan struct {
-	span trace.Span
-	// metricCtx carries the active span context so histogram Record
-	// calls produce span-context exemplars (drill Mimir → Tempo).
+	span      trace.Span
 	metricCtx context.Context //nolint:containedctx // intentional: needed for OTel exemplar attribution at End time
 	startedAt time.Time
 	runtime   string
@@ -96,13 +77,9 @@ type SandboxSpan struct {
 	ended    bool
 }
 
-// SandboxOptions configures the attributes set on a sandbox.exec span at
-// creation time. All fields are optional except Runtime.
+// SandboxOptions configures a sandbox.exec span.
 type SandboxOptions struct {
-	// Runtime is a short label identifying the sandbox backend (e.g.
-	// `"docker"`). Recorded as `cagent.sandbox.runtime` and used as a
-	// histogram label, so callers should keep the set of values small
-	// and stable.
+	// Runtime is a short label identifying the sandbox backend (e.g. "docker").
 	Runtime string
 
 	// Image is the container/pod image when known.
@@ -115,8 +92,7 @@ type SandboxOptions struct {
 	AgentName string
 }
 
-// StartSandboxExec opens a `sandbox.exec` INTERNAL span. Runtime kind is
-// set up front; exit code and error info attach via the returned handle.
+// StartSandboxExec opens a `sandbox.exec` INTERNAL span.
 func StartSandboxExec(ctx context.Context, opts SandboxOptions) (context.Context, *SandboxSpan) {
 	tracer := otel.Tracer(instrumentationName)
 	attrs := []attribute.KeyValue{}
@@ -142,8 +118,7 @@ func StartSandboxExec(ctx context.Context, opts SandboxOptions) (context.Context
 	return ctx, &SandboxSpan{span: span, metricCtx: ctx, startedAt: time.Now(), runtime: opts.Runtime}
 }
 
-// SetExitCode records the subprocess exit code as
-// `cagent.sandbox.exit_code`. Set zero on success.
+// SetExitCode records the subprocess exit code.
 func (s *SandboxSpan) SetExitCode(code int) {
 	if s == nil {
 		return
@@ -193,16 +168,11 @@ func (s *SandboxSpan) End() {
 	}
 	attrs := []attribute.KeyValue{}
 	if s.runtime != "" {
-		// Partitions the histogram by sandbox backend so dashboards
-		// can compare exec latency across runtimes when more than
-		// one is wired up.
 		attrs = append(attrs, attribute.String(AttrSandboxRuntime, s.runtime))
 	}
 	if errType != "" {
 		attrs = append(attrs, attribute.String("error.type", errType))
 	}
-	// Use the active context so the histogram measurement carries the
-	// span exemplar — drill from Mimir bucket → Tempo trace.
 	hist.Record(s.metricCtx, time.Since(s.startedAt).Seconds(),
 		metric.WithAttributes(attrs...),
 	)

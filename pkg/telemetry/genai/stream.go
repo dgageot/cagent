@@ -10,34 +10,22 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// StreamAttributer is an optional interface that provider stream adapters
-// may implement to surface provider-specific attributes to the chat span
-// once the response is complete. The wrapper queries the underlying stream
-// on Close (in addition to the per-chunk Recv path) and applies whatever
-// attributes the provider chose to expose. Implementations are expected to
-// be safe to call after Close.
+// StreamAttributer is an optional interface providers may implement to
+// surface provider-specific attributes to the chat span on Close.
 type StreamAttributer interface {
 	GenAIStreamAttributes() []KeyValue
 }
 
-// KeyValue is a re-exported attribute key/value pair used by the optional
-// StreamAttributer interface so providers can implement it without
-// importing go.opentelemetry.io/otel/attribute directly. The decorator
-// converts these back into OTel attributes before applying them to the
-// span.
+// KeyValue is an attribute key/value pair used by StreamAttributer so
+// providers don't need to import otel/attribute.
 type KeyValue struct {
 	Key   string
 	Value any
 }
 
-// WrapStream wraps a chat.MessageStream so that consuming the stream
-// drives the lifecycle of a ChatSpan: per-chunk timing, response-level
-// attributes (id / response.model / finish reasons), usage capture, and
-// final span End on stream close or terminal error.
-//
-// The returned stream forwards all Recv/Close calls to the underlying
-// stream verbatim and adds no other behaviour, so swapping it in is
-// invisible to callers.
+// WrapStream wraps a chat.MessageStream so that consuming the stream drives
+// the lifecycle of a ChatSpan: per-chunk timing, response-level attributes,
+// usage capture, and span End on close or terminal error.
 func WrapStream(span *ChatSpan, stream chat.MessageStream) chat.MessageStream {
 	if span == nil || stream == nil {
 		return stream
@@ -53,24 +41,15 @@ type instrumentedStream struct {
 	span  *ChatSpan
 	inner chat.MessageStream
 
-	// mu guards the lifecycle flags and the streaming-state buffers
-	// so a Recv that errors concurrently with the consumer's Close
-	// does not race on the check-then-set in endOnce or
-	// double-apply attributes through SetOutputMessages.
+	// mu guards lifecycle flags and the streaming-state buffers.
 	mu sync.Mutex
 
-	// ended is set when the span has been finalised (output flushed
-	// and `End` called). innerClosed is set when the inner stream's
-	// `Close` has been called. They are tracked separately so an
-	// error in `Recv` can end the span without preempting the
-	// caller's `Close` that releases the inner stream's resources.
+	// ended is set when the span has been finalised. innerClosed is set
+	// when the inner stream's Close has been called.
 	ended       bool
 	innerClosed bool
 
-	// capture buffers the streamed deltas for emission as
-	// `gen_ai.output.messages` on Close. Filled only when content
-	// capture is opted in (`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`)
-	// so the buffer cost stays out of the default request path.
+	// capture buffers the streamed deltas for emission as gen_ai.output.messages.
 	capture       bool
 	contentBuf    strings.Builder
 	reasoningBuf  strings.Builder
@@ -81,13 +60,9 @@ type instrumentedStream struct {
 func (s *instrumentedStream) Recv() (chat.MessageStreamResponse, error) {
 	resp, err := s.inner.Recv()
 	if err != nil {
-		// io.EOF is the normal stream terminator and is not an error
-		// for the span's purposes — End handles closing.
-		// For non-EOF errors we end the span here too: callers that
-		// abandon the stream after an error (a common pattern for
-		// network failures) would otherwise leak the span and skip the
-		// duration metric. Close remains idempotent so the canonical
-		// `defer Close()` path still works.
+		// io.EOF is the normal stream terminator; non-EOF errors end the
+		// span here so the duration metric is not lost when the caller
+		// abandons the stream.
 		if !errors.Is(err, io.EOF) {
 			s.span.RecordError(err, ClassifyError(err))
 			s.endOnce()
@@ -95,9 +70,8 @@ func (s *instrumentedStream) Recv() (chat.MessageStreamResponse, error) {
 		return resp, err
 	}
 
-	// First chunk arrival is meaningful for the time_to_first_chunk
-	// metric. Mark on every Recv that produced any content so we cover
-	// cases where the provider opens with an empty preamble.
+	// First-chunk arrival drives time_to_first_chunk; only count
+	// chunks with payload to ignore empty preambles.
 	if hasChunkPayload(&resp) {
 		s.span.MarkChunk()
 	}
@@ -131,10 +105,8 @@ func (s *instrumentedStream) Recv() (chat.MessageStreamResponse, error) {
 	return resp, nil
 }
 
-// bufferDeltas accumulates content and tool-call deltas for the
-// gen_ai.output.messages attribute. Tool calls arrive across multiple
-// chunks (id once, name once, arguments in pieces), so we keep a map
-// keyed by id and concatenate arguments as they stream in.
+// bufferDeltas accumulates content and tool-call deltas. Tool calls arrive
+// across multiple chunks (id once, name once, arguments in pieces).
 func (s *instrumentedStream) bufferDeltas(resp *chat.MessageStreamResponse) {
 	for i := range resp.Choices {
 		d := &resp.Choices[i].Delta
@@ -148,8 +120,7 @@ func (s *instrumentedStream) bufferDeltas(resp *chat.MessageStreamResponse) {
 			tc := &d.ToolCalls[j]
 			id := tc.ID
 			if id == "" {
-				// Provider didn't include the id on this delta — fall
-				// back to the most recent in-progress tool call.
+				// Fall back to the most recent in-progress tool call.
 				if len(s.toolCallOrder) == 0 {
 					continue
 				}
@@ -185,13 +156,9 @@ func (s *instrumentedStream) Close() {
 	s.endOnce()
 }
 
-// endOnce flushes captured content, applies provider-supplied attributes,
-// and ends the span — at most once per stream. Both the error path in
-// `Recv` and the explicit `Close` path go through here so a stream that
-// errors mid-flight still ends its span without waiting for the caller.
-// `inner.Close` is intentionally NOT called here: leaving it to the
-// explicit `Close` path keeps the contract that the wrapper releases
-// the underlying stream exactly when the caller asks.
+// endOnce flushes captured content and ends the span at most once. Both the
+// Recv error path and explicit Close go through here. inner.Close is NOT
+// called here — only the explicit Close path releases the inner stream.
 func (s *instrumentedStream) endOnce() {
 	s.mu.Lock()
 	if s.ended {
@@ -199,10 +166,7 @@ func (s *instrumentedStream) endOnce() {
 		return
 	}
 	s.ended = true
-	// Snapshot the buffers under the lock so we don't race against a
-	// concurrent Recv writing more deltas. Release before calling out
-	// to the OTel SDK and the StreamAttributer hook to avoid holding
-	// the mutex across third-party code.
+	// Snapshot under lock and release before calling out to OTel SDK.
 	var (
 		extras       []KeyValue
 		captured     bool
@@ -238,9 +202,8 @@ func (s *instrumentedStream) endOnce() {
 	s.span.End()
 }
 
-// hasChunkPayload reports whether the response carries content that should
-// count as an output chunk (text, reasoning, tool call, etc.). Empty
-// keep-alive frames do not advance the per-chunk timing metrics.
+// hasChunkPayload reports whether resp carries any output payload (text,
+// reasoning, tool call); empty keep-alives don't advance per-chunk metrics.
 func hasChunkPayload(resp *chat.MessageStreamResponse) bool {
 	for i := range resp.Choices {
 		d := &resp.Choices[i].Delta

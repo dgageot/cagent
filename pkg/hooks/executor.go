@@ -141,11 +141,7 @@ func (e *Executor) Dispatch(ctx context.Context, event EventType, input *Input) 
 		return &Result{Allowed: true}, nil
 	}
 
-	// Single span per Dispatch call covers every hook the event matched.
-	// Custom name `hook.{event}` because there is no GenAI semconv for
-	// arbitrary user-defined lifecycle hooks; we surface the event type,
-	// matched hook count, and session/agent identifiers so dashboards can
-	// split by event class without parsing span events.
+	// One span per Dispatch covers all matched hooks for the event.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/hooks").Start(
 		ctx,
 		"hook."+string(event),
@@ -188,14 +184,8 @@ func (e *Executor) Dispatch(ctx context.Context, event EventType, input *Input) 
 	return final, nil
 }
 
-// annotateHookSpan stamps the aggregated verdict onto the hook.{event}
-// span so dashboards can answer "did the hook block this?" and "why?"
-// without re-running the hook. Prior to this the span only carried the
-// event type and hook count — a denied call looked identical to an
-// allowed one. The verdict booleans and short reason are unconditional
-// (they're decisions, not content); free-text fields that may contain
-// PII or LLM output (Message, AdditionalContext, SystemMessage,
-// Summary) are gated on the GenAI content-capture opt-in.
+// annotateHookSpan stamps the aggregated verdict onto the hook span.
+// Free-text fields are gated on the GenAI content-capture opt-in.
 func annotateHookSpan(span trace.Span, event EventType, r *Result) {
 	if span == nil || r == nil {
 		return

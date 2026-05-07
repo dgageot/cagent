@@ -73,10 +73,7 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 	// the originating session.
 	ctx = httpclient.ContextWithSessionID(ctx, sessionID)
 
-	// Wrap the whole title-generation in a span so the boundary is
-	// visible on the session timeline. The inner per-attempt LLM
-	// calls each get their own `chat {model}` CLIENT child span via
-	// the provider decorator.
+	// Span the whole title-generation; per-attempt LLM calls are children.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/sessiontitle").Start(
 		ctx,
 		"sessiontitle.generate",
@@ -104,10 +101,8 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 
 	var lastErr error
 	for idx, baseModel := range g.models {
-		// Assign to the named-return `err` so a context cancellation
-		// is observed by the deferred span closure as a recorded
-		// error rather than silently slipping through.
-		if err = ctx.Err(); err != nil { //nolint:gocritic // assigns to named return `err` for deferred span observability
+		// Assign to named-return err so the deferred span observes it.
+		if err = ctx.Err(); err != nil { //nolint:gocritic // assigns to named return `err`
 			return "", err
 		}
 

@@ -58,9 +58,6 @@ func (p *runtimePool) Get(agent string) (runtime.Runtime, error) {
 	if rt := p.takeIdle(agent); rt != nil {
 		return rt, nil
 	}
-	// Match the tracer scope used by the CLI; without this the
-	// pooled chatserver runtimes are tracer-less so all `runtime.*`
-	// spans go silent in OpenAI-compatible chat-completions mode.
 	rt, err := runtime.New(p.team,
 		runtime.WithCurrentAgent(agent),
 		runtime.WithTracer(otel.Tracer("cagent")),

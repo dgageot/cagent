@@ -79,15 +79,8 @@ func (s *StartableToolSet) Start(ctx context.Context) (err error) {
 	}
 
 	if startable, ok := As[Startable](s.ToolSet); ok {
-		// Span the toolset startup — MCP handshake, OAuth probes,
-		// tool discovery, etc. can take seconds to minutes and the
-		// "tools loading…" UI was previously unattributable. Only
-		// fires when the toolset has work to do; cheap toolsets
-		// without a Startable implementation skip the span entirely.
-		// Unwrap once so the kind attribute names the underlying toolset
-		// (e.g. *mcp.Toolset, *builtin.ShellTool) instead of the
-		// *tools.namedToolSet wrapper that every toolset gets in the
-		// registry — same pattern DescribeToolSet uses.
+		// Span the toolset startup; unwrap so the kind attribute names the
+		// underlying toolset rather than the namedToolSet wrapper.
 		inner := s.ToolSet
 		if u, ok := inner.(Unwrapper); ok {
 			inner = u.Unwrap()

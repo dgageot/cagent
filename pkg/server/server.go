@@ -81,12 +81,6 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 }
 
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
-	// Wrap the Echo handler with otelhttp so the configured W3C
-	// propagator extracts `traceparent` / `tracestate` / `baggage`
-	// from incoming API requests. Without this the API server's
-	// runtime spans (already wired via `WithTracer` in the session
-	// manager) start fresh trace ids per request rather than
-	// chaining onto the calling client's trace.
 	srv := http.Server{
 		Handler: otelhttp.NewHandler(s.e, "agent-api"),
 	}

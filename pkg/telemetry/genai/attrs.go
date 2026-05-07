@@ -1,8 +1,6 @@
 package genai
 
-// Attribute keys defined by the OTel GenAI semantic conventions. All are
-// Development stability — declared as constants here so call sites depend
-// on a stable local symbol rather than a moving upstream import path.
+// Attribute keys defined by the OTel GenAI semantic conventions.
 const (
 	AttrOperationName  = "gen_ai.operation.name"
 	AttrProviderName   = "gen_ai.provider.name"
@@ -80,10 +78,7 @@ const (
 	OperationRetrieval       = "retrieval"
 )
 
-// Token types — values for AttrTokenType when recording the token usage
-// histogram. Spec defines `input` and `output`; we use the cache_read /
-// cache_creation / reasoning variants to mirror the per-token-type
-// usage attributes for richer breakdowns.
+// Token types — values for AttrTokenType.
 const (
 	TokenTypeInput         = "input"
 	TokenTypeOutput        = "output"
@@ -92,8 +87,7 @@ const (
 	TokenTypeReasoning     = "reasoning.output"
 )
 
-// Provider names — values for AttrProviderName. Names follow the values
-// defined in the provider-specific GenAI semconv pages.
+// Provider names — values for AttrProviderName.
 const (
 	ProviderAnthropic   = "anthropic"
 	ProviderOpenAI      = "openai"

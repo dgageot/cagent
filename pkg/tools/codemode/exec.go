@@ -45,12 +45,8 @@ func (c *codeModeTool) runJavascript(ctx context.Context, script string) (Script
 	vm := goja.New()
 	tracker := &toolCallTracker{}
 
-	// Always stamp a hash + length so dashboards can correlate
-	// identical scripts ("model ran the same script 200 times this
-	// hour") without ever shipping the body. Codemode scripts are
-	// kilobyte-scale arbitrary JS — embedded auth tokens, pasted
-	// user data, and inline secrets are common — so the body itself
-	// is gated behind the GenAI content-capture opt-in.
+	// Stamp script length + sha256 for correlation; body only when content
+	// capture is enabled (codemode scripts often carry secrets).
 	span := trace.SpanFromContext(ctx)
 	if span.IsRecording() {
 		sum := sha256.Sum256([]byte(script))

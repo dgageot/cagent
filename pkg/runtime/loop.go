@@ -180,21 +180,10 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 	ctx = httpclient.ContextWithSessionID(ctx, sess.ID)
 	r.telemetry.RecordSessionStart(ctx, r.CurrentAgentName(), sess.ID)
 
-	// Seed `gen_ai.conversation.id` into baggage at the session
-	// boundary. Every span the runtime, providers, MCP client, RAG,
-	// sandbox, evaluation, hooks, and (downstream) any subprocess
-	// or remote service create from here on will pick it up
-	// automatically without per-helper plumbing — and the value
-	// rides over W3C `baggage` so it crosses MCP / sandbox /
-	// HTTP boundaries too.
+	// Seed gen_ai.conversation.id into baggage so all child spans
+	// (runtime, providers, MCP, RAG, sandbox, hooks) pick it up.
 	ctx = genai.WithConversationID(ctx, sess.ID)
 
-	// runtime.session is the root span for one stream. gen_ai.* keys
-	// are emitted alongside the legacy `agent` / `session.id` keys
-	// so existing dashboards keep matching while spec-aware tooling
-	// can filter by `gen_ai.conversation.id` and
-	// `cagent.agent.name`. Legacy keys drop out under
-	// OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental.
 	sessionAttrs := []attribute.KeyValue{
 		attribute.String(genai.AttrConversationID, sess.ID),
 		attribute.String(genai.AttrAgentNameRuntime, r.CurrentAgentName()),
@@ -236,10 +225,7 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 	}
 	agentTools = filterExcludedTools(agentTools, sess.ExcludedTools)
 
-	// Record the catalogue size on the session span — answers "how
-	// many tools could this turn actually use?" without having to
-	// walk into per-toolset spans. Stamped after exclusion filters
-	// so the count matches what was offered to the model.
+	// Record the agent's tool catalogue size on the session span.
 	sessionSpan.SetAttributes(attribute.Int("cagent.agent.tools.count", len(agentTools)))
 
 	events <- ToolsetInfo(len(agentTools), false, a.Name())
@@ -636,9 +622,7 @@ func (r *LocalRuntime) runTurn(
 			"Agent terminated: detected %d consecutive identical calls to %s. "+
 				"This indicates a degenerate loop where the model is not making progress.",
 			consecutive, toolName)
-		// Mark the session span as Error so loop-termination shows up
-		// in trace status / error-rate dashboards instead of blending
-		// in with normal completions.
+		// Surface loop-termination as Error status on the session span.
 		sessionSpan.SetAttributes(
 			attribute.String("error.type", "loop_detected"),
 			attribute.String("cagent.session.terminated_by", "loop_detector"),

@@ -411,11 +411,6 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 	// constructor: it must not touch sm.runtimeSessions, otherwise it would
 	// briefly publish a half-initialised activeRuntimes (e.g. without the
 	// cancel func) that other goroutines could observe.
-	//
-	// Every call is a cold-path construction (caller short-circuits
-	// cached hits), so a span here attributes per-request first-use
-	// latency (team load + runtime construction) without adding noise
-	// on warm paths.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/server").Start(
 		ctx, "session.runtime_init",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -448,9 +443,6 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 		runtime.WithCurrentAgent(currentAgent),
 		runtime.WithManagedOAuth(false),
 		runtime.WithSessionStore(sm.sessionStore),
-		// Match the tracer scope used by the CLI; without this the
-		// API-server runtime's startSpan is a no-op so all the
-		// runtime.* spans go silent in HTTP-server mode.
 		runtime.WithTracer(otel.Tracer("cagent")),
 	}
 	run, err := runtime.New(t, opts...)

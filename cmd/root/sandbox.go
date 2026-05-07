@@ -69,10 +69,7 @@ func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runCon
 		envFlags = append(envFlags, "-e", envModelsGateway+"="+gateway)
 	}
 
-	// Wrap the sandbox exec in a span so the host side captures timing
-	// and exit code, and inject W3C trace context via env vars so the
-	// agent process spawned inside the sandbox container chains its
-	// own spans onto this parent.
+	// Inject W3C trace context so the in-sandbox agent chains onto this span.
 	ctx, sbxSpan := genai.StartSandboxExec(ctx, genai.SandboxOptions{
 		Runtime:   "docker",
 		Container: name,

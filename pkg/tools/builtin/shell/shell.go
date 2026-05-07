@@ -202,11 +202,8 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 
 	cwd := h.resolveWorkDir(params.Cwd)
 
-	// Stamp the call shape (cmd, cwd, timeout) onto the active span.
-	// Cmd ships unconditionally — it's the main signal of what the
-	// agent actually did, and gating it on chat-content capture loses
-	// too much debug value. Drop or hash `cagent.tool.shell.cmd` at
-	// the OTel collector if commands routinely carry secrets.
+	// Stamp call shape on the active span. Cmd ships unconditionally;
+	// drop or hash cagent.tool.shell.cmd at the collector if needed.
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.SetAttributes(
 			attribute.String("cagent.tool.shell.cmd", params.Cmd),

@@ -742,9 +742,6 @@ func countAnthropicTokens(
 	system []anthropic.TextBlockParam,
 	anthropicTools []anthropic.ToolUnionParam,
 ) (count int64, err error) {
-	// Token counting is a blocking API call to Anthropic that fires
-	// on the context-overflow retry path. Span it so the latency is
-	// attributable when the retry stalls.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/model/provider/anthropic").Start(
 		ctx,
 		"anthropic.tokens.count",

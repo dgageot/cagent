@@ -12,24 +12,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// EmbeddingRequest carries the inputs needed to start an
-// `embeddings {model}` span per the OTel GenAI semantic conventions.
+// EmbeddingRequest carries the inputs needed to start an `embeddings {model}` span.
 type EmbeddingRequest struct {
 	Provider string
 	Model    string
-	// BatchSize is the number of input texts in the embedding call,
-	// recorded as `cagent.embeddings.batch_size`. Zero means
-	// single-input.
+	// BatchSize is the number of input texts; 0 means single-input.
 	BatchSize int
-	// EncodingFormats is the optional list of requested output
-	// encodings (e.g. "float", "base64") per the GenAI semconv.
-	// Recorded as `gen_ai.request.encoding_formats` when non-empty.
+	// EncodingFormats is the optional list of requested output encodings.
 	EncodingFormats []string
 }
 
-// EmbeddingSpan handles the lifecycle of an embedding span and the
-// matching `gen_ai.client.operation.duration` / `gen_ai.client.token.usage`
-// metric records.
+// EmbeddingSpan handles the lifecycle of an embedding span and the matching metrics.
 type EmbeddingSpan struct {
 	span      trace.Span
 	provider  string
@@ -44,9 +37,7 @@ type EmbeddingSpan struct {
 	errType     string
 }
 
-// StartEmbedding begins a CLIENT-kind `embeddings {model}` span and
-// records the spec-required `gen_ai.operation.name=embeddings`,
-// `gen_ai.provider.name`, and `gen_ai.request.model` attributes.
+// StartEmbedding begins a CLIENT-kind `embeddings {model}` span.
 func StartEmbedding(ctx context.Context, req EmbeddingRequest) (context.Context, *EmbeddingSpan) {
 	tracer := otel.Tracer(instrumentationName)
 	name := OperationEmbeddings
@@ -82,9 +73,7 @@ func StartEmbedding(ctx context.Context, req EmbeddingRequest) (context.Context,
 	}
 }
 
-// SetInputTokens records the number of input tokens consumed by the
-// embedding call. Emitted as `gen_ai.usage.input_tokens` on the span
-// and as the `gen_ai.client.token.usage` metric at End time.
+// SetInputTokens records the number of input tokens consumed.
 func (s *EmbeddingSpan) SetInputTokens(n int64) {
 	if s == nil {
 		return
@@ -94,8 +83,7 @@ func (s *EmbeddingSpan) SetInputTokens(n int64) {
 	s.mu.Unlock()
 }
 
-// SetDimensions records the dimensionality of the resulting embedding
-// vector(s). Emitted as `gen_ai.embeddings.dimension.count`.
+// SetDimensions records the dimensionality of the resulting embedding vectors.
 func (s *EmbeddingSpan) SetDimensions(d int) {
 	if s == nil {
 		return
@@ -105,8 +93,7 @@ func (s *EmbeddingSpan) SetDimensions(d int) {
 	s.mu.Unlock()
 }
 
-// RecordError marks the span as failed and stores `error.type` for the
-// duration metric.
+// RecordError marks the span as failed.
 func (s *EmbeddingSpan) RecordError(err error, errType string) {
 	if s == nil || err == nil {
 		return

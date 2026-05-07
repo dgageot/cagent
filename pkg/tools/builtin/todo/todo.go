@@ -15,10 +15,8 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// annotateTodoSpan stamps the operation kind, batch size, and the
-// resulting list size onto the active runtime.tool.handler span so a
-// glance at a session shows when the agent was actually managing
-// progress vs. just chatting.
+// annotateTodoSpan stamps the operation kind, batch size, and totals onto
+// the active span.
 func annotateTodoSpan(ctx context.Context, op string, batch, total, completed int) {
 	span := trace.SpanFromContext(ctx)
 	if !span.IsRecording() {
@@ -32,9 +30,7 @@ func annotateTodoSpan(ctx context.Context, op string, batch, total, completed in
 	)
 }
 
-// countCompleted returns how many todos in the current snapshot are
-// marked completed. Cheap O(n) scan over a typically-tiny slice; called
-// once per todo handler invocation for the span annotation.
+// countCompleted returns the number of completed todos in the snapshot.
 func countCompleted(all []Todo) int {
 	n := 0
 	for _, t := range all {

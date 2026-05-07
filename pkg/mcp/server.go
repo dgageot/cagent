@@ -63,10 +63,6 @@ func StartHTTPServer(ctx context.Context, agentFilename, agentName string, runCo
 
 	fmt.Printf("MCP HTTP server listening on http://%s\n", ln.Addr())
 
-	// Wrap with otelhttp so the MCP-over-HTTP transport extracts
-	// `traceparent` / `baggage` from incoming requests just like the
-	// stdio transport extracts them from `params._meta`. Without this
-	// HTTP-mode MCP clients lose trace context at the boundary.
 	httpServer := &http.Server{
 		Handler: otelhttp.NewHandler(
 			mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
@@ -168,10 +164,7 @@ func createMCPServer(ctx context.Context, agentFilename, agentName string, runCo
 
 func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, input ToolInput) (result *mcp.CallToolResult, output ToolOutput, err error) {
-		// Extract W3C trace context from `params._meta` (per the OTel
-		// MCP semconv) so the SERVER span chains onto the calling
-		// CLIENT span. Then start a `tools/call {agent}` SERVER span
-		// covering the full handler execution.
+		// Extract trace context from params._meta and start a SERVER span.
 		if req != nil && req.Params != nil {
 			ctx = otelmcp.ExtractMeta(ctx, req.Params.Meta)
 		}
@@ -206,9 +199,6 @@ func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mc
 		rt, err := runtime.New(t,
 			runtime.WithCurrentAgent(agentName),
 			runtime.WithNonInteractive(true),
-			// See pkg/a2a/adapter.go for rationale — without this
-			// the runtime's startSpan is a no-op when cagent runs as
-			// an MCP server, so all our runtime.* spans go silent.
 			runtime.WithTracer(otel.Tracer("cagent")),
 		)
 		if err != nil {

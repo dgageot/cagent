@@ -94,10 +94,6 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 // LoadWithConfig loads an agent team and returns both the team and config info
 // needed for runtime model switching.
 func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *config.RuntimeConfig, opts ...Opt) (result *LoadResult, err error) {
-	// Cold-start path: parses config, resolves model aliases, may pull
-	// referenced sub-agents over the network, and starts every toolset.
-	// All synchronous from the caller's perspective. The span makes the
-	// breakdown attributable when first-use latency is high.
 	ctx, span := otel.Tracer("github.com/docker/docker-agent/pkg/teamloader").Start(
 		ctx, "teamloader.load",
 		trace.WithSpanKind(trace.SpanKindInternal),

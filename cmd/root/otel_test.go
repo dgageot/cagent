@@ -17,8 +17,7 @@ func TestNewOTelResourceUsesCurrentSchemaURL(t *testing.T) {
 }
 
 // TestProvidersWithoutEndpoint verifies all three providers build cleanly
-// when no OTLP endpoint is configured — they're no-op exporters but must
-// still produce valid, non-nil providers so callers can create instruments.
+// without an OTLP endpoint.
 func TestProvidersWithoutEndpoint(t *testing.T) {
 	t.Parallel()
 
@@ -42,12 +41,8 @@ func TestProvidersWithoutEndpoint(t *testing.T) {
 	assert.NotNil(t, lp.Logger("test"))
 }
 
-// TestNormalizeOTLPEndpoint pins the bare-endpoint -> URL mapping the
-// three OTLP/HTTP exporters share. Without this normalization the log
-// exporter (insecure-by-default for bare hosts) conflicted with
-// OTEL_EXPORTER_OTLP_CERTIFICATE and tore down the whole telemetry
-// pipeline; the trace exporter (TLS-by-default for bare hosts) hid
-// the inconsistency.
+// TestNormalizeOTLPEndpoint pins the bare-endpoint -> URL mapping shared by
+// the three OTLP/HTTP exporters.
 func TestNormalizeOTLPEndpoint(t *testing.T) {
 	t.Parallel()
 

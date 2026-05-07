@@ -1,8 +1,6 @@
 package mcp
 
-// MCP attribute keys defined by the OTel semantic conventions
-// (https://opentelemetry.io/docs/specs/semconv/registry/attributes/mcp/).
-// All are Development stability.
+// MCP attribute keys defined by the OTel semantic conventions.
 const (
 	AttrMethodName      = "mcp.method.name"
 	AttrProtocolVersion = "mcp.protocol.version"
@@ -10,26 +8,22 @@ const (
 	AttrSessionID       = "mcp.session.id"
 )
 
-// JSON-RPC attribute keys used alongside MCP spans for request id and
-// response status when applicable.
+// JSON-RPC attribute keys used alongside MCP spans.
 const (
 	AttrJSONRPCRequestID       = "jsonrpc.request.id"
 	AttrJSONRPCProtocolVersion = "jsonrpc.protocol.version"
 	AttrRPCResponseStatusCode  = "rpc.response.status_code"
 )
 
-// gen_ai.* attribute keys that the MCP semconv overlays on MCP spans when
-// applicable. These are duplicated here as constants so the MCP package
-// doesn't depend on the genai package — keeping the two telemetry helpers
-// compositional.
+// gen_ai.* attribute keys overlaid on MCP spans (duplicated as constants here
+// to avoid depending on the genai package).
 const (
 	AttrGenAIOperationName = "gen_ai.operation.name"
 	AttrGenAIToolName      = "gen_ai.tool.name"
 	AttrGenAIPromptName    = "gen_ai.prompt.name"
 )
 
-// Well-known MCP method names (https://modelcontextprotocol.io/specification).
-// These match the values listed in the OTel semconv registry.
+// Well-known MCP method names.
 const (
 	MethodInitialize         = "initialize"
 	MethodPing               = "ping"
@@ -49,10 +43,8 @@ const (
 	MethodElicitationCreate  = "elicitation/create"
 )
 
-// OperationExecuteTool is the gen_ai.operation.name value used on MCP
-// tools/call spans per the spec.
+// OperationExecuteTool is the gen_ai.operation.name value for tools/call.
 const OperationExecuteTool = "execute_tool"
 
-// instrumentationName identifies this package as the OTel instrumentation
-// scope for spans, metrics, and log records it produces.
+// instrumentationName is the OTel instrumentation scope used by this package.
 const instrumentationName = "github.com/docker/docker-agent/pkg/telemetry/mcp"

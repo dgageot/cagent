@@ -126,11 +126,7 @@ func Run(ctx context.Context, agentFilename string, opts Options, ln net.Listene
 		return err
 	}
 
-	// Wrap with otelhttp so incoming /v1/chat/completions requests
-	// (including SSE streams) extract the caller's trace context.
-	// otelhttp ends the span when the response body is closed, so
-	// SSE streaming responses get a span that covers the full
-	// stream duration.
+	// Wrap with otelhttp so incoming requests propagate trace context.
 	handler := otelhttp.NewHandler(
 		newRouter(&server{
 			team:              t,
