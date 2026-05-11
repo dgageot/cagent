@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
-	"github.com/docker/docker-agent/pkg/compaction"
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider"
 	"github.com/docker/docker-agent/pkg/modelsdev"
@@ -363,16 +362,13 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 		var contextLimit int64
 		if m != nil {
 			contextLimit = int64(m.Limit.Context)
-
-			if r.sessionCompaction && compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, 0, contextLimit) {
-				r.compactWithReason(ctx, sess, "", compactionReasonThreshold, sink)
-			}
+			r.compactor.CompactIfOverThreshold(ctx, sess, m, sink)
 		}
 
 		// Drain steer messages queued while idle or before the first model call
 		// (covers idle-window and first-turn-miss races).
 		if drained, messageCountBeforeSteer := r.drainAndEmitSteered(ctx, sess, sink); drained {
-			r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeSteer, sink)
+			r.compactor.CompactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeSteer, sink)
 		}
 
 		// Everything from turn_start onwards is wrapped in a closure so a
@@ -600,7 +596,7 @@ func (r *LocalRuntime) runTurn(
 
 	// Drain steer messages that arrived during tool calls.
 	if drained, _ := r.drainAndEmitSteered(ctx, sess, events); drained {
-		r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+		r.compactor.CompactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 		endReason = turnEndReasonSteered
 		return turnContinue
 	}
@@ -611,7 +607,7 @@ func (r *LocalRuntime) runTurn(
 
 		// Re-check steer queue: closes the race between the mid-loop drain and this stop.
 		if drained, _ := r.drainAndEmitSteered(ctx, sess, events); drained {
-			r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+			r.compactor.CompactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 			endReason = turnEndReasonSteered
 			return turnContinue
 		}
@@ -626,7 +622,7 @@ func (r *LocalRuntime) runTurn(
 			userMsg := session.UserMessage(followUp.Content, followUp.MultiContent...)
 			sess.AddMessage(userMsg)
 			events.Emit(UserMessage(followUp.Content, sess.ID, followUp.MultiContent, len(sess.Messages)-1))
-			r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+			r.compactor.CompactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 			endReason = turnEndReasonContinue
 			return turnContinue // re-enter the loop for a new turn
 		}
@@ -635,7 +631,7 @@ func (r *LocalRuntime) runTurn(
 		return turnExit
 	}
 
-	r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+	r.compactor.CompactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 	endReason = turnEndReasonContinue
 	return turnContinue
 }
@@ -808,44 +804,6 @@ func (r *LocalRuntime) recordAssistantMessage(
 		FinishReason: res.FinishReason,
 	}
 	return msgUsage
-}
-
-// compactIfNeeded estimates the token impact of tool results added since
-// messageCountBefore and triggers proactive compaction when the estimated
-// total exceeds 90% of the context window. This prevents sending an
-// oversized request on the next iteration.
-func (r *LocalRuntime) compactIfNeeded(
-	ctx context.Context,
-	sess *session.Session,
-	a *agent.Agent,
-	m *modelsdev.Model,
-	contextLimit int64,
-	messageCountBefore int,
-	events EventSink,
-) {
-	if m == nil || !r.sessionCompaction || contextLimit <= 0 {
-		return
-	}
-
-	newMessages := sess.GetAllMessages()[messageCountBefore:]
-	var addedTokens int64
-	for _, msg := range newMessages {
-		addedTokens += compaction.EstimateMessageTokens(&msg.Message)
-	}
-
-	if !compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, addedTokens, contextLimit) {
-		return
-	}
-
-	slog.InfoContext(ctx, "Proactive compaction: tool results pushed estimated context past 90%% threshold",
-		"agent", a.Name(),
-		"input_tokens", sess.InputTokens,
-		"output_tokens", sess.OutputTokens,
-		"added_estimated_tokens", addedTokens,
-		"estimated_total", sess.InputTokens+sess.OutputTokens+addedTokens,
-		"context_limit", contextLimit,
-	)
-	r.compactWithReason(ctx, sess, "", compactionReasonThreshold, events)
 }
 
 // getTools executes tool retrieval with automatic OAuth handling.

@@ -128,7 +128,7 @@ func TestDoCompactBeforeHookDeniesSkipsCompaction(t *testing.T) {
 	originalLen := len(sess.Messages)
 
 	events := make(chan Event, 32)
-	rt.compactWithReason(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
+	rt.compactor.Compact(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
 	close(events)
 
 	var sawCompactionEvent, sawSummaryEvent bool
@@ -184,7 +184,7 @@ func TestDoCompactBeforeHookSuppliesSummary(t *testing.T) {
 	}))
 
 	events := make(chan Event, 32)
-	rt.compactWithReason(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
+	rt.compactor.Compact(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
 	close(events)
 
 	var summaryEvent *SessionSummaryEvent
@@ -264,7 +264,7 @@ func TestDoCompactAfterHookFires(t *testing.T) {
 	sess.OutputTokens = 567
 
 	events := make(chan Event, 32)
-	rt.compactWithReason(t.Context(), sess, "", compactionReasonThreshold, NewChannelSink(events))
+	rt.compactor.Compact(t.Context(), sess, "", compactionReasonThreshold, NewChannelSink(events))
 	close(events)
 	for range events {
 	}
@@ -301,7 +301,7 @@ func TestDoCompactNoHooksMatchesPriorBehavior(t *testing.T) {
 	}))
 
 	events := make(chan Event, 32)
-	rt.compactWithReason(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
+	rt.compactor.Compact(t.Context(), sess, "", compactionReasonManual, NewChannelSink(events))
 	close(events)
 
 	var startCount, doneCount int

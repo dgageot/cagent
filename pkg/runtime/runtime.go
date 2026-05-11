@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker-agent/pkg/config/types"
 	"github.com/docker/docker-agent/pkg/hooks"
 	"github.com/docker/docker-agent/pkg/hooks/builtins"
-	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/runtime/toolexec"
 	"github.com/docker/docker-agent/pkg/session"
@@ -165,6 +164,7 @@ type ModelStore interface {
 type LocalRuntime struct {
 	toolMap              map[string]toolexec.ToolHandler
 	toolSink             EventSink
+	compactor            *sessionCompactor
 	team                 *team.Team
 	agents               *agentRouter
 	resumeChan           chan ResumeRequest
@@ -557,6 +557,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	// This avoids concurrent map writes when multiple goroutines call
 	// RunStream on the same runtime (e.g. background agent sessions).
 	r.registerDefaultTools()
+	r.compactor = &sessionCompactor{runtime: r}
 
 	// Pre-build per-agent hook executors now that workingDir, env and
 	// the team are finalized. Read-only afterwards.
@@ -1260,90 +1261,5 @@ func (r *LocalRuntime) startSpan(ctx context.Context, name string, opts ...trace
 // Internal callers (proactive threshold, overflow recovery) use
 // [LocalRuntime.compactWithReason] directly to forward a more specific reason.
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events EventSink) {
-	r.compactWithReason(ctx, sess, additionalPrompt, compactionReasonManual, events)
-}
-
-// compactWithReason runs a session compaction with the supplied reason and
-// emits a TokenUsageEvent so the UI immediately reflects the new context
-// pressure.
-//
-// reason is reported to BeforeCompaction / AfterCompaction hooks as
-// CompactionReason. Use [compactionReasonThreshold] for proactive
-// 90%-of-context triggers, [compactionReasonOverflow] for post-overflow
-// auto-recovery, [compactionReasonToolOverflow] for tool-result-driven
-// 90% triggers, or [compactionReasonManual] for user-invoked compactions.
-//
-// PreCompact hooks fire first via the legacy [hooks.Input.Source] field
-// ("auto" / "tool_overflow" / "overflow" / "manual"); they may cancel the
-// compaction or contribute additional steering text. BeforeCompaction
-// hooks then fire inside [LocalRuntime.doCompact] with [Input.CompactionReason]
-// set to the canonical reason; they may veto or supply a custom summary.
-func (r *LocalRuntime) compactWithReason(ctx context.Context, sess *session.Session, additionalPrompt, reason string, events EventSink) {
-	// Stamp the session ID on ctx so the compaction LLM call carries
-	// `X-Cagent-Session-Id` to the gateway. Manual compaction
-	// (via `Summarize` from the App) bypasses `runStreamLoop`'s seed;
-	// internal callers (proactive threshold, overflow recovery) already
-	// run with a stamped ctx, but re-stamping is idempotent.
-	ctx = httpclient.ContextWithSessionID(ctx, sess.ID)
-	a := r.resolveSessionAgent(sess)
-
-	source := preCompactSourceFor(reason)
-	skip, msg, extraPrompt := r.executePreCompactHooks(ctx, sess, a, source, events)
-	if skip {
-		slog.WarnContext(ctx, "pre_compact hook signalled skip",
-			"agent", a.Name(), "session_id", sess.ID, "source", source, "reason", msg)
-		if msg != "" {
-			events.Emit(Warning(msg, a.Name()))
-		}
-		return
-	}
-	additionalPrompt = joinPrompts(additionalPrompt, extraPrompt)
-
-	r.doCompact(ctx, sess, a, additionalPrompt, reason, events)
-
-	// Emit a TokenUsageEvent so the sidebar immediately reflects the
-	// compaction: tokens drop to the summary size, context % drops, and
-	// cost increases by the summary generation cost.
-	modelID := r.getEffectiveModelID(a)
-	var contextLimit int64
-	if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
-		contextLimit = int64(m.Limit.Context)
-	}
-	events.Emit(NewTokenUsageEvent(sess.ID, a.Name(), SessionUsage(sess, contextLimit)))
-}
-
-// preCompactSourceFor maps the canonical compaction reason
-// ([compactionReasonThreshold] / [compactionReasonOverflow] /
-// [compactionReasonManual]) onto the [hooks.Input.Source] string
-// surfaced by the pre_compact hook ("auto" / "overflow" / "manual").
-// Unknown reasons fall through unchanged so future, more specific
-// reasons (e.g. "tool_overflow") can be forwarded verbatim without
-// touching this map.
-func preCompactSourceFor(reason string) string {
-	switch reason {
-	case compactionReasonThreshold:
-		return "auto"
-	case compactionReasonOverflow:
-		return "overflow"
-	case compactionReasonManual:
-		return "manual"
-	default:
-		return reason
-	}
-}
-
-// joinPrompts concatenates two non-empty prompt fragments with a blank
-// line, returning whichever is non-empty when the other isn't. Used by
-// compactWithReason to splice pre_compact's additional_context into
-// the caller's additionalPrompt without having to special-case empty
-// strings at the callsite.
-func joinPrompts(a, b string) string {
-	switch {
-	case a == "":
-		return b
-	case b == "":
-		return a
-	default:
-		return a + "\n\n" + b
-	}
+	r.compactor.Compact(ctx, sess, additionalPrompt, compactionReasonManual, events)
 }
