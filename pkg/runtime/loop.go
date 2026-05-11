@@ -509,59 +509,22 @@ func (r *LocalRuntime) runTurn(
 	messages := sess.GetMessages(a, slices.Concat(ls.sessionStartMsgs, ls.userPromptMsgs, turnStartMsgs)...)
 	slog.DebugContext(ctx, "Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
-	// before_llm_call hooks fire just before the model is invoked.
-	// A terminating verdict (e.g. from the max_iterations builtin)
-	// stops the run loop here, before any tokens are spent. Hooks
-	// may also rewrite the outgoing messages by returning
-	// HookSpecificOutput.UpdatedMessages — the redact_secrets
-	// builtin uses this to scrub secrets from chat content before
-	// the LLM ever sees it. The rewrite happens BEFORE the
-	// runtime's Go-only message transforms so a hook that drops a
-	// message (e.g. a custom "strip system reminders") doesn't get
-	// silently overridden by a transform later in the chain.
-	stop, msg, rewritten := r.executeBeforeLLMCallHooks(ctx, sess, a, modelID, ls.iteration, messages)
-	if stop {
-		slog.WarnContext(ctx, "before_llm_call hook signalled run termination",
-			"agent", a.Name(), "session_id", sess.ID, "reason", msg)
-		r.emitHookDrivenShutdown(ctx, a, sess, msg, events)
+	res, usedModel, callCtrl := r.callModel(streamCtx, ctx, sess, a, m, model, modelID, messages, agentTools, ls, streamSpan, events)
+	switch callCtrl {
+	case modelCallHookBlocked:
 		endStreamSpan()
 		endReason = turnEndReasonHookBlocked
 		return turnExit
-	}
-	if rewritten != nil {
-		messages = rewritten
-	}
-
-	// Apply registered before_llm_call message transforms (e.g.
-	// strip_unsupported_modalities for text-only models, plus any
-	// embedder-supplied redactor / scrubber registered via
-	// WithMessageTransform). Runs after the gate so a transform
-	// failure cannot waste the gate's allow verdict. modelID is
-	// passed explicitly so transforms see the actual model the
-	// loop chose (per-tool override + alloy-mode selection),
-	// not whatever a fresh agent.Model() call would re-randomize.
-	messages = r.applyBeforeLLMCallTransforms(ctx, sess, a, modelID, messages)
-
-	// Try primary model with fallback chain if configured
-	res, usedModel, err := r.fallback.execute(streamCtx, a, model, messages, agentTools, sess, m, events)
-	if err != nil {
-		outcome := r.handleStreamError(ctx, sess, a, err, contextLimit, &ls.overflowCompactions, streamSpan, events)
+	case modelCallErrorRetry:
 		endStreamSpan()
 		endReason = turnEndReasonError
-		if outcome == streamErrorRetry {
-			return turnContinue
-		}
+		return turnContinue
+	case modelCallErrorFatal:
+		endStreamSpan()
+		endReason = turnEndReasonError
 		return turnExit
+	case modelCallOK:
 	}
-
-	// A successful model call resets the overflow compaction counter.
-	ls.overflowCompactions = 0
-
-	// after_llm_call hooks fire on success only; failed calls
-	// fire on_error above. The assistant text content is passed
-	// via stop_response, matching the stop event's payload, so
-	// handlers can reuse the same parsing.
-	r.executeAfterLLMCallHooks(ctx, sess, a, res.Content)
 
 	if usedModel != nil && usedModel.ID() != model.ID() {
 		slog.InfoContext(ctx, "Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())
@@ -678,6 +641,90 @@ func (r *LocalRuntime) runTurn(
 	r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 	endReason = turnEndReasonContinue
 	return turnContinue
+}
+
+// modelCallResult describes the outcome of [LocalRuntime.callModel] so
+// the caller can branch without inspecting error values.
+type modelCallResult int
+
+const (
+	modelCallOK          modelCallResult = iota // LLM call succeeded; response is valid.
+	modelCallHookBlocked                        // A before_llm_call hook signalled termination.
+	modelCallErrorRetry                         // Stream error; caller should retry the turn.
+	modelCallErrorFatal                         // Stream error; caller should exit the loop.
+)
+
+// callModel runs the full LLM invocation pipeline for a single turn:
+//
+//  1. before_llm_call hooks — gate / rewrite
+//  2. before_llm_call message transforms
+//  3. fallback.execute (streaming model call with retry chain)
+//  4. error handling (overflow compaction, telemetry)
+//  5. after_llm_call hooks (success path only)
+//
+// Extracting this from [runTurn] concentrates the pre/post LLM logic in
+// one place and makes it independently testable. The caller still owns
+// span lifecycle, turn_end dispatch, and tool processing.
+func (r *LocalRuntime) callModel(
+	streamCtx context.Context,
+	turnCtx context.Context,
+	sess *session.Session,
+	a *agent.Agent,
+	m *modelsdev.Model,
+	model provider.Provider,
+	modelID string,
+	messages []chat.Message,
+	agentTools []tools.Tool,
+	ls *loopState,
+	streamSpan trace.Span,
+	events EventSink,
+) (streamResult, provider.Provider, modelCallResult) {
+	// before_llm_call hooks fire just before the model is invoked.
+	// A terminating verdict (e.g. from the max_iterations builtin)
+	// stops the run loop here, before any tokens are spent. Hooks
+	// may also rewrite the outgoing messages.
+	stop, msg, rewritten := r.executeBeforeLLMCallHooks(turnCtx, sess, a, modelID, ls.iteration, messages)
+	if stop {
+		slog.WarnContext(turnCtx, "before_llm_call hook signalled run termination",
+			"agent", a.Name(), "session_id", sess.ID, "reason", msg)
+		r.emitHookDrivenShutdown(turnCtx, a, sess, msg, events)
+		return streamResult{}, nil, modelCallHookBlocked
+	}
+	if rewritten != nil {
+		messages = rewritten
+	}
+
+	// Apply registered before_llm_call message transforms (e.g.
+	// strip_unsupported_modalities for text-only models). Runs
+	// after the hook gate so a transform failure cannot waste the
+	// gate's allow verdict.
+	messages = r.applyBeforeLLMCallTransforms(turnCtx, sess, a, modelID, messages)
+
+	// Try primary model with fallback chain if configured.
+	res, usedModel, err := r.fallback.execute(streamCtx, a, model, messages, agentTools, sess, m, events)
+	if err != nil {
+		outcome := r.handleStreamError(turnCtx, sess, a, err, modelContextLimit(m), &ls.overflowCompactions, streamSpan, events)
+		if outcome == streamErrorRetry {
+			return streamResult{}, nil, modelCallErrorRetry
+		}
+		return streamResult{}, nil, modelCallErrorFatal
+	}
+
+	// A successful model call resets the overflow compaction counter.
+	ls.overflowCompactions = 0
+
+	// after_llm_call hooks fire on success only.
+	r.executeAfterLLMCallHooks(turnCtx, sess, a, res.Content)
+
+	return res, usedModel, modelCallOK
+}
+
+// modelContextLimit returns the model's context window size, or 0 if unknown.
+func modelContextLimit(m *modelsdev.Model) int64 {
+	if m == nil {
+		return 0
+	}
+	return int64(m.Limit.Context)
 }
 
 // Run executes the agent loop synchronously and returns the final session
