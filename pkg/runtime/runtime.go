@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker-agent/pkg/hooks/builtins"
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/modelsdev"
+	"github.com/docker/docker-agent/pkg/runtime/toolexec"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
 	"github.com/docker/docker-agent/pkg/team"
@@ -31,9 +32,6 @@ import (
 	"github.com/docker/docker-agent/pkg/tools/lifecycle"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
 )
-
-// ToolHandlerFunc is a function type for handling tool calls
-type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events EventSink) (*tools.ToolCallResult, error)
 
 // Runtime defines the contract for runtime execution
 type Runtime interface {
@@ -165,7 +163,8 @@ type ModelStore interface {
 
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
-	toolMap              map[string]ToolHandlerFunc
+	toolMap              map[string]toolexec.ToolHandler
+	toolSink             EventSink
 	team                 *team.Team
 	agents               *agentRouter
 	resumeChan           chan ResumeRequest
@@ -461,7 +460,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	}
 
 	r := &LocalRuntime{
-		toolMap:                make(map[string]ToolHandlerFunc),
+		toolMap:                make(map[string]toolexec.ToolHandler),
 		team:                   agents,
 		agents:                 newAgentRouter(agents, defaultAgent.Name()),
 		resumeChan:             make(chan ResumeRequest),

@@ -1879,7 +1879,8 @@ func TestTransferTaskRejectsNonSubAgent(t *testing.T) {
 		},
 	}
 
-	result, err := rt.handleTaskTransfer(t.Context(), sess, toolCall, NewChannelSink(evts))
+	rt.toolSink = NewChannelSink(evts)
+	result, err := rt.handleTaskTransfer(t.Context(), sess, toolCall)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.True(t, result.IsError, "transfer to non-sub-agent should return an error result")
@@ -1917,7 +1918,8 @@ func TestTransferTaskAllowsSubAgent(t *testing.T) {
 		},
 	}
 
-	result, err := rt.handleTaskTransfer(t.Context(), sess, toolCall, NewChannelSink(evts))
+	rt.toolSink = NewChannelSink(evts)
+	result, err := rt.handleTaskTransfer(t.Context(), sess, toolCall)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.False(t, result.IsError, "transfer to valid sub-agent should succeed")

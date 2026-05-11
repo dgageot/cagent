@@ -30,15 +30,12 @@ import (
 // halts the *batch* but keeps the loop alive so the synthesised tool
 // error responses can be sent back to the model on the next turn.
 func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, agentTools []tools.Tool, events EventSink) (stopRun bool, stopMessage string) {
-	// Bind runtime-managed handlers (transfer_task, handoff, change_model, ...)
-	// to the current events channel: r.toolMap entries take chan Event,
-	// toolexec.ToolHandler doesn't.
-	handlers := make(map[string]toolexec.ToolHandler, len(r.toolMap))
-	for name, h := range r.toolMap {
-		handlers[name] = func(ctx context.Context, sess *session.Session, tc tools.ToolCall) (*tools.ToolCallResult, error) {
-			return h(ctx, sess, tc, events)
-		}
-	}
+	// Set the per-batch event sink so built-in handlers (transfer_task,
+	// change_model, run_skill, etc.) can emit events without carrying
+	// EventSink in their signature. This is safe because processToolCalls
+	// is called serially within one goroutine per RunStream.
+	r.toolSink = events
+	defer func() { r.toolSink = nil }()
 
 	d := &toolexec.Dispatcher{
 		Tracer:      r.tracer,
@@ -46,7 +43,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		Resume:      r.resumeChan,
 		AgentFor:    r.resolveSessionAgent,
 		Permissions: r.permissionCheckers,
-		Handlers:    handlers,
+		Handlers:    r.toolMap,
 	}
 	return d.Process(ctx, sess, calls, agentTools, &sinkEmitter{events: events})
 }

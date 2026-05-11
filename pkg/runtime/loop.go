@@ -38,11 +38,8 @@ func (r *LocalRuntime) registerDefaultTools() {
 	r.toolMap[modelpicker.ToolNameChangeModel] = r.handleChangeModel
 	r.toolMap[modelpicker.ToolNameRevertModel] = r.handleRevertModel
 	r.toolMap[skills.ToolNameRunSkill] = r.handleRunSkill
-
 	r.bgAgents.RegisterHandlers(func(name string, fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error)) {
-		r.toolMap[name] = func(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ EventSink) (*tools.ToolCallResult, error) {
-			return fn(ctx, sess, tc)
-		}
+		r.toolMap[name] = fn
 	})
 }
 

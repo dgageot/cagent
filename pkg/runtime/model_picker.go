@@ -30,7 +30,7 @@ func (r *LocalRuntime) findModelPickerTool() *modelpicker.Tool {
 }
 
 // handleChangeModel handles the change_model tool call by switching the current agent's model.
-func (r *LocalRuntime) handleChangeModel(ctx context.Context, _ *session.Session, toolCall tools.ToolCall, events EventSink) (*tools.ToolCallResult, error) {
+func (r *LocalRuntime) handleChangeModel(ctx context.Context, _ *session.Session, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params modelpicker.ChangeModelArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
@@ -53,25 +53,25 @@ func (r *LocalRuntime) handleChangeModel(ctx context.Context, _ *session.Session
 		)), nil
 	}
 
-	return r.setModelAndEmitInfo(ctx, params.Model, events)
+	return r.setModelAndEmitInfo(ctx, params.Model)
 }
 
 // handleRevertModel handles the revert_model tool call by reverting the current agent to its default model.
-func (r *LocalRuntime) handleRevertModel(ctx context.Context, _ *session.Session, _ tools.ToolCall, events EventSink) (*tools.ToolCallResult, error) {
-	return r.setModelAndEmitInfo(ctx, "", events)
+func (r *LocalRuntime) handleRevertModel(ctx context.Context, _ *session.Session, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+	return r.setModelAndEmitInfo(ctx, "")
 }
 
 // setModelAndEmitInfo sets the model for the current agent and emits an updated
 // AgentInfo event so the UI reflects the change. An empty modelRef reverts to
 // the agent's default model.
-func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string, events EventSink) (*tools.ToolCallResult, error) {
+func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string) (*tools.ToolCallResult, error) {
 	currentName := r.CurrentAgentName()
 	if err := r.SetAgentModel(ctx, currentName, modelRef); err != nil {
 		return tools.ResultError(fmt.Sprintf("failed to set model: %v", err)), nil
 	}
 
-	if a, err := r.team.Agent(currentName); err == nil {
-		events.Emit(AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage()))
+	if a, err := r.team.Agent(currentName); err == nil && r.toolSink != nil {
+		r.toolSink.Emit(AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage()))
 	} else {
 		slog.WarnContext(ctx, "Failed to retrieve agent after model change; UI may not reflect the update", "agent", currentName, "error", err)
 	}

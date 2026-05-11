@@ -28,7 +28,7 @@ import (
 //
 // This implements the `context: fork` behaviour from the SKILL.md frontmatter,
 // following the same convention as Claude Code.
-func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts EventSink) (*tools.ToolCallResult, error) {
+func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args skills.RunSkillArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
@@ -83,7 +83,7 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 	// run_skill keeps the same agent (skills are sub-sessions of the
 	// caller, not delegations to another agent), so we never swap the
 	// runtime's currentAgent here.
-	return r.runForwarding(ctx, sess, evts, delegationRequest{
+	return r.runForwarding(ctx, sess, r.toolSink, delegationRequest{
 		SubSessionConfig: SubSessionConfig{
 			Task:                prepared.Task,
 			SystemMessage:       prepared.Content,
