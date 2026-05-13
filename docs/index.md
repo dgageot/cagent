@@ -68,8 +68,8 @@ That's it. Your agent can now read and write files, run shell commands, and reas
 
 The same coding assistant, written two different ways:
 
-<div class="compare">
-  <div class="compare-side compare-without">
+<div class="compare" markdown="1">
+  <div class="compare-side compare-without" markdown="1">
     <div class="compare-label">Without Docker Agent</div>
 
 ```python
@@ -105,7 +105,7 @@ while True:
   if resp.stop_reason == "end_turn": break
 ```
   </div>
-  <div class="compare-side compare-with">
+  <div class="compare-side compare-with" markdown="1">
     <div class="compare-label">With Docker Agent</div>
 
 ```yaml
