@@ -1039,6 +1039,44 @@ body {
   margin-bottom: 6px;
 }
 
+/* ===== Docker ecosystem tiles on the home page ===== */
+.ecosystem {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 20px 0 32px;
+}
+.ecosystem-tile {
+  display: block;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
+}
+.ecosystem-tile:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+.ecosystem-tile strong {
+  display: block;
+  color: var(--accent);
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.ecosystem-tile span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.ecosystem-tile code {
+  font-size: 0.85em;
+}
+
 /* ===== "Without / With" code comparison ===== */
 .compare {
   display: grid;

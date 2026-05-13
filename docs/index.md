@@ -39,7 +39,7 @@ permalink: /
 
 ## What Is Docker Agent?
 
-Docker Agent is an open-source tool from Docker that lets you **build, run, and share AI agents using simple configuration files** instead of writing application code.
+Docker Agent is an open-source tool from **Docker** — makers of [Docker Engine](https://www.docker.com/products/container-runtime/), [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Docker Hub](https://hub.docker.com), and [Docker Scout](https://www.docker.com/products/docker-scout/) — that lets you **build, run, and share AI agents using simple configuration files** instead of writing application code.
 
 You describe what your agent does — its model, personality, tools, and teammates — in a YAML file. Docker Agent handles the LLM orchestration loop, tool execution, multi-agent delegation, and streaming output. You focus on *what* the agent should do, not *how* to wire it up.
 
@@ -260,7 +260,7 @@ $ docker agent run
 
 ### From the Registry
 
-Run pre-built agents from the [agent catalog](https://hub.docker.com/u/agentcatalog) — just like pulling a Docker image:
+Run pre-built agents from the [agent catalog on **Docker Hub**](https://hub.docker.com/u/agentcatalog) — just like pulling a Docker image:
 
 ```bash
 # A pirate-themed assistant
@@ -317,6 +317,29 @@ $ docker agent serve api agent.yaml --listen :8080
 <div class="callout-title">Prefer HCL?
 </div>
   <p>You can also write agent configs in HCL using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
+</div>
+
+## Part of the Docker ecosystem
+
+Docker Agent reuses the tooling and conventions you already know:
+
+<div class="ecosystem">
+  <a class="ecosystem-tile" href="https://hub.docker.com/u/agentcatalog" target="_blank" rel="noopener">
+    <strong>Docker Hub</strong>
+    <span>Pull pre-built agents from the agent catalog — same registry, same auth.</span>
+  </a>
+  <a class="ecosystem-tile" href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">
+    <strong>Docker Desktop</strong>
+    <span>Run MCP toolsets in containers via <code>ref: docker:…</code> with one click.</span>
+  </a>
+  <a class="ecosystem-tile" href="https://docs.docker.com/desktop/features/model-runner/" target="_blank" rel="noopener">
+    <strong>Docker Model Runner</strong>
+    <span>Run local OSS models on your machine — just point your agent at <code>dmr/…</code>.</span>
+  </a>
+  <a class="ecosystem-tile" href="https://www.docker.com/products/docker-scout/" target="_blank" rel="noopener">
+    <strong>Docker Scout</strong>
+    <span>Same supply-chain visibility you have for images extends to agent images.</span>
+  </a>
 </div>
 
 ## Explore the Docs
