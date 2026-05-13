@@ -1011,6 +1011,34 @@ body {
   line-height: 1.55;
 }
 
+/* ===== "30-second elevator" panel on the home page ===== */
+.elevator {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 32px 0 40px;
+}
+.elevator-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.elevator-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.elevator-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
 /* ===== Demo GIF ===== */
 .demo-container {
   margin: 32px 0;

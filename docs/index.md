@@ -18,6 +18,25 @@ permalink: /
   <img src="{{ '/demo.gif' | relative_url }}" alt="Docker Agent TUI demo showing an interactive agent session" loading="lazy">
 </div>
 
+<div class="elevator">
+  <div class="elevator-card">
+    <div class="elevator-label">What it is</div>
+    <p>A CLI that runs AI agents defined declaratively in YAML or HCL.</p>
+  </div>
+  <div class="elevator-card">
+    <div class="elevator-label">What it isn’t</div>
+    <p>Not a framework you write code in. Not a hosted SaaS. Not a new model.</p>
+  </div>
+  <div class="elevator-card">
+    <div class="elevator-label">Who it’s for</div>
+    <p>Developers who want agents in their workflow without glue code.</p>
+  </div>
+  <div class="elevator-card">
+    <div class="elevator-label">What you get</div>
+    <p>TUI · CLI · HTTP API · MCP server · A2A · OCI distribution.</p>
+  </div>
+</div>
+
 ## What Is Docker Agent?
 
 Docker Agent is an open-source tool from Docker that lets you **build, run, and share AI agents using simple configuration files** instead of writing application code.
