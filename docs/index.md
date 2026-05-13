@@ -120,6 +120,37 @@ Most AI agent frameworks ask you to write Python or TypeScript to glue together 
   </div>
 </div>
 
+## Use Cases
+
+What people build with Docker Agent today:
+
+<div class="usecase-grid">
+  <div class="usecase">
+    <div class="usecase-icon">⌨️</div>
+    <h3>Coding agents</h3>
+    <p>Pair-programmer agents with file system, shell, and LSP tools. Read code, edit it, run tests, iterate.</p>
+    <a href="https://hub.docker.com/u/agentcatalog" target="_blank" rel="noopener">Browse the catalog →</a>
+  </div>
+  <div class="usecase">
+    <div class="usecase-icon">💻</div>
+    <h3>Ops &amp; SRE</h3>
+    <p>Triage incidents, search logs, run kubectl, build Dockerfiles. Pipe alerts in via <code>--exec</code> for headless runs.</p>
+    <a href="{{ '/features/cli/' | relative_url }}">CLI reference →</a>
+  </div>
+  <div class="usecase">
+    <div class="usecase-icon">📊</div>
+    <h3>Data &amp; research</h3>
+    <p>Persistent memory, web fetch, RAG over local docs, structured output for downstream pipelines.</p>
+    <a href="{{ '/features/rag/' | relative_url }}">RAG guide →</a>
+  </div>
+  <div class="usecase">
+    <div class="usecase-icon">🧭</div>
+    <h3>Custom workflows</h3>
+    <p>Multi-agent teams, hooks, model routing, A2A and MCP servers — wire agents into your existing stack.</p>
+    <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-agent →</a>
+  </div>
+</div>
+
 ## How It Works
 
 Docker Agent follows a simple loop:
