@@ -2,16 +2,40 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Docker brand palette */
-  --docker-blue: #1D63ED;
-  --docker-blue-hover: #1854D1;
-  --docker-blue-light: #4A8AF4;
-  --docker-navy: #09101F;
-  --docker-navy-light: #111827;
+  /* ===== Docker brand palette =====
+   * Source: Docker design system / brand guidelines.
+   * Use these tokens (rather than raw hex) when adding new styles. */
 
-  /* Colors – dark theme (default, docker-branded) */
-  --bg: #09101F;
-  --bg-sidebar: #0D1525;
+  /* Primary blue scale */
+  --blue-100: #E5EFFE;
+  --blue-200: #BFD6FC;
+  --blue-300: #7AAAF7;
+  --blue-400: #4A8AF4;
+  --blue-500: #1D63ED;   /* Docker Blue — primary */
+  --blue-600: #0B5DD0;   /* hover */
+  --blue-700: #0A4DA8;   /* pressed */
+
+  /* Neutral / navy scale */
+  --navy-900: #09101F;
+  --navy-800: #0D1525;
+  --navy-700: #111827;
+  --navy-600: #1E293B;
+
+  /* Accents */
+  --moby-cyan:  #19B6E6;  /* Moby highlight */
+  --moby-teal:  #00B4C7;
+
+  /* Legacy aliases — kept for backwards compatibility, prefer the
+   * --blue-* and --navy-* tokens above for new code. */
+  --docker-blue: var(--blue-500);
+  --docker-blue-hover: var(--blue-600);
+  --docker-blue-light: var(--blue-400);
+  --docker-navy: var(--navy-900);
+  --docker-navy-light: var(--navy-700);
+
+  /* ===== Semantic tokens — dark theme (default) ===== */
+  --bg: var(--navy-900);
+  --bg-sidebar: var(--navy-800);
   --bg-code: rgba(255,255,255,0.05);
   --bg-code-block: #0B1120;
   --bg-card: rgba(255,255,255,0.03);
@@ -28,8 +52,8 @@
   --border: rgba(255,255,255,0.08);
   --border-light: rgba(255,255,255,0.05);
 
-  --accent: #1D63ED;
-  --accent-hover: #4A8AF4;
+  --accent: var(--blue-500);
+  --accent-hover: var(--blue-400);
   --accent-light: rgba(29,99,237,0.12);
 
   --success: #34D399;
@@ -66,14 +90,14 @@
   --text-muted: #94A3B8;
   --text-sidebar: #475569;
   --text-sidebar-active: #0F172A;
-  --text-code: #1D63ED;
+  --text-code: var(--blue-500);
 
   --border: #E2E8F0;
   --border-light: #F1F5F9;
 
-  --accent: #1D63ED;
-  --accent-hover: #1854D1;
-  --accent-light: #EFF6FF;
+  --accent: var(--blue-500);
+  --accent-hover: var(--blue-600);
+  --accent-light: var(--blue-100);
 }
 
 /* ===== Skip link (accessibility) ===== */
@@ -686,7 +710,7 @@ body {
 
 /* ===== Hero section (home page) ===== */
 .hero {
-  background: linear-gradient(145deg, #09101F 0%, #0D1D3A 40%, #1D63ED 100%);
+  background: linear-gradient(145deg, var(--navy-900) 0%, #0D1D3A 40%, var(--blue-500) 100%);
   color: var(--text-on-hero);
   padding: 64px 48px;
   border-radius: var(--radius-lg);
@@ -697,7 +721,7 @@ body {
   border: 1px solid rgba(29,99,237,0.2);
 }
 [data-theme="light"] .hero {
-  background: linear-gradient(145deg, #0F172A 0%, #1E3A5F 40%, #1D63ED 100%);
+  background: linear-gradient(145deg, #0F172A 0%, #1E3A5F 40%, var(--blue-500) 100%);
 }
 .hero::before {
   content: '';
@@ -748,7 +772,7 @@ body {
 }
 .btn-primary {
   background: white;
-  color: #1D63ED;
+  color: var(--blue-500);
 }
 .btn-primary:hover {
   background: #F0F4FF;
