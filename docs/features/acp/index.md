@@ -15,7 +15,7 @@ The `docker agent serve acp` command starts an ACP server that communicates over
 ACP is built on the [ACP Go SDK](https://github.com/coder/acp-go-sdk) and provides a standardized way for client applications to interact with AI agents.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ ACP vs A2A vs MCP
+<div class="callout-title">ACP vs A2A vs MCP
 </div>
   **ACP** connects an agent to a *host application* (IDE, CLI tool) via stdio. **A2A** connects *agents to other agents* over HTTP. **MCP** exposes agents as *tools* for other MCP clients. Choose based on your integration target.
 
@@ -106,14 +106,14 @@ child.stdout.on("data", (data) => {
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 When to use ACP
+<div class="callout-title">When to use ACP
 </div>
   <p>Use ACP when building **IDE integrations**, **editor plugins**, or any tool that wants to embed a docker-agent agent as a subprocess. For HTTP-based integrations, use the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a> instead.</p>
 
 </div>
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ See also
+<div class="callout-title">See also
 </div>
   <p>For HTTP-based agent access, see the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>. For agent-to-agent communication, see <a href="{{ '/features/a2a/' | relative_url }}">A2A Protocol</a>. For exposing agents as MCP tools, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
 

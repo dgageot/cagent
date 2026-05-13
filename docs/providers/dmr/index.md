@@ -13,7 +13,7 @@ _Run AI models locally with Docker — no API keys, no costs, full data privacy.
 Docker Model Runner (DMR) lets you run open-source AI models directly on your machine. Models run in Docker, so there's no API key needed and no data leaves your computer.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 No API key needed
+<div class="callout-title">No API key needed
 </div>
   <p>DMR runs models locally — your data never leaves your machine. Great for development, sensitive data, or offline use.</p>
 
@@ -188,7 +188,7 @@ models:
 Unload errors are logged and swallowed — a stuck or unreachable engine never blocks an agent transfer (each call is bounded to 10 s). Pair this with [`keep_alive`](#keeping-models-resident-in-memory-keep_alive) only when you want the model to *also* survive idle periods within a single agent's run; the hook controls **between-agent** unloads independently.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Single-tenant assumption</div>
+<div class="callout-title">Single-tenant assumption</div>
 
 The `_unload` endpoint is engine-level: it evicts the model from DMR's memory regardless of who is using it. If two concurrent sessions on the same runtime (e.g. an API server serving multiple users) hit the same agent, switching away in session A will yank the model out from under session B's in-flight request, which then has to wait for a reload. Wire `unload` only when the agents using these models are not run concurrently — typically a single TUI/CLI session.
 </div>

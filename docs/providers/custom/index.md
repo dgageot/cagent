@@ -18,7 +18,7 @@ The `providers` section in your agent YAML lets you define named provider config
 - **Any provider type** — Works with OpenAI, Anthropic, Google, Bedrock, and any OpenAI-compatible API
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Works with any provider
+<div class="callout-title">Works with any provider
 </div>
   <p>The <code>providers</code> section supports all provider types: <code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>amazon-bedrock</code>, <code>dmr</code>, and any built-in alias. When the <code>provider</code> field is not set, it defaults to <code>openai</code> for backward compatibility.</p>
 

@@ -18,7 +18,7 @@ When an agent needs to perform an action, it makes a **tool call**. The docker-a
 4. Agent incorporates the result and responds
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Tool Confirmation
+<div class="callout-title">Tool Confirmation
 </div>
   <p>By default, docker-agent asks for user confirmation before executing tools that have side effects (shell commands, file writes). Use <code>--yolo</code> to auto-approve all tool calls.</p>
 </div>
@@ -65,7 +65,7 @@ toolsets:
 See [Tool Config]({{ '/configuration/tools/#mcp-tools' | relative_url }}) for full MCP configuration reference.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For full configuration reference, see <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>. For RAG (document retrieval), see <a href="{{ '/features/rag/' | relative_url }}">RAG</a>.</p>
 </div>

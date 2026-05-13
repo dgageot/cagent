@@ -36,7 +36,7 @@ $ docker agent serve chat agent.yaml --api-key-env CHAT_BEARER_TOKEN
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 When to use chat server vs. API server
+<div class="callout-title">When to use chat server vs. API server
 </div>
   <p>Use the <strong>chat server</strong> when you want to plug docker-agent into existing OpenAI-compatible tooling (chat UIs, IDE integrations, OpenAI SDK clients). Use the <a href="{{ '/features/api-server/' | relative_url }}">API server</a> when you want full control over sessions, agent execution, tool-call confirmations, and streamed runtime events.</p>
 
@@ -162,7 +162,7 @@ request to `/v1/*`. Both `/v1/models` and `/v1/chat/completions` are
 protected once a key is set.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Public exposure
+<div class="callout-title">Public exposure
 </div>
   <p>The default listen address is <code>127.0.0.1:8083</code>. If you bind to a non-loopback address, always set <code>--api-key</code> or <code>--api-key-env</code> — there is no other authentication layer.</p>
 
@@ -223,7 +223,7 @@ in:
 3. Each agent in your config appears as a selectable model.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ See also
+<div class="callout-title">See also
 </div>
   <p>For the docker-agent–native HTTP API (sessions, tool-call confirmation, runtime events), see the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>. For full CLI flag documentation, see the <a href="{{ '/features/cli/#docker-agent-serve-chat' | relative_url }}">CLI Reference</a>.</p>
 

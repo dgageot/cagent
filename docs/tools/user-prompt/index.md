@@ -13,7 +13,7 @@ _Ask the user questions and collect interactive input during agent execution._
 The user prompt tool allows agents to ask questions and collect input from users during execution. This enables interactive workflows where the agent needs clarification, confirmation, or additional information before proceeding.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ When to Use
+<div class="callout-title">When to Use
 </div>
 
 - When the agent needs clarification before proceeding
@@ -170,7 +170,7 @@ How the prompt appears depends on the interface:
 - **API/MCP**: Returns an elicitation request to the client
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Best Practice
+<div class="callout-title">Best Practice
 </div>
   <p>Provide clear, concise messages. Include context about why you're asking and what the information will be used for. Use schemas with descriptions to guide users on expected input format.</p>
 </div>
@@ -184,7 +184,7 @@ The agent should handle all possible actions:
 - **cancel**: Stop the current operation gracefully
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Context Requirement
+<div class="callout-title">Context Requirement
 </div>
   <p>The user prompt tool requires an elicitation handler to be configured. It works in the TUI and CLI modes but may not be available in all contexts (e.g., some MCP client configurations).</p>
 </div>

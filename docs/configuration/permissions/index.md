@@ -13,7 +13,7 @@ _Control which tools can execute automatically, require confirmation, or are blo
 Permissions provide fine-grained control over tool execution. You can configure which tools are auto-approved (run without asking), which require user confirmation, and which are completely blocked.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Evaluation Order
+<div class="callout-title">Evaluation Order
 </div>
   <p>Permissions are evaluated in this order: **Deny → Allow → Ask**. Deny patterns take priority, then allow patterns, and anything else defaults to asking for user confirmation.</p>
 
@@ -159,7 +159,7 @@ Patterns follow filepath.Match semantics with some extensions:
 Matching is **case-insensitive**.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Trailing Wildcards
+<div class="callout-title">Trailing Wildcards
 </div>
   <p>Trailing wildcards like <code>sudo*</code> match any characters including spaces, so <code>sudo*</code> matches <code>sudo rm -rf /</code>.</p>
 
@@ -244,7 +244,7 @@ Permissions work alongside [hooks]({{ '/configuration/hooks/' | relative_url }})
 Hooks can override allow decisions but cannot override deny decisions.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Security Note
+<div class="callout-title">Security Note
 </div>
   <p>Permissions are enforced client-side. They help prevent accidental operations but should not be relied upon as a security boundary for untrusted agents. For stronger isolation, use <a href="{{ '/configuration/sandbox/' | relative_url }}">sandbox mode</a>.</p>
 

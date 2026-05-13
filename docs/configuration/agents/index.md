@@ -58,7 +58,7 @@ agents:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For model parameters, see <a href="{{ '/configuration/models/' | relative_url }}">Model Config</a>. For tool details, see <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>.</p>
 
@@ -93,7 +93,7 @@ agents:
 | `cache`                     | object  | ✗        | Response cache. When the same user question is asked again, the previous answer is replayed verbatim and the model is not called. See [Response Cache](#response-cache) below.                  |
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ max_iterations
+<div class="callout-title">max_iterations
 </div>
   <p>Default is <code>0</code> (unlimited). Always set <code>max_iterations</code> for agents with powerful tools like <code>shell</code> to prevent infinite loops. A value of 20–50 is typical for development agents.</p>
 
@@ -173,13 +173,13 @@ Detection uses the [portcullis](https://github.com/docker/portcullis) ruleset, w
 Each detected span is replaced with the literal string `[REDACTED]`; the surrounding text is preserved so a redacted argument still looks like a legitimate flag (e.g. `--token=[REDACTED]`). Redaction is idempotent — applying it twice yields the same result.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ False positives vs. false negatives
+<div class="callout-title">False positives vs. false negatives
 </div>
   <p>False positives are extremely rare: every rule pairs a regex with a discriminating keyword, so plain English never trips detection. <strong>False negatives are possible</strong> — only patterns the ruleset recognises are scrubbed, so this is a defense-in-depth feature, not a substitute for keeping secrets out of the conversation in the first place. Pair it with a proper <a href="{{ '/guides/secrets/' | relative_url }}">secret manager</a> for the credentials your agent actually needs.</p>
 </div>
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Equivalent hook entry
+<div class="callout-title">Equivalent hook entry
 </div>
   <p>Setting <code>redact_secrets: true</code> on the agent is shorthand for auto-registering all three legs of the feature as hook entries. They share the <em>same</em> built-in name (<code>type: builtin</code>, <code>command: redact_secrets</code>) on <code>pre_tool_use</code>, <code>before_llm_call</code>, and <code>tool_response_transform</code> respectively — the implementation dispatches on the hook event. You can spell them out by hand to scope a leg to a subset of tools (set <code>matcher:</code> to a regex), stack them with other rewriters in a specific order, or enable just one or two legs. See <a href="https://github.com/docker/docker-agent/blob/main/examples/redact_secrets_hooks.yaml"><code>examples/redact_secrets_hooks.yaml</code></a> for a complete manual wiring and the <a href="{{ '/configuration/hooks/#available-built-ins' | relative_url }}">Hooks reference</a> for the builtin's event coverage.</p>
 </div>

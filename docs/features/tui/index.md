@@ -101,7 +101,7 @@ Change the AI model during a session with `/model` or <kbd>Ctrl</kbd>+<kbd>M</kb
 3. The model switch is saved with the session and restored on reload
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Use model switching to try a more capable model for complex tasks, or a cheaper one for simple queries — without modifying your YAML config.</p>
 
@@ -139,7 +139,7 @@ Customize session titles to make them more meaningful and easier to find. By def
 3. Press <kbd>Enter</kbd> to save, or <kbd>Escape</kbd> to cancel
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Note
+<div class="callout-title">Note
 </div>
   <p>Manually set titles are preserved and won’t be overwritten by auto-generation. Title changes are persisted immediately to the session.</p>
 
@@ -241,14 +241,14 @@ settings:
 **At runtime:** Use the `/theme` command to open the theme picker and select from available themes. Your selection is saved globally in `~/.config/cagent/config.yaml` under `settings.theme` and persists across sessions.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Hot Reload
+<div class="callout-title">Hot Reload
 </div>
   <p>Custom themes auto-reload when you save changes to the file — no restart needed. This makes it easy to tweak colors in real-time.</p>
 
 </div>
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Partial overrides
+<div class="callout-title">Partial overrides
 </div>
   <p>All user themes are applied on top of the <code>default</code> theme. If you want to customize a built-in theme (e.g., <code>dracula</code>), copy its full YAML from the <a href="https://github.com/docker/docker-agent/tree/main/pkg/tui/styles/themes">built-in themes on GitHub</a> into <code>~/.cagent/themes/</code> and edit the copy. Otherwise, omitted values will use <code>default</code> colors, not the original theme's colors.</p>
 
@@ -265,7 +265,7 @@ When an agent calls a tool, docker-agent shows a confirmation dialog by default.
 **Granular permissions:** The permission system supports pattern-based matching. When you “Always allow” a specific tool command, only that exact pattern is auto-approved — other commands from the same tool still require confirmation. This lets you auto-approve safe, read-only operations while maintaining control over destructive ones.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 YOLO mode
+<div class="callout-title">YOLO mode
 </div>
   <p>Use <code>--yolo</code> or the <code>/yolo</code> command to auto-approve all tool calls. You can also toggle this mid-session. For aliases, set <code>--yolo</code> when creating the alias: <code>docker agent alias add fast agentcatalog/coder --yolo</code>.</p>
 

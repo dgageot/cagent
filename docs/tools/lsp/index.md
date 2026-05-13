@@ -13,7 +13,7 @@ _Connect to Language Server Protocol servers for code intelligence._
 The LSP tool connects your agent to any Language Server Protocol (LSP) server, providing comprehensive code intelligence capabilities like go-to-definition, find references, diagnostics, and more.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ What is LSP?
+<div class="callout-title">What is LSP?
 </div>
   <p>The <a href="https://microsoft.github.io/language-server-protocol/">Language Server Protocol</a> is a standard for providing language features like autocomplete, go-to-definition, and diagnostics. Most programming languages have LSP servers available.</p>
 </div>
@@ -165,7 +165,7 @@ The LSP tool includes built-in instructions that guide the agent on how to use i
 5. Apply `lsp_format` after edits are complete
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Best Practice
+<div class="callout-title">Best Practice
 </div>
   <p>Always include the <code>filesystem</code> tool alongside LSP. The agent needs filesystem access to read and write code files, while LSP provides intelligence about the code.</p>
 </div>
@@ -223,7 +223,7 @@ All LSP tools use **1-based** line and character positions:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Auto-Installation
+<div class="callout-title">Auto-Installation
 </div>
   <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="{{ '/configuration/tools/#auto-installing-tools' | relative_url }}">Auto-Installing Tools</a> for details.</p>
 </div>

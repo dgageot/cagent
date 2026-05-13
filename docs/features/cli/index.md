@@ -9,7 +9,7 @@ permalink: /features/cli/
 _Complete reference for all docker-agent command-line commands and flags._
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 No config needed
+<div class="callout-title">No config needed
 </div>
   <p>Running <code>docker agent run</code> without a config file uses a built-in default agent. Perfect for quick experimentation.</p>
 
@@ -373,14 +373,14 @@ Run an alias with: docker agent run <alias>
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Override alias options
+<div class="callout-title">Override alias options
 </div>
   <p>Command-line flags override alias options. For example, <code>docker agent run yolo-coder --yolo=false</code> disables yolo mode even though the alias has it enabled.</p>
 
 </div>
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Set a default agent
+<div class="callout-title">Set a default agent
 </div>
   <p>Create a <code>default</code> alias to customize what <code>docker agent</code> starts with no arguments:</p>
   <pre><code>$ docker agent alias add default /my/default/agent.yaml</code></pre>
@@ -432,7 +432,7 @@ Commands that accept a config support multiple reference types:
 | Default       | (no argument) — uses built-in default agent |
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Debugging
+<div class="callout-title">Debugging
 </div>
   <p>Having issues? See <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> for debug mode, log analysis, and common solutions.</p>
 

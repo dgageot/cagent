@@ -37,7 +37,7 @@ agents:
 Every docker-agent configuration has a **root agent** — the entry point that receives user messages. In a single-agent setup, this is the only agent. In a multi-agent setup, the root agent acts as a coordinator, delegating tasks to specialized sub-agents.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Naming
+<div class="callout-title">Naming
 </div>
   <p>The first agent defined in your YAML (or the one named <code>root</code>) is the root agent by default. You can also specify which agent to start with using <code>docker agent run config.yaml -a agent_name</code>.</p>
 
@@ -111,7 +111,7 @@ $ docker agent run  # now runs your custom agent
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For reusable task-specific instructions, see <a href="{{ '/features/skills/' | relative_url }}">Skills</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>. For full config reference, see <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a>.</p>
 

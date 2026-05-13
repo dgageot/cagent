@@ -80,7 +80,7 @@ strategies:
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Trade-offs
+<div class="callout-title">Trade-offs
 </div>
   <p>Semantic embeddings provide higher quality retrieval but slower indexing (LLM call per chunk) and additional API costs.</p>
 
@@ -167,7 +167,7 @@ chunking:
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Language Support
+<div class="callout-title">Language Support
 </div>
   <p>Currently supports Go (<code>.go</code>) files. More languages will be added. Falls back to plain text chunking for unsupported file types.</p>
 
@@ -184,7 +184,7 @@ $ docker agent run config.yaml --debug --log-file debug.log
 Look for log tags: `[RAG Manager]`, `[Chunked-Embeddings Strategy]`, `[BM25 Strategy]`, `[RRF Fusion]`, `[Reranker]`.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Examples
+<div class="callout-title">Examples
 </div>
   <p>See the <a href="https://github.com/docker/docker-agent/tree/main/examples/rag">RAG examples</a> in the GitHub repo for complete, runnable configurations.</p>
 

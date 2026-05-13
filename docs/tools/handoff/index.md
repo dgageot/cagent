@@ -15,7 +15,7 @@ The `handoff` tool lets an agent transfer control of the **current conversation*
 This is the core mechanism for **handoffs routing** — a pattern where a router agent classifies the user's request and hands it off to a specialist, which then owns the rest of the session.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Local only
+<div class="callout-title">Local only
 </div>
   <p>The <code>handoff</code> tool only targets agents declared in the <strong>same</strong> config file by their local name. It does <strong>not</strong> open network connections. To delegate to a remote agent over the network, use the <a href="{{ '/tools/a2a/' | relative_url }}">A2A toolset</a> instead.</p>
 
@@ -59,7 +59,7 @@ The `handoff` tool takes a single parameter:
 Only names listed in the current agent's `handoffs:` field are valid targets.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For sub-task delegation (caller stays in control, waits for the result), see <a href="{{ '/tools/transfer-task/' | relative_url }}">Transfer Task</a>. For remote agent connections over the network, see the <a href="{{ '/tools/a2a/' | relative_url }}">A2A toolset</a>. For the broader pattern, see <a href="{{ '/concepts/multi-agent/#handoffs-routing' | relative_url }}">Handoffs Routing</a>.</p>
 

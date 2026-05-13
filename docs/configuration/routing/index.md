@@ -13,7 +13,7 @@ _Route requests to different models based on the content of user messages._
 Model routing lets you define a "router" model that automatically selects the best underlying model based on the user's message. This is useful for cost optimization, specialized handling, or load balancing across models.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ How It Works
+<div class="callout-title">How It Works
 </div>
   <p>docker-agent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.</p>
 
@@ -80,7 +80,7 @@ The router:
 5. Falls back to the base model if no good match is found
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Writing Good Examples
+<div class="callout-title">Writing Good Examples
 </div>
 
 - Use diverse phrasing that captures the intent
@@ -168,7 +168,7 @@ Look for log entries like:
 ```
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Limitations
+<div class="callout-title">Limitations
 </div>
 
 - Routing only considers the last user message, not full conversation context

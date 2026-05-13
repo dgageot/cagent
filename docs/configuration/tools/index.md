@@ -50,7 +50,7 @@ toolsets:
 Extend agents with external tools via the [Model Context Protocol](https://modelcontextprotocol.io/).
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Reusable MCP definitions
+<div class="callout-title">Reusable MCP definitions
 </div>
   <p>Repeated MCP server definitions can be hoisted into the top-level <code>mcps:</code> section and referenced by name with <code>{type: mcp, ref: &lt;name&gt;}</code>. See <a href="{{ '/configuration/overview/#reusable-mcp-servers-mcps' | relative_url }}">Reusable MCP Servers</a>.</p>
 </div>
@@ -189,7 +189,7 @@ export DOCKER_AGENT_AUTO_INSTALL=false
 Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are only downloaded once.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Auto-install supports both Go packages (via <code>go install</code>) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.</p>
 </div>
@@ -257,7 +257,7 @@ toolsets:
 | `call_timeout` | duration | Documented per-call timeout. Informational; the runtime currently uses the caller's context for cancellation. |
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ <code>required</code> and <code>startup_timeout</code> are not yet enforced
+<div class="callout-title"><code>required</code> and <code>startup_timeout</code> are not yet enforced
 </div>
   <p>The schema validates these fields and the supervisor stores them, but no code path acts on them yet. They are documented now so config files written today keep working when the planned eager-startup phase lands. Picking the <code>strict</code> profile is forward-compatible — it will start enforcing <code>required=true</code> automatically.</p>
 </div>
@@ -292,7 +292,7 @@ toolsets:
 When a tool's output is not valid JSON, it is returned unchanged — TOON encoding is best-effort and never breaks tools that emit plain text.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ When to use TOON
+<div class="callout-title">When to use TOON
 </div>
   <p>TOON typically yields 30-60% smaller payloads than equivalent JSON for MCP tools that return arrays of records (issue lists, search results, file listings, …). It works best when the schema is regular; one-off responses with deeply nested or heterogeneous shapes may benefit less.</p>
 </div>
@@ -345,7 +345,7 @@ toolsets:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Filtering tools improves agent performance — fewer tools means less confusion for the model about which tool to use.</p>
 </div>
@@ -443,7 +443,7 @@ agents:
 ```
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Toolset Order Matters
+<div class="callout-title">Toolset Order Matters
 </div>
   <p>If multiple toolsets provide a tool with the same name, the first one wins. Order your toolsets intentionally.</p>
 </div>

@@ -24,7 +24,7 @@ toolsets:
 No configuration options.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 When to use
+<div class="callout-title">When to use
 </div>
   <p>Use the think tool with models that don't have native reasoning capabilities. If your model already supports a <a href="{{ '/configuration/models/#thinking-budget' | relative_url }}">thinking budget</a>, you likely don't need this tool.</p>
 </div>

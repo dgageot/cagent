@@ -158,7 +158,7 @@ $ docker agent serve api agent.yaml --listen :8080
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Prefer HCL?
+<div class="callout-title">Prefer HCL?
 </div>
   <p>You can also write agent configs in HCL using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
 </div>

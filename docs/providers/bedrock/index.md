@@ -95,7 +95,7 @@ Use inference profile prefixes for optimal routing:
 | `apac.`   | Asia Pacific regions only                |
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Inference profiles
+<div class="callout-title">Inference profiles
 </div>
   <p>Use <code>global.</code> prefix on model IDs for automatic cross-region routing. Use <code>eu.</code> prefix for GDPR compliance.</p>
 

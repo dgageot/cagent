@@ -13,7 +13,7 @@ _Use docker-agent as a Go library to embed AI agents in your applications._
 docker-agent can be used as a Go library, allowing you to build AI agents directly into your Go applications. This gives you full programmatic control over agent creation, tool integration, and execution.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Import Path
+<div class="callout-title">Import Path
 </div>
 <pre><code class="language-go">import "github.com/docker/docker-agent/pkg/..."</code></pre>
 </div>

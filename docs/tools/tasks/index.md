@@ -53,7 +53,7 @@ agents:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tasks vs. Todo
+<div class="callout-title">Tasks vs. Todo
 </div>
   <p>Use the <strong>tasks</strong> tool when you need persistence across sessions, priorities, or dependencies (e.g., long-running projects, recurring work). Use the <a href="{{ '/tools/todo/' | relative_url }}">todo tool</a> for ephemeral, session-scoped task lists.</p>
 

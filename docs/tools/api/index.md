@@ -13,7 +13,7 @@ _Create custom tools that call HTTP APIs._
 The API tool type lets you define custom tools that make HTTP requests to external APIs. This is useful for integrating agents with REST APIs, webhooks, or any HTTP-based service without writing code.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ When to Use
+<div class="callout-title">When to Use
 </div>
 
 - Integrating with REST APIs that don't have an MCP server
@@ -214,13 +214,13 @@ agents:
 - No support for file uploads or multipart forms
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 For Complex APIs
+<div class="callout-title">For Complex APIs
 </div>
   <p>For APIs that need authentication flows, pagination, or complex request/response handling, consider using an MCP server instead. The API tool is best for simple, stateless HTTP operations.</p>
 </div>
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Security
+<div class="callout-title">Security
 </div>
   <p>API keys and tokens in headers are visible in debug logs. Use environment variables (<code>${env.VAR}</code>) rather than hardcoding secrets in configuration files.</p>
 </div>

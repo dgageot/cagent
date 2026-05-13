@@ -189,7 +189,7 @@ Valid values:
 Note: `thinking_display` applies to both `thinking_budget` with token counts and adaptive/effort-based budgets. Full thinking tokens are billed regardless of the `thinking_display` value.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Note
+<div class="callout-title">Note
 </div>
   <p>Anthropic thinking budget values below 1024 or greater than or equal to <code>max_tokens</code> are ignored (a warning is logged).</p>
 

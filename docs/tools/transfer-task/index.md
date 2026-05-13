@@ -58,7 +58,7 @@ The `transfer_task` tool takes three parameters:
 The call blocks until the sub-agent returns its result, which becomes the tool's response. For non-blocking parallel delegation, use [`background_agents`]({{ '/tools/background-agents/' | relative_url }}) instead.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For parallel task delegation, see <a href="{{ '/tools/background-agents/' | relative_url }}">Background Agents</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>.</p>
 </div>

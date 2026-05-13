@@ -22,7 +22,7 @@ $ docker agent version
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Docker Desktop bundles docker-agent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.</p>
 
@@ -90,7 +90,7 @@ task build
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Building on Windows
+<div class="callout-title">Building on Windows
 </div>
   <p>On Windows, use <code>task build-local</code> instead of <code>task build</code>. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the <code>./dist</code> directory.</p>
 
@@ -111,7 +111,7 @@ export MISTRAL_API_KEY="..."             # Mistral
 See [Configuration Overview]({{ '/configuration/overview/#environment-variables' | relative_url }}) for the full list of supported providers and environment variables.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Note
+<div class="callout-title">Note
 </div>
   <p>You only need the key(s) for the provider(s) you configure in your agent YAML. If you use Docker Model Runner (DMR), no API key is needed — models run locally.</p>
 

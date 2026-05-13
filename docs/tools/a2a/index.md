@@ -35,7 +35,7 @@ toolsets:
 | `headers`  | map\[string\]string | ✗     | Extra HTTP headers sent with every request (useful for `Authorization`, tenant selection, tracing, \u2026). |
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For full details on the A2A protocol and serving agents as A2A endpoints, see <a href="{{ '/features/a2a/' | relative_url }}">A2A Protocol</a>.</p>
 </div>

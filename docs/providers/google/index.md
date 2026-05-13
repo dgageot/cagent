@@ -65,7 +65,7 @@ models:
 Gemini supports two approaches depending on the model version:
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Different thinking formats
+<div class="callout-title">Different thinking formats
 </div>
   <p>Gemini 2.5 uses **token-based** budgets (integers). Gemini 3 uses **level-based** budgets (strings like <code>low</code>, <code>high</code>). Make sure you use the right format for your model version.</p>
 
@@ -171,7 +171,7 @@ models:
 | `publisher`  | Model publisher (e.g. `anthropic`, `meta`, `mistral`). Must not be `google`          |
 
 <div class="callout callout-info">
-<div class="callout-title">ℹ️ Gemini models on Vertex AI
+<div class="callout-title">Gemini models on Vertex AI
 </div>
   <p>Setting <code>publisher: google</code> (or omitting <code>publisher</code>) uses the native Gemini SDK path. The Model Garden endpoint is only used for non-Google publishers.</p>
 

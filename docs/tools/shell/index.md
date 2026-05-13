@@ -69,13 +69,13 @@ Background job output is captured up to 10 MB per job. All background jobs are a
 `view_background_job` and `stop_background_job` each take a single required `job_id` string returned by `run_background_job` or `list_background_jobs`.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Safety
+<div class="callout-title">Safety
 </div>
   <p>The shell tool gives agents full access to the system shell. Always set <code>max_iterations</code> on agents that use the shell tool to prevent infinite loops. A value of 20–50 is typical for development agents. Use <a href="{{ '/configuration/sandbox/' | relative_url }}">Sandbox Mode</a> for additional isolation.</p>
 </div>
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Tool Confirmation
+<div class="callout-title">Tool Confirmation
 </div>
   <p>By default, docker-agent asks for user confirmation before executing shell commands. Use <code>--yolo</code> to auto-approve all tool calls.</p>
 </div>

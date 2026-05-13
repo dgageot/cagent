@@ -13,7 +13,7 @@ _Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for inter
 The `docker agent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://a2a-protocol.org/latest/). This enables communication between Docker Agent and other agent frameworks that support A2A.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Early support
+<div class="callout-title">Early support
 </div>
   <p>A2A support is functional but still evolving. Tool calls, artifacts, and memory features have limited A2A integration. See limitations below.</p>
 
@@ -57,7 +57,7 @@ $ docker agent serve a2a agentcatalog/pirate
 - **Multiple sources** — Load agents from files or the agent catalog
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>For exposing agents via MCP instead, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>. For stdio-based integration, see <a href="{{ '/features/acp/' | relative_url }}">ACP</a>. For the HTTP API, see <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>.</p>
 

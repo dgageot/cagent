@@ -18,7 +18,7 @@ _docker-agent is open source. Here's how to set up your development environment 
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/local/)
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Platform Support
+<div class="callout-title">Platform Support
 </div>
   <p>macOS and Linux are fully supported for development. On Windows, use <code>task build-local</code> to build via Docker.</p>
 
@@ -87,7 +87,7 @@ Key conventions:
 File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent/issues). Please:
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ See also
+<div class="callout-title">See also
 </div>
   <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> — Common issues and debug mode. <a href="{{ '/community/telemetry/' | relative_url }}">Telemetry</a> — What data is collected and how to opt out.
 
@@ -106,7 +106,7 @@ File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent
 5. **Open a pull request** against the `main` branch
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Use the dogfooding agent (<code>docker agent run ./golang_developer.yaml</code>) to help write and review your changes before submitting.</p>
 

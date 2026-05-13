@@ -13,7 +13,7 @@ _Run shell commands at various points during agent execution for deterministic c
 Hooks allow you to execute shell commands or scripts at key points in an agent's lifecycle. They provide deterministic control that works alongside the LLM's behavior, enabling validation, logging, environment setup, and more.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Use Cases
+<div class="callout-title">Use Cases
 </div>
 
 - Validate or transform tool inputs before execution
@@ -61,7 +61,7 @@ docker-agent dispatches the following hook events:
 | `on_tool_approval_decision` | After the runtime's approval chain (yolo / permissions / readonly / ask) resolves | No         |
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Two compaction events
+<div class="callout-title">Two compaction events
 </div>
   <p><code>pre_compact</code> and <code>before_compaction</code> both fire just before a compaction. <code>pre_compact</code> is the original event and is best-suited to <em>steering</em> the LLM-generated summary by appending guidance via <code>additional_context</code>. <code>before_compaction</code> is the newer, structured event: it carries the input/output token counts, the model's context limit, and a <code>compaction_reason</code> so handlers can decide based on real session pressure, and it can <em>replace</em> the LLM-generated summary verbatim via <code>hook_specific_output.summary</code>.</p>
 </div>
@@ -159,13 +159,13 @@ Built-ins are typically zero-config and faster than equivalent shell hooks becau
 | `unload`                | `on_agent_switch`                                                                         | _none_                | POSTs `{"model": "<id>"}` to each of the previous agent's DMR model endpoints (`/_unload` by default, overridable per-model via `unload_api`) to free the GPU/RAM the just-departing model was holding. Pure HTTP — reads the model snapshot the runtime ships on `on_agent_switch` and depends on no provider-specific runtime state. Non-DMR providers (OpenAI, Anthropic, …) are silently skipped, so cross-provider chains are safe. Errors are logged and swallowed; agent switching never blocks on a slow or unreachable engine (each call has a 10 s timeout). See [`examples/unload_on_switch.yaml`](https://github.com/docker/docker-agent/blob/main/examples/unload_on_switch.yaml). |
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Per-turn vs. per-session
+<div class="callout-title">Per-turn vs. per-session
 </div>
   <p><code>turn_start</code> built-ins recompute every turn and contribute <strong>transient</strong> context that is <em>not</em> persisted to the session — perfect for fast-moving signals like the date or current git state. <code>session_start</code> built-ins run once per session and their context <strong>persists</strong> across turns and resumes — pick this for stable context like the OS user or the initial directory listing.</p>
 </div>
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Auto-injected built-ins
+<div class="callout-title">Auto-injected built-ins
 </div>
   <p>The agent flags <code>add_date: true</code>, <code>add_environment_info: true</code>, <code>add_prompt_files: [...]</code>, and <code>redact_secrets: true</code> are shorthands that auto-register the matching built-in hook. You don't need to repeat them under <code>hooks:</code> — set the flag <em>or</em> the hook entry(ies), not both. <code>redact_secrets: true</code> auto-registers the same builtin on all three of <code>pre_tool_use</code>, <code>before_llm_call</code>, and <code>tool_response_transform</code>; you can also wire any subset of them by hand for finer-grained control (per-tool matchers, ordering with other rewriters, …).</p>
 </div>
@@ -197,7 +197,7 @@ settings:
 Omit `snapshot` or set it to `false` to leave automatic snapshots off; manually configured snapshot hooks still run.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Two flavors of <code>max_iterations</code>
+<div class="callout-title">Two flavors of <code>max_iterations</code>
 </div>
   <p>The <code>max_iterations</code> agent field has its own UX (it pauses and asks the user to resume past the limit). The <code>max_iterations</code> built-in hook is a <strong>hard stop with no resume</strong> — when its counter trips, the agent terminates with a block decision. Use the agent field for interactive sessions and the built-in hook to enforce non-negotiable caps in unattended runs.</p>
 </div>
@@ -388,14 +388,14 @@ hooks:
 `pre_tool_use` is fail-closed for safety: a failed pre-tool hook blocks the tool call regardless of `on_error`.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Performance
+<div class="callout-title">Performance
 </div>
   <p>Hooks run synchronously and can slow down agent execution. Keep hook scripts fast and efficient. Consider using <code>suppress_output: true</code> for logging hooks to reduce noise.</p>
 
 </div>
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Session End and Cancellation
+<div class="callout-title">Session End and Cancellation
 </div>
   <p><code>session_end</code> hooks are designed to run even when the session is interrupted (e.g., Ctrl+C). They are still subject to their configured timeout.</p>
 
@@ -733,7 +733,7 @@ $ docker agent run agentcatalog/coder \
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Merging behavior
+<div class="callout-title">Merging behavior
 </div>
   <p>CLI hooks are <strong>appended</strong> to any hooks already defined in the agent's YAML config. They don't replace existing hooks. Pre/post-tool-use hooks added via CLI match all tools (equivalent to <code>matcher: "*"</code>).</p>
 

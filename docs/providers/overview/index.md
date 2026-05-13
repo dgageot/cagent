@@ -76,7 +76,7 @@ agents:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Multi-provider teams
+<div class="callout-title">Multi-provider teams
 </div>
   <p>Use expensive models for complex reasoning and cheaper/local models for routine tasks. See the example below.</p>
 

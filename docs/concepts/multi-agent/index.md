@@ -35,7 +35,7 @@ docker-agent supports two multi-agent patterns:
 You can combine both patterns in the same configuration — an agent can have both `sub_agents` and `handoffs`.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 When to use which
+<div class="callout-title">When to use which
 </div>
   <p><strong><code>sub_agents</code></strong> — Use when a coordinator needs to send tasks to specialists and synthesize their results.</p>
   <p><strong><code>handoffs</code></strong> — Use when agents should take turns processing the same conversation (pipelines, routing).</p>
@@ -63,7 +63,7 @@ transfer_task(
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Auto-Approved
+<div class="callout-title">Auto-Approved
 </div>
   <p>Unlike other tools, <code>transfer_task</code> is always auto-approved — no user confirmation needed. This allows seamless delegation between agents.</p>
 
@@ -95,7 +95,7 @@ handoff(
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Scoped Handoff Targets
+<div class="callout-title">Scoped Handoff Targets
 </div>
   <p>Each agent can only hand off to agents listed in its own <code>handoffs</code> array. The <code>handoff</code> tool is automatically injected — you don't need to add it manually.</p>
 
@@ -141,7 +141,7 @@ agents:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Full pipeline example
+<div class="callout-title">Full pipeline example
 </div>
   <p>For a more complex handoff graph with branching and multiple processing stages, see <a href="https://github.com/docker/docker-agent/blob/main/examples/handoff.yaml"><code>examples/handoff.yaml</code></a>.</p>
 
@@ -213,7 +213,7 @@ External sub-agents are automatically named after their last path segment — fo
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>External sub-agents work with any OCI-compatible registry, not just the Docker Agent Catalog. See <a href="{{ '/concepts/distribution/' | relative_url }}">Agent Distribution</a> for more on registry references.</p>
 
@@ -346,7 +346,7 @@ toolsets:
 - **Choose the right pattern** — Use `sub_agents` for hierarchical task delegation, `handoffs` for pipeline workflows and conversational routing
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Beyond docker-agent
+<div class="callout-title">Beyond docker-agent
 </div>
   <p>For interoperability with other agent frameworks, docker-agent supports the <a href="{{ '/features/a2a/' | relative_url }}">A2A protocol</a> and can expose agents via <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
 

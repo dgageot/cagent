@@ -664,46 +664,81 @@ body {
   color: var(--text-secondary);
 }
 
-/* ===== Callouts / Admonitions ===== */
+/* ===== Callouts / Admonitions =====
+ * docs.docker.com-style: rounded panel with a filled, circular icon
+ * badge in the upper-left and a strong title. Authors keep using the
+ * existing Markdown:
+ *   <div class="callout callout-tip" markdown="1">
+ *   <div class="callout-title">…</div>
+ *   <p>…</p>
+ *   </div>
+ */
 .callout {
-  padding: 16px 20px;
-  border-radius: var(--radius);
+  position: relative;
+  padding: 16px 20px 16px 56px;
+  border-radius: var(--radius-lg);
   margin-bottom: 20px;
-  border-left: 3px solid;
-  font-size: 0.875rem;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  font-size: 0.9rem;
   background: var(--bg-card);
 }
-.callout p { margin-bottom: 0; }
+.callout p { margin-bottom: 0; color: var(--text-secondary); }
+.callout p + p { margin-top: 8px; }
+
 .callout-title {
+  display: block;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 6px;
+  color: var(--text);
+}
+
+.callout::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: currentColor;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  flex-shrink: 0;
 }
 
 .callout-info {
   border-color: var(--info);
   color: var(--info);
 }
-.callout-info p { color: var(--text-secondary); }
+.callout-info::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>");
+}
 
 .callout-tip {
   border-color: var(--success);
   color: var(--success);
 }
-.callout-tip p { color: var(--text-secondary); }
+.callout-tip::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18h6'/><path d='M10 22h4'/><path d='M12 2a7 7 0 0 0-4 12.7c.6.4 1 1 1 1.7V18h6v-1.6c0-.7.4-1.3 1-1.7A7 7 0 0 0 12 2z'/></svg>");
+}
 
 .callout-warning {
   border-color: var(--warning);
   color: var(--warning);
 }
-.callout-warning p { color: var(--text-secondary); }
+.callout-warning::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>");
+}
 
 [data-theme="light"] .callout-info {
   background: #EFF6FF;
   border-color: var(--accent);
-  color: #1E40AF;
+  color: var(--blue-700);
 }
 [data-theme="light"] .callout-info p { color: #1E40AF; }
 [data-theme="light"] .callout-tip {

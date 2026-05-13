@@ -192,14 +192,14 @@ API keys and secrets are read from environment variables — never stored in con
 | `DOCKER_AGENT_HIDE_TELEMETRY_BANNER`| Set to `1` to suppress the first-run telemetry notice.                                               |
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Legacy <code>CAGENT_*</code> aliases
+<div class="callout-title">Legacy <code>CAGENT_*</code> aliases
 </div>
   <p>The same variables are also accepted with the legacy <code>CAGENT_</code> prefix (e.g. <code>CAGENT_DEFAULT_MODEL</code>, <code>CAGENT_MODELS_GATEWAY</code>, <code>CAGENT_HIDE_TELEMETRY_BANNER</code>) for backward compatibility. Prefer the <code>DOCKER_AGENT_*</code> form in new setups.</p>
 
 </div>
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Important
+<div class="callout-title">Important
 </div>
   <p>Model references are case-sensitive: <code>openai/gpt-5-mini</code> is not the same as <code>openai/GPT-5-mini</code>.</p>
 

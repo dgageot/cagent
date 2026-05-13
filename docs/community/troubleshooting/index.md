@@ -63,7 +63,7 @@ $ docker agent run config.yaml --otel
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Always enable <code>--debug</code> when reporting issues. The log file contains detailed traces of API calls, tool executions, and agent interactions.</p>
 
@@ -159,7 +159,7 @@ docker-agent validates config at startup and reports errors with line numbers. C
 - Provider names must be one of: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, etc.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Schema Validation
+<div class="callout-title">Schema Validation
 </div>
   <p>Use the <a href="https://github.com/docker/docker-agent/blob/main/agent-schema.json">JSON schema</a> in your editor for real-time config validation and autocompletion.</p>
 
@@ -248,7 +248,7 @@ When reviewing debug logs, search for these key patterns:
 | `[Reranker]`                | Reranking operations                                                                             |
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Still stuck?
+<div class="callout-title">Still stuck?
 </div>
   <p>If these steps don't resolve your issue, file a bug on the <a href="https://github.com/docker/docker-agent/issues">GitHub issue tracker</a> with your debug log attached, or ask on <a href="https://dockercommunity.slack.com/archives/C09DASHHRU4">Slack</a>.</p>
 

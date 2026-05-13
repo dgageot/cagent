@@ -15,7 +15,7 @@ Sandbox mode runs the entire agent inside a disposable sandbox VM instead of dir
 The backend is provided by the [`docker sandbox`](https://docs.docker.com/desktop/features/sandbox/) CLI plugin (ships with Docker Desktop) or the standalone [`sbx`](https://github.com/docker/sbx) CLI if it is on `PATH`.
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Requirements
+<div class="callout-title">Requirements
 </div>
   <p>Sandbox mode requires Docker Desktop with sandbox support (or a working <code>sbx</code> CLI). docker-agent shells out to these tools, it does not start raw <code>docker run</code> containers.</p>
 
@@ -73,7 +73,7 @@ docker agent run --sandbox agent.yaml
 5. When the session ends, the sandbox VM is stopped and removed.
 
 <div class="callout callout-warning" markdown="1">
-<div class="callout-title">⚠️ Limitations
+<div class="callout-title">Limitations
 </div>
 
 - Sandbox VMs start fresh each session (no persistence between sessions).

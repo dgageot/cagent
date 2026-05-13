@@ -51,7 +51,7 @@ agents:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Cost optimization
+<div class="callout-title">Cost optimization
 </div>
   <p>The model picker tool is particularly useful for cost optimization: let the agent use a cheap model by default and only escalate to expensive models when necessary.</p>
 

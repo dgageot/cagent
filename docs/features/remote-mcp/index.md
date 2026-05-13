@@ -21,7 +21,7 @@ toolsets:
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 OAuth flow
+<div class="callout-title">OAuth flow
 </div>
   <p>When you connect to a remote MCP server that requires OAuth, docker-agent opens your browser automatically for authentication. Tokens are cached for subsequent sessions.</p>
 
@@ -210,7 +210,7 @@ agents:
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Growing list
+<div class="callout-title">Growing list
 </div>
   <p>This list is updated as more services add MCP support. If a service you use isn't listed, check their documentation — many providers are adding MCP endpoints regularly.</p>
 

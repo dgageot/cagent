@@ -11,7 +11,7 @@ _Write docker-agent configs in HCL instead of YAML. It maps to the same docker-a
 `docker-agent` supports `.hcl` config files anywhere it supports `.yaml` or `.yml` files. HCL is useful if you prefer labeled blocks, less punctuation, and heredocs for long prompts.
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Same config model, different syntax
+<div class="callout-title">Same config model, different syntax
 </div>
   <p>YAML and HCL are just two syntaxes for the same docker-agent configuration model. docker-agent converts HCL to the equivalent YAML structure internally, then runs the normal schema validation and loading pipeline.</p>
 </div>
@@ -41,7 +41,7 @@ $ docker agent serve api ./agents/   # directories may mix .yaml, .yml, and .hcl
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 See also
+<div class="callout-title">See also
 </div>
   <p>HCL changes the syntax, not the meaning of fields. For what each field does, see <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a>, <a href="{{ '/configuration/models/' | relative_url }}">Model Config</a>, and <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>.</p>
 </div>

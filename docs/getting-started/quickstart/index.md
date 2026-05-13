@@ -83,7 +83,7 @@ $ docker agent run agent.yaml
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Prefer HCL?
+<div class="callout-title">Prefer HCL?
 </div>
   <p>You can write the same config as <code>agent.hcl</code> using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
 
@@ -98,7 +98,7 @@ Once your agent is running, try asking it to:
 - _"Explain what the code in main.go does"_
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">💡 Tip
+<div class="callout-title">Tip
 </div>
   <p>Add <code>--yolo</code> to auto-approve all tool calls: `docker agent run agent.yaml --yolo`</p>
 
@@ -137,7 +137,7 @@ agents:
 ```
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Docker MCP Tools
+<div class="callout-title">Docker MCP Tools
 </div>
   <p>The <code>ref: docker:duckduckgo</code> syntax runs the DuckDuckGo MCP server in a Docker container. This is the recommended way to use MCP tools — secure, isolated, and easy to configure. Requires Docker Desktop.</p>
 
