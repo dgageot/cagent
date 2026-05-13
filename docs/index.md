@@ -68,6 +68,25 @@ That's it. Your agent can now read and write files, run shell commands, and reas
 
 Most AI agent frameworks ask you to write Python or TypeScript to glue together models, tools, and workflows. Docker Agent takes a different approach: **declare everything in config, run it with a single command.**
 
+<div class="pain-grid">
+  <div class="pain-row">
+    <div class="pain-pain"><span class="pain-x">×</span> “I rebuilt the same agent loop in three projects.”</div>
+    <div class="pain-fix"><span class="pain-check">✓</span> Reusable YAML — declare once, run everywhere.</div>
+  </div>
+  <div class="pain-row">
+    <div class="pain-pain"><span class="pain-x">×</span> “Sharing my agent means a repo plus a setup README.”</div>
+    <div class="pain-fix"><span class="pain-check">✓</span> <code>docker agent run user/agent</code> — OCI distribution, like images.</div>
+  </div>
+  <div class="pain-row">
+    <div class="pain-pain"><span class="pain-x">×</span> “I’m locked into one model SDK.”</div>
+    <div class="pain-fix"><span class="pain-check">✓</span> Swap the <code>model:</code> line — OpenAI, Anthropic, Gemini, Bedrock, local.</div>
+  </div>
+  <div class="pain-row">
+    <div class="pain-pain"><span class="pain-x">×</span> “Tools are one-offs glued to one agent.”</div>
+    <div class="pain-fix"><span class="pain-check">✓</span> Built-in toolsets plus 1000+ MCP servers — reuse them across agents.</div>
+  </div>
+</div>
+
 <div class="features-grid">
   <div class="feature">
     <div class="feature-icon">📝</div>
