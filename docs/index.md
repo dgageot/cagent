@@ -105,6 +105,11 @@ Most AI agent frameworks ask you to write Python or TypeScript to glue together 
 
 Docker Agent follows a simple loop:
 
+<figure class="flow-diagram">
+  <img src="{{ '/assets/how-it-works.svg' | relative_url }}" alt="agent.yaml is run by 'docker agent run', which loops through Model, Tools and Sub-agents, then streams results to the TUI or API." loading="lazy">
+  <figcaption>Your YAML config is the input; the runtime drives a Model ↔ Tools ↔ Sub-agents loop until the task is done; results stream back to the TUI or any API client.</figcaption>
+</figure>
+
 1. **You define an agent** in YAML — its model, instructions, tools, and sub-agents
 2. **You run it** with `docker agent run` via TUI, CLI, or API
 3. **The agent processes your request** — calling tools, delegating to sub-agents, reasoning step by step
