@@ -110,6 +110,28 @@ Docker Agent follows a simple loop:
 3. **The agent processes your request** — calling tools, delegating to sub-agents, reasoning step by step
 4. **Results stream back** in real time
 
+## A few terms you'll see
+
+<dl class="glossary">
+  <dt>Agent</dt>
+  <dd>An LLM with instructions, tools, and (optionally) sub-agents — the unit you define in YAML.</dd>
+
+  <dt>Tool</dt>
+  <dd>A function the agent can call, like <code>read_file</code> or <code>run_shell</code>. Tools come from built-in toolsets or external MCP servers.</dd>
+
+  <dt>MCP</dt>
+  <dd><em>Model Context Protocol</em> — an open standard for tool servers. Docker Agent can use any MCP server as a toolset.</dd>
+
+  <dt>A2A</dt>
+  <dd><em>Agent-to-Agent</em> — an HTTP protocol agents use to talk to each other across machines.</dd>
+
+  <dt>TUI</dt>
+  <dd><em>Terminal User Interface</em> — the default interactive front end, launched by <code>docker agent run</code>.</dd>
+
+  <dt>OCI</dt>
+  <dd>The same registry format used for Docker images. Docker Agent reuses it to push and pull agents.</dd>
+</dl>
+
 ### Zero Config
 
 The fastest way to try it — no config file needed:
