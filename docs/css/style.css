@@ -80,8 +80,8 @@
 [data-theme="light"] {
   --bg: #FAFBFC;
   --bg-sidebar: #F3F4F6;
-  --bg-code: #F1F5F9;
-  --bg-code-block: #0F172A;
+  --bg-code: #F1F3F5;
+  --bg-code-block: #F6F8FA;
   --bg-card: #FFFFFF;
   --bg-hover: #E5E7EB;
 
@@ -90,7 +90,7 @@
   --text-muted: #94A3B8;
   --text-sidebar: #475569;
   --text-sidebar-active: #0F172A;
-  --text-code: var(--blue-500);
+  --text-code: var(--blue-600);
 
   --border: #E2E8F0;
   --border-light: #F1F5F9;
@@ -522,6 +522,10 @@ body {
   line-height: 1.65;
   border: none;
 }
+[data-theme="light"] .content pre code,
+[data-theme="light"] .content .highlighter-rouge pre.highlight code {
+  color: #1F2937;
+}
 
 /* Rouge / highlighter-rouge overrides */
 .content pre[class*="language-"],
@@ -587,6 +591,56 @@ body {
 .highlight .gd { color: #F87171; }
 .highlight .gi { color: #34D399; }
 .highlight .w { color: #CBD5E1; }
+
+/* Light-theme syntax — docs.docker.com style (warm, low-contrast) */
+[data-theme="light"] .highlight .c,
+[data-theme="light"] .highlight .c1,
+[data-theme="light"] .highlight .cm,
+[data-theme="light"] .highlight .cs { color: #6B7280; font-style: italic; }
+[data-theme="light"] .highlight .k,
+[data-theme="light"] .highlight .kd,
+[data-theme="light"] .highlight .kn,
+[data-theme="light"] .highlight .kp,
+[data-theme="light"] .highlight .kr { color: #7C3AED; }
+[data-theme="light"] .highlight .kc { color: #B45309; }
+[data-theme="light"] .highlight .kt { color: #B45309; }
+[data-theme="light"] .highlight .s,
+[data-theme="light"] .highlight .s1,
+[data-theme="light"] .highlight .s2,
+[data-theme="light"] .highlight .sb,
+[data-theme="light"] .highlight .sc,
+[data-theme="light"] .highlight .sh { color: #047857; }
+[data-theme="light"] .highlight .na { color: var(--blue-600); }
+[data-theme="light"] .highlight .nb,
+[data-theme="light"] .highlight .bp { color: var(--blue-600); }
+[data-theme="light"] .highlight .nc,
+[data-theme="light"] .highlight .nn { color: #B45309; }
+[data-theme="light"] .highlight .nf,
+[data-theme="light"] .highlight .fm { color: var(--blue-600); }
+[data-theme="light"] .highlight .no { color: #B45309; }
+[data-theme="light"] .highlight .ni { color: #1F2937; }
+[data-theme="light"] .highlight .ne { color: #B91C1C; }
+[data-theme="light"] .highlight .nv,
+[data-theme="light"] .highlight .vi,
+[data-theme="light"] .highlight .vc,
+[data-theme="light"] .highlight .vg { color: #B91C1C; }
+[data-theme="light"] .highlight .o,
+[data-theme="light"] .highlight .ow { color: #0E7490; }
+[data-theme="light"] .highlight .p,
+[data-theme="light"] .highlight .pi { color: #1F2937; }
+[data-theme="light"] .highlight .m,
+[data-theme="light"] .highlight .mi,
+[data-theme="light"] .highlight .mf,
+[data-theme="light"] .highlight .mh,
+[data-theme="light"] .highlight .il { color: #B45309; }
+[data-theme="light"] .highlight .sr { color: #047857; }
+[data-theme="light"] .highlight .ss { color: #0E7490; }
+[data-theme="light"] .highlight .nt { color: #B91C1C; }
+[data-theme="light"] .highlight .err { color: #B91C1C; }
+[data-theme="light"] .highlight .gh { color: #1F2937; font-weight: bold; }
+[data-theme="light"] .highlight .gd { color: #B91C1C; }
+[data-theme="light"] .highlight .gi { color: #047857; }
+[data-theme="light"] .highlight .w { color: #1F2937; }
 
 /* ===== Tables ===== */
 .content table {
