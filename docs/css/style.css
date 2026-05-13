@@ -1039,6 +1039,48 @@ body {
   margin-bottom: 6px;
 }
 
+/* ===== "Without / With" code comparison ===== */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0 32px;
+}
+.compare-side {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px 6px;
+  display: flex;
+  flex-direction: column;
+}
+.compare-without {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.03);
+}
+.compare-with {
+  border-color: rgba(29, 99, 237, 0.4);
+  background: rgba(29, 99, 237, 0.04);
+}
+.compare-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.compare-without .compare-label { color: var(--error); }
+.compare-with .compare-label { color: var(--accent); }
+.compare-side pre,
+.compare-side .highlighter-rouge pre.highlight {
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  padding: 14px 16px;
+}
+.compare-side .highlighter-rouge { margin-bottom: 12px; }
+@media (max-width: 768px) {
+  .compare { grid-template-columns: 1fr; }
+}
+
 /* ===== "Who it's for" use-case grid ===== */
 .usecase-grid {
   display: grid;

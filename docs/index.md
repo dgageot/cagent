@@ -64,6 +64,68 @@ $ docker agent run agent.yaml
 
 That's it. Your agent can now read and write files, run shell commands, and reason through problems — all through an interactive terminal UI.
 
+## Without vs. with Docker Agent
+
+The same coding assistant, written two different ways:
+
+<div class="compare">
+  <div class="compare-side compare-without">
+    <div class="compare-label">Without Docker Agent</div>
+
+```python
+# ~30 lines of glue code, every project
+import anthropic, json, subprocess
+from pathlib import Path
+
+client = anthropic.Anthropic()
+MODEL = "claude-sonnet-4-5"
+TOOLS = [
+  {"name": "read_file", "input_schema": {...}},
+  {"name": "write_file", "input_schema": {...}},
+  {"name": "run_shell", "input_schema": {...}},
+]
+
+def dispatch(name, args):
+  if name == "read_file":
+      return Path(args["path"]).read_text()
+  if name == "write_file":
+      Path(args["path"]).write_text(args["content"])
+      return "ok"
+  if name == "run_shell":
+      return subprocess.check_output(args["cmd"], shell=True).decode()
+
+messages = [{"role": "user", "content": input("> ")}]
+while True:
+  resp = client.messages.create(
+    model=MODEL, max_tokens=4096, tools=TOOLS,
+    system="You are an expert developer…",
+    messages=messages,
+  )
+  # …parse tool_use blocks, dispatch, append, loop…
+  if resp.stop_reason == "end_turn": break
+```
+  </div>
+  <div class="compare-side compare-with">
+    <div class="compare-label">With Docker Agent</div>
+
+```yaml
+# agent.yaml — 8 lines, no glue code
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-5
+    description: A coding assistant
+    instruction: You are an expert developer.
+    toolsets:
+      - type: filesystem
+      - type: shell
+```
+
+```bash
+$ docker agent run agent.yaml
+```
+  </div>
+</div>
+
 ## Why Docker Agent?
 
 Most AI agent frameworks ask you to write Python or TypeScript to glue together models, tools, and workflows. Docker Agent takes a different approach: **declare everything in config, run it with a single command.**
