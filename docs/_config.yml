@@ -26,6 +26,7 @@ relative_links:
 exclude:
   - DEVELOPMENT.md
   - TODO.md
+  - STYLE.md
   - recordings/
   - Gemfile
   - Gemfile.lock

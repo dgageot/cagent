@@ -1,16 +1,16 @@
 ---
 title: "Quick Start"
-description: "Get up and running with docker-agent in under 5 minutes. Pick whichever path suits you best."
+description: "Get up and running with Docker Agent in under 5 minutes. Pick whichever path suits you best."
 permalink: /getting-started/quickstart/
 ---
 
 # Quick Start
 
-_Get up and running with docker-agent in under 5 minutes. Pick whichever path suits you best._
+_Get up and running with Docker Agent in under 5 minutes. Pick whichever path suits you best._
 
 ## Option A: Run the Default Agent
 
-The fastest way to try docker-agent — no config file needed:
+The fastest way to try Docker Agent — no config file needed:
 
 ```bash
 # Launch the default agent with the interactive TUI

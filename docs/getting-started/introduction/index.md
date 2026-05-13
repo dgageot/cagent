@@ -1,18 +1,20 @@
 ---
 title: "Introduction"
-description: "docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML or HCL configuration."
+description: "Docker Agent is a multi-agent runtime that lets you build, run, and share AI agents with a YAML or HCL config — no glue code required."
 permalink: /getting-started/introduction/
 ---
 
 # Introduction
 
-_docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML or HCL configuration._
+_Docker Agent is a multi-agent runtime that lets you build, run, and share AI agents with a YAML or HCL config — no glue code required._
 
-## What is docker-agent?
+## What is Docker Agent?
 
-docker-agent is an open-source tool by Docker that orchestrates AI agents with specialized capabilities and tools.
-Instead of writing code to wire up LLMs, tools, and workflows, you **declare** your agents in YAML or HCL —
-their model, personality, tools, and how they collaborate — and docker-agent handles the rest.
+Docker Agent is an open-source tool from Docker that orchestrates AI
+agents with specialized capabilities and tools. Instead of writing
+code to wire up LLMs, tools, and workflows, you **declare** your
+agents in YAML or HCL — their model, personality, tools, and how they
+collaborate — and Docker Agent handles the rest.
 
 <div class="features-grid">
   <div class="feature">
@@ -53,19 +55,26 @@ their model, personality, tools, and how they collaborate — and docker-agent h
   </div>
 </div>
 
-## Why docker-agent?
+## Why Docker Agent?
 
-After spending years building AI agents using various frameworks, the Docker team kept asking the same questions:
+After spending years building AI agents using various frameworks, the
+Docker team kept asking the same questions:
 
-- **How do we make building agents less of a hassle?** — Most agents use the same building blocks. docker-agent provides them out of the box.
-- **Can we reuse those building blocks?** — Declarative YAML or HCL configs mean you can mix and match agents, models, and tools without rewriting code.
-- **How can we share agents easily?** — Push agents to any OCI registry and run them anywhere with a single command.
+- **How do we make building agents less of a hassle?** — Most agents
+  use the same building blocks. Docker Agent provides them out of the
+  box.
+- **Can we reuse those building blocks?** — Declarative YAML or HCL
+  configs mean you can mix and match agents, models, and tools without
+  rewriting code.
+- **How can we share agents easily?** — Push agents to any OCI
+  registry and run them anywhere with a single command.
 
-docker-agent is built in the open so the community can make use of this work and contribute to its future.
+Docker Agent is built in the open so the community can make use of
+this work and contribute to its future.
 
-## How it Works
+## How it works
 
-At its core, docker-agent follows a simple loop:
+At its core, Docker Agent follows a simple loop:
 
 1. **You define agents** in YAML or HCL — their model, instructions, tools, and sub-agents.
 2. **You run an agent** via the TUI, CLI, or API.
@@ -89,19 +98,18 @@ $ docker agent run agent.yaml
 ```
 
 <div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
+<div class="callout-title">Tip</div>
   <p>Jump straight to the <a href="{{ '/getting-started/quickstart/' | relative_url }}">Quick Start</a> if you want to build your first agent right away.</p>
 
 </div>
 
-## What's Next?
+## What's next?
 
 <div class="cards">
   <a class="card" href="{{ '/getting-started/installation/' | relative_url }}">
     <div class="card-icon">📥</div>
     <h3>Installation</h3>
-    <p>Install docker-agent on macOS, Linux, or Windows.</p>
+    <p>Install Docker Agent on macOS, Linux, or Windows.</p>
   </a>
   <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
     <div class="card-icon">⚡</div>
