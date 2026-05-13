@@ -436,6 +436,10 @@ body {
   max-width: 800px;
   margin: 0 auto;
   padding: 40px 48px 80px;
+  /* When the skip-link or any in-page anchor jumps here, leave room
+   * for the fixed Docker top bar + product header so the heading
+   * isn't hidden underneath them. */
+  scroll-margin-top: calc(var(--header-height) + var(--docker-bar-height) + 16px);
 }
 
 /* ===== Table of Contents (right sidebar) ===== */
