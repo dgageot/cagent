@@ -868,8 +868,19 @@ body {
   outline-offset: 2px;
 }
 .card-icon {
-  font-size: 1.4rem;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  color: var(--accent);
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-light);
+}
+.card-icon svg {
+  width: 18px;
+  height: 18px;
 }
 .card h3 {
   font-size: 0.95rem;
@@ -996,8 +1007,19 @@ body {
   border-color: rgba(29,99,237,0.3);
 }
 .feature-icon {
-  font-size: 1.5rem;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.feature-icon svg {
+  width: 20px;
+  height: 20px;
 }
 .feature h3 {
   font-size: 1rem;
@@ -1138,8 +1160,19 @@ body {
   transform: translateY(-2px);
 }
 .usecase-icon {
-  font-size: 1.4rem;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.usecase-icon svg {
+  width: 18px;
+  height: 18px;
 }
 .usecase h3 {
   font-size: 0.95rem;
