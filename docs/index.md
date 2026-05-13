@@ -14,6 +14,10 @@ permalink: /
   </div>
 </div>
 
+<div class="demo-container">
+  <img src="{{ '/demo.gif' | relative_url }}" alt="Docker Agent TUI demo showing an interactive agent session" loading="lazy">
+</div>
+
 ## What Is Docker Agent?
 
 Docker Agent is an open-source tool from Docker that lets you **build, run, and share AI agents using simple configuration files** instead of writing application code.
@@ -40,12 +44,6 @@ $ docker agent run agent.yaml
 ```
 
 That's it. Your agent can now read and write files, run shell commands, and reason through problems — all through an interactive terminal UI.
-
-## See It in Action
-
-<div class="demo-container">
-  <img src="{{ '/demo.gif' | relative_url }}" alt="Docker Agent TUI demo showing an interactive agent session" loading="lazy">
-</div>
 
 ## Why Docker Agent?
 
