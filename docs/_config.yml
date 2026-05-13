@@ -1,5 +1,6 @@
 title: Docker Agent
-description: Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker.
+tagline: Run AI agents like containers.
+description: Run AI agents from a YAML file. Define them once, share them through any OCI registry, and run them anywhere — by Docker.
 url: "https://docker.github.io"
 baseurl: "/docker-agent"
 
