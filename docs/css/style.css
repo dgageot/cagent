@@ -172,9 +172,10 @@ body {
 .header-logo:hover {
   text-decoration: none;
 }
-.header-logo svg {
+.header-logo svg,
+.header-logo .docker-mark {
   width: 32px;
-  height: 32px;
+  height: 26px;
   flex-shrink: 0;
 }
 .header-logo .logo-divider {
