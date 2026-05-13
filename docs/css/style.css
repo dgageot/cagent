@@ -1365,6 +1365,7 @@ body {
 
 /* ===== Site footer ===== */
 .site-footer {
+  margin-left: var(--sidebar-width);
   margin-top: 80px;
   border-top: 1px solid var(--border);
   background: var(--bg-sidebar);
@@ -1554,6 +1555,9 @@ body {
     display: flex;
   }
   .main {
+    margin-left: 0;
+  }
+  .site-footer {
     margin-left: 0;
   }
   .content {
