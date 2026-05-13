@@ -354,6 +354,15 @@ body {
   transition: transform 0.3s ease;
 }
 
+.sidebar-tagline {
+  padding: 16px 20px 12px;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  border-bottom: 1px solid var(--border-light);
+}
+
 .sidebar-section {
   margin-bottom: 4px;
 }

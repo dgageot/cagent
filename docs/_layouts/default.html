@@ -27,6 +27,7 @@
   {% include header.html %}
 
   <nav class="sidebar" id="sidebar" role="navigation" aria-label="Documentation navigation">
+    <div class="sidebar-tagline">{{ site.tagline | default: 'Run AI agents like containers.' }}</div>
     {% for group in site.data.nav %}
     <div class="sidebar-section">
       <div class="sidebar-heading">{{ group.section }}</div>
