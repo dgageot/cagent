@@ -1,13 +1,13 @@
 ---
 layout: default
 title: "Docker Agent"
-description: "An open-source runtime for AI agents. Define agents in YAML — not code — with tools, multi-agent teams, and any LLM. Package and share them like container images."
+description: "Run AI agents like containers. Define them in YAML, share them through any OCI registry, and run them anywhere."
 permalink: /
 ---
 
 <div class="hero">
   <h1>Docker Agent</h1>
-  <p>An open-source runtime for AI agents. Define agents in YAML, give them tools, wire up multi-agent teams — and run them anywhere.</p>
+  <p><strong>Docker Agent is to AI agents what <code>docker run</code> is to containers.</strong> Define an agent in a YAML file, run it with one command, share it through any OCI registry — the same workflow you already use for images.</p>
   <div class="hero-buttons">
     <a href="{{ '/getting-started/quickstart/' | relative_url }}" class="btn btn-primary">Quick Start →</a>
     <a href="https://github.com/docker/docker-agent" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
