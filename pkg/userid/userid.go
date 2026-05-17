@@ -23,11 +23,6 @@ import (
 // stored under [paths.GetConfigDir].
 const fileName = "user-uuid"
 
-var (
-	mu     sync.Mutex
-	cached string
-)
-
 // Get returns the persistent UUID identifying this cagent installation.
 //
 // On the first call it tries to read the value from
@@ -35,14 +30,13 @@ var (
 // cannot be read, a fresh UUID is generated and persisted (best
 // effort). The result is cached in memory for the lifetime of the
 // process so subsequent calls do not touch the filesystem.
-func Get() string {
-	mu.Lock()
-	defer mu.Unlock()
+var Get = sync.OnceValue(get)
 
-	if cached != "" {
-		return cached
-	}
+func ResetForTests() {
+	Get = sync.OnceValue(get)
+}
 
+func get() string {
 	file := filePath()
 
 	if data, err := os.ReadFile(file); err == nil {
@@ -52,8 +46,7 @@ func Get() string {
 			// rather than propagating invalid data to telemetry and
 			// the gateway.
 			if _, err := uuid.Parse(existing); err == nil {
-				cached = existing
-				return cached
+				return existing
 			}
 			// File contains invalid UUID — fall through and regenerate.
 		}
@@ -66,18 +59,7 @@ func Get() string {
 	// disk we still cache it in memory so the same identifier is used
 	// for the rest of this process.
 	_ = save(file, id)
-	cached = id
-	return cached
-}
-
-// ResetForTests clears the in-memory cache. Tests in any package
-// that rely on a deterministic config dir override should call this
-// after [paths.SetConfigDir] to force the next [Get] call to re-read
-// from disk.
-func ResetForTests() {
-	mu.Lock()
-	defer mu.Unlock()
-	cached = ""
+	return id
 }
 
 func filePath() string {
