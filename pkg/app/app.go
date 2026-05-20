@@ -226,7 +226,10 @@ func (a *App) CurrentAgentSkills() []skills.Skill {
 }
 
 // ResolveSkillCommand checks if the input matches a skill slash command (e.g. /skill-name args).
-// If matched, it reads the skill content and returns the resolved prompt. Otherwise returns "".
+// If matched, it returns the resolved prompt. Otherwise returns "".
+//
+// Forked skills emit a directive to invoke run_skill rather than inlining
+// SKILL.md, which would tempt the agent to act on the body directly.
 func (a *App) ResolveSkillCommand(ctx context.Context, input string) (string, error) {
 	if !strings.HasPrefix(input, "/") {
 		return "", nil
@@ -243,6 +246,17 @@ func (a *App) ResolveSkillCommand(ctx context.Context, input string) (string, er
 	for _, skill := range st.Skills() {
 		if skill.Name != cmd {
 			continue
+		}
+
+		if skill.IsFork() {
+			task := arg
+			if task == "" {
+				task = "Run the skill with no extra arguments."
+			}
+			return fmt.Sprintf(
+				"Call the run_skill tool with name=%q and task=%q. Do not call read_skill or transfer_task for this skill.",
+				skill.Name, task,
+			), nil
 		}
 
 		content, err := st.ReadSkillContent(ctx, skill.Name)

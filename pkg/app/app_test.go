@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/skills"
 	"github.com/docker/docker-agent/pkg/tools"
 	skillstool "github.com/docker/docker-agent/pkg/tools/builtin/skills"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
@@ -25,7 +28,8 @@ import (
 // so the mock runtime stays small and focused on the runtime.Runtime
 // surface.
 type mockRuntime struct {
-	store session.Store
+	store         session.Store
+	skillsToolset *skillstool.ToolSet
 }
 
 func (m *mockRuntime) CurrentAgentInfo(ctx context.Context) runtime.CurrentAgentInfo {
@@ -61,7 +65,7 @@ func (m *mockRuntime) Summarize(ctx context.Context, sess *session.Session, addi
 }
 func (m *mockRuntime) PermissionsInfo() *runtime.PermissionsInfo { return nil }
 func (m *mockRuntime) CurrentAgentSkillsToolset() *skillstool.ToolSet {
-	return nil
+	return m.skillsToolset
 }
 
 func (m *mockRuntime) CurrentMCPPrompts(context.Context) map[string]mcptools.PromptInfo {
@@ -267,6 +271,124 @@ func TestApp_ResolveSkillCommand_NotSlashCommand(t *testing.T) {
 	resolved, err := app.ResolveSkillCommand(ctx, "not a slash command")
 	require.NoError(t, err)
 	assert.Empty(t, resolved)
+}
+
+func TestApp_ResolveSkillCommand_NonForkInlinesSkillBody(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	require.NoError(t, os.WriteFile(skillFile, []byte("Step 1: do the thing."), 0o600))
+
+	toolset := skillstool.New([]skills.Skill{{
+		Name:        "poem",
+		Description: "Print a poem",
+		FilePath:    skillFile,
+		BaseDir:     tmpDir,
+		Local:       true,
+	}}, tmpDir)
+
+	ctx := t.Context()
+	rt := &mockRuntime{skillsToolset: toolset}
+	app := New(ctx, rt, session.New())
+
+	resolved, err := app.ResolveSkillCommand(ctx, "/poem")
+	require.NoError(t, err)
+
+	// Non-forked skills paste SKILL.md into the message so the agent acts on it
+	// directly, with no forked sub-session.
+	assert.Contains(t, resolved, "Use the following skill.")
+	assert.Contains(t, resolved, "Step 1: do the thing.")
+	assert.NotContains(t, resolved, "run_skill")
+}
+
+func TestApp_ResolveSkillCommand_ForkSkillEmitsRunSkillDirective(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	// Body must NOT leak into the resolved message for forked skills.
+	require.NoError(t, os.WriteFile(skillFile, []byte("INTERNAL FORK BODY"), 0o600))
+
+	toolset := skillstool.New([]skills.Skill{{
+		Name:        "commit",
+		Description: "Commit local changes",
+		FilePath:    skillFile,
+		BaseDir:     tmpDir,
+		Local:       true,
+		Context:     "fork",
+	}}, tmpDir)
+
+	ctx := t.Context()
+	rt := &mockRuntime{skillsToolset: toolset}
+	app := New(ctx, rt, session.New())
+
+	t.Run("with no argument", func(t *testing.T) {
+		resolved, err := app.ResolveSkillCommand(ctx, "/commit")
+		require.NoError(t, err)
+
+		// The directive must point the agent at run_skill and steer it away
+		// from read_skill / transfer_task.
+		assert.Contains(t, resolved, "run_skill")
+		assert.Contains(t, resolved, `name="commit"`)
+		assert.Contains(t, resolved, "Run the skill with no extra arguments.")
+		assert.Contains(t, resolved, "Do not call read_skill")
+
+		// The skill body must NOT be inlined — that is what triggered the
+		// agent's read_skill / transfer_task dance in the first place.
+		assert.NotContains(t, resolved, "INTERNAL FORK BODY")
+		assert.NotContains(t, resolved, "Use the following skill.")
+	})
+
+	t.Run("with trailing argument as task", func(t *testing.T) {
+		resolved, err := app.ResolveSkillCommand(ctx, "/commit fix the lint warnings")
+		require.NoError(t, err)
+
+		assert.Contains(t, resolved, "run_skill")
+		assert.Contains(t, resolved, `name="commit"`)
+		assert.Contains(t, resolved, `task="fix the lint warnings"`)
+		assert.NotContains(t, resolved, "INTERNAL FORK BODY")
+	})
+}
+
+func TestApp_ResolveSkillCommand_ForkSkillEscapesSpecialChars(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	require.NoError(t, os.WriteFile(skillFile, []byte("INTERNAL FORK BODY"), 0o600))
+
+	toolset := skillstool.New([]skills.Skill{{
+		Name:        "commit",
+		Description: "Commit local changes",
+		FilePath:    skillFile,
+		BaseDir:     tmpDir,
+		Local:       true,
+		Context:     "fork",
+	}}, tmpDir)
+
+	ctx := t.Context()
+	rt := &mockRuntime{skillsToolset: toolset}
+	app := New(ctx, rt, session.New())
+
+	t.Run("whitespace-only argument falls back to no-argument directive", func(t *testing.T) {
+		resolved, err := app.ResolveSkillCommand(ctx, "/commit    \t  ")
+		require.NoError(t, err)
+
+		assert.Contains(t, resolved, "run_skill")
+		assert.Contains(t, resolved, "Run the skill with no extra arguments.")
+	})
+
+	t.Run("argument with quotes and backslashes is safely quoted", func(t *testing.T) {
+		// %q escapes embedded " and \ so a malicious task cannot close the
+		// directive's task="..." and inject a forged name= or task= field.
+		resolved, err := app.ResolveSkillCommand(ctx, `/commit fix "weird\path" please`)
+		require.NoError(t, err)
+
+		assert.Contains(t, resolved, "run_skill")
+		assert.Contains(t, resolved, `task="fix \"weird\\path\" please"`)
+		assert.NotContains(t, resolved, "INTERNAL FORK BODY")
+	})
 }
 
 func TestApp_UndoLastSnapshot(t *testing.T) {
