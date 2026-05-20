@@ -29,6 +29,7 @@ $ docker agent run [config] [message...] [flags]
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `-a, --agent <name>`                    | Run a specific agent from the config                                                                                                      |
 | `--yolo`                                | Auto-approve all tool calls                                                                                                               |
+| `--exec`                                | Run without a TUI (headless mode). See [`docker agent run --exec`](#docker-agent-run---exec) below.                                       |
 | `--model <ref>`                         | Override model(s). Use `provider/model` for all agents, or `agent=provider/model` for specific agents. Comma-separate multiple overrides. |
 | `--session <id>`                        | Resume a previous session. Supports relative refs (`-1` = last, `-2` = second to last)                                                    |
 | `-s, --session-db <path>`               | Path to the SQLite session database (default: `~/.cagent/session.db`)                                                                     |
@@ -46,6 +47,7 @@ $ docker agent run [config] [message...] [flags]
 | `--working-dir <path>`                  | Set the working directory for the session (applies to tools and relative paths)                                                           |
 | `--env-from-file <path>`                | Load environment variables from file (repeatable)                                                                                         |
 | `--code-mode-tools`                     | Provide a single tool to call other tools via JavaScript (forces code-mode tools globally)                                                |
+| `--on-event <type>=<cmd>`               | Run a shell command when an event fires (e.g. `--on-event tool_call=./log.sh`, or `*=<cmd>` for any). Repeatable.                          |
 | `--models-gateway <addr>`               | Route model traffic through a gateway. Also reads `DOCKER_AGENT_MODELS_GATEWAY` (legacy `CAGENT_MODELS_GATEWAY`) env var.                  |
 | `--hook-pre-tool-use <cmd>`             | Add a pre-tool-use hook command (repeatable). See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                                  |
 | `--hook-post-tool-use <cmd>`            | Add a post-tool-use hook command (repeatable)                                                                                             |
@@ -99,13 +101,23 @@ $ docker agent run --exec agent.yaml "question 1" "question 2" "question 3"
 
 ### `docker agent new`
 
-Interactively generate a new agent configuration file.
+Interactively generate a new agent configuration file. Optionally pass a free-text description as a positional argument to skip the initial prompt.
 
 ```bash
-$ docker agent new [flags]
+$ docker agent new [description] [flags]
+```
 
+| Flag                   | Default | Description                                                                                                                                          |
+| ---------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--model <ref>`        | (auto)  | Model to use, optionally as `provider/model` where provider is `anthropic`, `openai`, `google`, or `dmr`. If omitted, picks based on available credentials or gateway. |
+| `--max-iterations <n>` | `0`     | Maximum number of agentic loop iterations to prevent infinite loops. `0` means use the default (20 for DMR, unlimited for other providers).          |
+
+All [runtime configuration flags](#runtime-configuration-flags) are also accepted.
+
+```bash
 # Examples
 $ docker agent new
+$ docker agent new "a web scraper that extracts product prices"
 $ docker agent new --model openai/gpt-5-mini
 $ docker agent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
 ```
@@ -145,6 +157,7 @@ $ docker agent serve api <agent-file>|<agents-dir>|<registry-ref> [flags]
 | `-l, --listen <addr>`      | `127.0.0.1:8080`   | Address to listen on.                                                                                      |
 | `-s, --session-db <path>`  | `session.db`       | Path to the SQLite session database (relative paths resolve against the working directory).                |
 | `--pull-interval <minutes>`| `0`                | Periodically re-pull OCI/URL references and refresh the agent definition. `0` disables auto-pull.          |
+| `--auth-token <token>`     | (none)             | Bearer token clients must present in the `Authorization: Bearer <token>` header. Empty disables auth.      |
 | `--fake <path>`             | (none)             | Replay AI responses from a cassette file (for testing). Mutually exclusive with `--record`.               |
 | `--record [path]`           | (none)             | Record AI API interactions to a cassette file.                                                            |
 
@@ -173,6 +186,9 @@ $ docker agent serve mcp <config> [flags]
 | `-a, --agent <name>`   | (all agents)       | Name of the agent to expose. If omitted, every agent in the config is exposed as a separate tool. |
 | `--http`               | `false`            | Use streaming HTTP transport instead of stdio.                                                    |
 | `-l, --listen <addr>`  | `127.0.0.1:8081`   | Address to listen on (only used with `--http`).                                                   |
+| `--attach [target]`    | (none)             | Attach to a running TUI run by pid, address, or session id. Pass without a value to attach to the most recent run. When set, the agent file argument can be omitted. |
+| `--tool-name <name>`   | (agent name)       | Override the MCP tool identifier clients call. Only valid when exposing a single agent.           |
+| `--mcp-keepalive <dur>`| `0` (disabled)     | Interval between MCP keep-alive pings (e.g. `30s`).                                              |
 
 All [runtime configuration flags](#runtime-configuration-flags) are also accepted.
 
@@ -194,10 +210,11 @@ Start an A2A (Agent-to-Agent) protocol server.
 $ docker agent serve a2a <config> [flags]
 ```
 
-| Flag                   | Default            | Description                                                                                |
-| ---------------------- | ------------------ | ------------------------------------------------------------------------------------------ |
-| `-a, --agent <name>`   | (team default)     | Name of the agent to run. Defaults to the team's first agent if not specified.             |
-| `-l, --listen <addr>`  | `127.0.0.1:8082`   | Address to listen on.                                                                       |
+| Flag                      | Default                | Description                                                                                |
+| ------------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
+| `-a, --agent <name>`      | (team default)         | Name of the agent to run. Defaults to the team's first agent if not specified.             |
+| `-l, --listen <addr>`     | `127.0.0.1:8082`       | Address to listen on.                                                                       |
+| `-s, --session-db <path>` | `~/.cagent/session.db` | Path to the SQLite session database.                                                        |
 
 All [runtime configuration flags](#runtime-configuration-flags) are also accepted.
 

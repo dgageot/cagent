@@ -170,6 +170,8 @@ $ docker agent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
 | `-e, --env`         | (none)                      | Environment variables to pass to container (`KEY` or `KEY=VALUE`) |
 | `--repeat`          | `1`                         | Number of times to repeat each evaluation (useful for computing baselines) |
 
+All [runtime configuration flags]({{ '/features/cli/#runtime-configuration-flags' | relative_url }}) (`--working-dir`, `--env-from-file`, `--models-gateway`, `--hook-*`, …) are also accepted.
+
 ## Output
 
 After a run completes, docker-agent produces:

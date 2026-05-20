@@ -229,7 +229,7 @@ permissions:
 
 ```bash
 # Run with sandbox enabled
-docker-agent run --sandbox agent.yaml
+docker agent run --sandbox agent.yaml
 ```
 
 ### Set Global Permission Guardrails

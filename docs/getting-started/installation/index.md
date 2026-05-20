@@ -37,10 +37,10 @@ Install docker-agent using [Homebrew](https://brew.sh/):
 $ brew install docker-agent
 
 # Verify
-$ docker-agent version
+$ docker agent version
 ```
 
-You can also install docker-agent as a docker CLI plugin, by copying `docker-agent` binary in `~/.docker/cli-plugins`. You can then run `docker agent version`.
+Homebrew installs docker-agent as a Docker CLI plugin (under `~/.docker/cli-plugins/`), so the canonical invocation is `docker agent`. If you prefer the standalone command, the binary is also exposed on your `PATH` as `docker-agent`.
 
 ## Download Binary Releases
 
@@ -55,7 +55,7 @@ ARCH=$(uname -m); case "$ARCH" in x86_64) ARCH=amd64;; aarch64) ARCH=arm64;; esa
 curl -L "https://github.com/docker/docker-agent/releases/latest/download/docker-agent-${OS}-${ARCH}" -o docker-agent
 chmod +x docker-agent
 sudo mv docker-agent /usr/local/bin/
-docker-agent version
+docker-agent version  # standalone binary on PATH
 
 # or alternatively, instead of moving to /usr/local/bin:
 mkdir -p ~/.docker/cli-plugins

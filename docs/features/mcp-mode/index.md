@@ -56,6 +56,7 @@ $ docker agent serve mcp ./agent.yaml --http --listen 0.0.0.0:9090
 | `--http`               | `false`            | Use streaming HTTP transport instead of stdio.                                                               |
 | `-l`, `--listen`       | `127.0.0.1:8081`   | Address to listen on when `--http` is enabled.                                                               |
 | `-a`, `--agent`        | all agents         | Expose a single named agent instead of every agent in the config.                                            |
+| `--attach [target]`    | (none)             | Attach to a running TUI run by pid, address, or session id. Pass without a value to attach to the most recent run. When set, the agent file argument can be omitted. |
 | `--tool-name`          | (none)             | Override the MCP tool identifier clients call (defaults to agent name); only valid when exposing one agent.  |
 | `--mcp-keepalive`      | `0`                | Interval between MCP keep-alive pings (e.g. `30s`); `0` disables keep-alive.                                 |
 
