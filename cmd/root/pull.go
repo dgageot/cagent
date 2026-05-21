@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/docker-agent/pkg/cli"
-	"github.com/docker/docker-agent/pkg/content"
 	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/telemetry"
 )
@@ -47,24 +46,15 @@ func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) (commandEr
 
 	out.Println("Pulling agent", registryRef)
 
-	_, err := remote.Pull(ctx, registryRef, f.force)
+	yamlFile, _, err := remote.PullAgent(ctx, registryRef, f.force)
 	if err != nil {
 		return fmt.Errorf("failed to pull artifact: %w", err)
-	}
-
-	store, err := content.NewStore()
-	if err != nil {
-		return fmt.Errorf("failed to open content store: %w", err)
-	}
-	yamlFile, err := store.GetArtifact(registryRef)
-	if err != nil {
-		return fmt.Errorf("failed to get agent yaml: %w", err)
 	}
 
 	agentName := strings.ReplaceAll(registryRef, "/", "_")
 	fileName := agentName + ".yaml"
 
-	if err := os.WriteFile(fileName, []byte(yamlFile), 0o644); err != nil { //nolint:gosec // pulled agent yaml is meant to be readable
+	if err := os.WriteFile(fileName, yamlFile, 0o644); err != nil { //nolint:gosec // pulled agent yaml is meant to be readable
 		return err
 	}
 
