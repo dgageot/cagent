@@ -1,8 +1,13 @@
 package remote
 
 import (
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,44 +65,61 @@ func TestNewTransport_WorksWithoutDesktopProxy(t *testing.T) {
 func TestIsProxySocketError(t *testing.T) {
 	t.Parallel()
 
+	dialUnixENOENT := &net.OpError{
+		Op:  "dial",
+		Net: "unix",
+		Err: &os.SyscallError{Syscall: "connect", Err: syscall.ENOENT},
+	}
+	proxyConnectRefused := &net.OpError{
+		Op:  "proxyconnect",
+		Net: "tcp",
+		Err: &os.SyscallError{Syscall: "connect", Err: syscall.ECONNREFUSED},
+	}
+	proxyConnectGeneric := &net.OpError{
+		Op:  "proxyconnect",
+		Net: "tcp",
+		Err: errors.New("some unrelated error"),
+	}
+	urlErr := &url.Error{Op: "Get", URL: "https://example/", Err: proxyConnectRefused}
+
 	tests := []struct {
 		name     string
-		errStr   string
+		err      error
 		expected bool
 	}{
 		{
-			name:     "no such file or directory",
-			errStr:   "proxyconnect tcp: dial unix /path/to/httpproxy.sock: connect: no such file or directory",
+			name:     "unix socket missing (ENOENT)",
+			err:      dialUnixENOENT,
 			expected: true,
 		},
 		{
-			name:     "connection refused",
-			errStr:   "proxyconnect tcp: dial unix /path/to/httpproxy.sock: connect: connection refused",
+			name:     "proxy connect refused",
+			err:      proxyConnectRefused,
 			expected: true,
 		},
 		{
-			name:     "proxyconnect tcp error",
-			errStr:   "Post https://api.anthropic.com/v1/messages: proxyconnect tcp: some error",
+			name:     "proxyconnect with unrelated wrapped error",
+			err:      proxyConnectGeneric,
 			expected: true,
 		},
 		{
-			name:     "dial unix error",
-			errStr:   "dial unix /var/run/docker.sock: operation timed out",
+			name:     "wrapped in url.Error (real http.Client failure shape)",
+			err:      urlErr,
 			expected: true,
 		},
 		{
-			name:     "regular network error",
-			errStr:   "dial tcp 192.168.1.1:443: i/o timeout",
+			name:     "plain TCP timeout is not a proxy error",
+			err:      &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("i/o timeout")},
 			expected: false,
 		},
 		{
-			name:     "HTTP error",
-			errStr:   "HTTP 500: internal server error",
+			name:     "unrelated error",
+			err:      errors.New("HTTP 500"),
 			expected: false,
 		},
 		{
 			name:     "nil error",
-			errStr:   "",
+			err:      nil,
 			expected: false,
 		},
 	}
@@ -105,12 +127,7 @@ func TestIsProxySocketError(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var err error
-			if tc.errStr != "" {
-				err = &testError{msg: tc.errStr}
-			}
-			result := isProxySocketError(err)
-			assert.Equal(t, tc.expected, result)
+			assert.Equal(t, tc.expected, isProxySocketError(tc.err))
 		})
 	}
 }
@@ -133,13 +150,4 @@ func TestFallbackTransport_DisableCompression(t *testing.T) {
 	// Verify compression is now disabled on both transports
 	assert.True(t, proxy.DisableCompression)
 	assert.True(t, direct.DisableCompression)
-}
-
-// testError is a simple error type for testing
-type testError struct {
-	msg string
-}
-
-func (e *testError) Error() string {
-	return e.msg
 }

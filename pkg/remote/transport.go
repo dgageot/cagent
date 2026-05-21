@@ -2,12 +2,13 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/kofalt/go-memoize"
@@ -121,29 +122,33 @@ func (f *fallbackTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	return nil, err
 }
 
-// isProxySocketError checks if the error indicates the proxy socket is unavailable.
-// This includes:
-// - "no such file or directory" - socket file was deleted
-// - "connection refused" - socket exists but nothing is listening
-// - "dial unix" errors - general Unix socket connection failures
+// isProxySocketError reports whether err indicates the Docker Desktop proxy
+// socket is unavailable: socket file gone, nothing listening on it, or any
+// failure dialing a Unix socket. Detection is type-based (net.OpError /
+// syscall errno) rather than string matching, so it stays correct across
+// Go versions and locales.
 func isProxySocketError(err error) bool {
 	if err == nil {
 		return false
 	}
 
-	errStr := strings.ToLower(err.Error())
-
-	// Check for common proxy socket failure patterns
-	proxyErrorPatterns := []string{
-		"no such file or directory",   // Socket file deleted
-		"connect: connection refused", // Socket exists but no listener
-		"proxyconnect tcp",            // Proxy connection failure
-		"dial unix",                   // Unix socket dial failure
-		"unix socket",                 // Generic Unix socket error
+	// Connection-level failures: ENOENT (socket file deleted) or
+	// ECONNREFUSED (socket exists but no listener). The HTTP transport
+	// wraps these in *net.OpError{Op: "proxyconnect"} → *os.SyscallError,
+	// but errors.Is unwraps the chain for us.
+	if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ECONNREFUSED) {
+		return true
 	}
 
-	for _, pattern := range proxyErrorPatterns {
-		if strings.Contains(errStr, pattern) {
+	// Any failure that originated from dialing the proxy: either the
+	// HTTP transport's "proxyconnect" wrapper, or a direct Unix-socket
+	// dial error from our own DialContext.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if opErr.Op == "proxyconnect" {
+			return true
+		}
+		if opErr.Op == "dial" && opErr.Net == "unix" {
 			return true
 		}
 	}
