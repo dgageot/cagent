@@ -52,13 +52,10 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 	localRef := ref.Context().RepositoryStr() + separator(ref) + ref.Identifier()
 
 	// Cache check: only worth a HEAD round-trip when we actually have a
-	// local copy to compare against. When the cache is empty we'd have to
-	// pull anyway, so skip the digest probe entirely.
+	// usable local copy. When the cache is empty or contains a non-agent
+	// artifact we'd have to pull anyway, so skip the digest probe.
 	if !force {
-		if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
-			if !hasCagentAnnotation(meta.Annotations) {
-				return "", fmt.Errorf("artifact %s found in store wasn't created by `docker agent share push`\nTry to push again with `docker agent share push`", localRef)
-			}
+		if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil && hasCagentAnnotation(meta.Annotations) {
 			remoteDigest, err := crane.Digest(ref.String(), opts...)
 			if err != nil {
 				return "", fmt.Errorf("resolving remote digest for %s: %w", registryRef, err)
@@ -154,11 +151,16 @@ func PullAgent(ctx context.Context, registryRef string, force bool) ([]byte, str
 	return []byte(data), digest, nil
 }
 
-// readCached returns the cached YAML bytes and digest for storeKey, or
-// ok=false if no usable cached copy is present.
+// readCached returns the cached YAML bytes and digest for storeKey. It
+// returns ok=false when no usable copy exists, including when the cached
+// metadata lacks the cagent annotation — mirroring the validation Pull
+// applies on the registry path so the cache cannot be used to bypass it.
 func readCached(store *content.Store, storeKey string) ([]byte, string, bool) {
 	meta, err := store.GetArtifactMetadata(storeKey)
 	if err != nil {
+		return nil, "", false
+	}
+	if !hasCagentAnnotation(meta.Annotations) {
 		return nil, "", false
 	}
 	data, err := store.GetArtifact(storeKey)
