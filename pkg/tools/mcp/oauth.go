@@ -849,7 +849,12 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	slog.DebugContext(ctx, "Elicitation response received", "result", result)
 
 	if result.Action != tools.ElicitationActionAccept {
-		return errors.New("user declined OAuth authorization")
+		// Surface the recognisable sentinel (mirroring the unmanaged
+		// path) so authorizeOnce can latch the decline and queued
+		// initialize-stage goroutines don't re-pop the dialog the user
+		// just dismissed, and so enrichConnectError / mcpcatalog's
+		// IsOAuthDeclined short-circuit can break the retry loop.
+		return &OAuthDeclinedError{URL: t.baseURL}
 	}
 
 	slog.DebugContext(ctx, "Requesting authorization code", "url", authURL)
