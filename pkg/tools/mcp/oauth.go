@@ -834,7 +834,22 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		scopes,
 	)
 
-	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{
+	// Bound the interactive wait. `ctx` here is the detached ctx from
+	// clientConnector.Connect (context.WithoutCancel), whose Done channel
+	// never fires on its own. Without this, an abandoned browser tab or a
+	// silent MCP-client disconnect would leave the elicitation and the
+	// callback wait blocked forever, holding the per-session streaming
+	// lock and turning every subsequent user message into a 409 /
+	// ErrSessionBusy. We also wire up user-initiated cancellation, which
+	// arrives via the original caller's ctx stashed at the Connect
+	// boundary (see cancellable_parent.go). Mirrors handleUnmanagedOAuthFlow.
+	waitCtx, cancelWait := context.WithTimeout(ctx, unmanagedOAuthWaitTimeout)
+	defer cancelWait()
+	if parentCtx := cancellableParentFromContext(ctx); parentCtx != nil {
+		defer context.AfterFunc(parentCtx, cancelWait)()
+	}
+
+	result, err := t.client.requestElicitation(waitCtx, &mcpsdk.ElicitParams{
 		Message:         fmt.Sprintf("The MCP server at %s requires OAuth authorization. Do you want to proceed?", t.baseURL),
 		RequestedSchema: nil,
 		Meta: map[string]any{
@@ -859,7 +874,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 
 	slog.DebugContext(ctx, "Requesting authorization code", "url", authURL)
 
-	code, receivedState, err := RequestAuthorizationCode(ctx, authURL, callbackServer, state)
+	code, receivedState, err := RequestAuthorizationCode(waitCtx, authURL, callbackServer, state)
 	if err != nil {
 		return fmt.Errorf("failed to get authorization code: %w", err)
 	}
