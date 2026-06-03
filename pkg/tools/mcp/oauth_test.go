@@ -1873,14 +1873,14 @@ func TestUnmanagedOAuthFlow_DriveFlow_AbortsOnParentCtxCancellation(t *testing.T
 // per-flow deadline releases the streaming lock even when the MCP client
 // disconnects silently and never produces an elicitation reply.
 //
-// Without unmanagedOAuthWaitTimeout, requestElicitation would block on a
+// Without oauthInteractiveWaitTimeout, requestElicitation would block on a
 // dead session indefinitely, the per-session lock at the SessionManager
 // level would stay held, and every subsequent message from that session
 // would return 409 / ErrSessionBusy until a process restart.
 func TestUnmanagedOAuthFlow_DriveFlow_TimesOutWhenNoReplyArrives(t *testing.T) {
-	original := unmanagedOAuthWaitTimeout
-	unmanagedOAuthWaitTimeout = 200 * time.Millisecond
-	t.Cleanup(func() { unmanagedOAuthWaitTimeout = original })
+	original := oauthInteractiveWaitTimeout
+	oauthInteractiveWaitTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { oauthInteractiveWaitTimeout = original })
 
 	srv := newUnmanagedOAuthTestServer(t)
 	defer srv.Close()
@@ -1912,6 +1912,101 @@ func TestUnmanagedOAuthFlow_DriveFlow_TimesOutWhenNoReplyArrives(t *testing.T) {
 			strings.Contains(rtErr.Error(), "context deadline exceeded"),
 		"expected timeout error, got: %v", rtErr,
 	)
+	assert.Equal(t, int32(0), srv.tokenCalls.Load(),
+		"token endpoint must NOT be hit on timeout")
+}
+
+// newManagedTestTransport builds an oauthTransport configured for the
+// managed flow (docker-agent opens the browser itself) and wires the
+// supplied elicitation handler. It reuses newUnmanagedOAuthTestServer's
+// endpoints, which are identical for both flows.
+func newManagedTestTransport(t *testing.T, baseURL string, capture *elicitCaptured) (*oauthTransport, *remoteMCPClient) {
+	t.Helper()
+	client := newRemoteClient(baseURL, "streamable", nil, NewInMemoryTokenStore(), nil, false)
+	client.SetElicitationHandler(capture.handler)
+	client.allowPrivateIPs = true
+	transport := &oauthTransport{
+		base:            http.DefaultTransport,
+		client:          client,
+		tokenStore:      client.tokenStore,
+		baseURL:         baseURL,
+		managed:         true,
+		oauthHTTPClient: oauthHTTPClientForAllowPrivateIPs(true),
+	}
+	return transport, client
+}
+
+// TestManagedOAuthFlow_ElicitationDeclineReturnsSentinel verifies that a
+// declined approval prompt in the managed flow surfaces a recognisable
+// *OAuthDeclinedError, mirroring the unmanaged path. A generic error here
+// would defeat the catalog's IsOAuthDeclined short-circuit and re-pop the
+// dialog the user just dismissed.
+func TestManagedOAuthFlow_ElicitationDeclineReturnsSentinel(t *testing.T) {
+	srv := newUnmanagedOAuthTestServer(t)
+	defer srv.Close()
+
+	capture := &elicitCaptured{}
+	capture.replyFn = func(_ *gomcp.ElicitParams) tools.ElicitationResult {
+		return tools.ElicitationResult{Action: tools.ElicitationActionDecline}
+	}
+	transport, _ := newManagedTestTransport(t, srv.URL, capture)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL, strings.NewReader("{}"))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, rtErr := transport.RoundTrip(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	require.Error(t, rtErr)
+	assert.True(t, IsOAuthDeclined(rtErr),
+		"declined managed approval must surface as IsOAuthDeclined; got: %v", rtErr)
+
+	var declined *OAuthDeclinedError
+	require.ErrorAs(t, rtErr, &declined)
+	assert.Equal(t, srv.URL, declined.URL)
+
+	assert.Equal(t, int32(0), srv.tokenCalls.Load(),
+		"token endpoint must NOT be hit when the user declined")
+}
+
+// TestManagedOAuthFlow_TimesOutWhenNoReplyArrives ensures the managed flow
+// is bounded by oauthInteractiveWaitTimeout when the elicitation never
+// returns. The flow runs on the detached Connect ctx (WithoutCancel), so
+// without the deadline the per-session streaming lock would be held
+// forever, turning every subsequent message into 409 / ErrSessionBusy.
+func TestManagedOAuthFlow_TimesOutWhenNoReplyArrives(t *testing.T) {
+	original := oauthInteractiveWaitTimeout
+	oauthInteractiveWaitTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { oauthInteractiveWaitTimeout = original })
+
+	srv := newUnmanagedOAuthTestServer(t)
+	defer srv.Close()
+
+	capture := &elicitCaptured{}
+	transport, client := newManagedTestTransport(t, srv.URL, capture)
+	// Replace the handler with one that blocks until its context is
+	// cancelled, mirroring LocalRuntime.elicitationHandler waiting on a
+	// reply that never arrives (silent client disconnect). The managed
+	// flow calls requestElicitation synchronously, so the only thing that
+	// can unblock it is oauthInteractiveWaitTimeout cancelling waitCtx.
+	client.SetElicitationHandler(func(ctx context.Context, _ *gomcp.ElicitParams) (tools.ElicitationResult, error) {
+		<-ctx.Done()
+		return tools.ElicitationResult{}, ctx.Err()
+	})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL, strings.NewReader("{}"))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, rtErr := transport.RoundTrip(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	require.Error(t, rtErr)
+	assert.Contains(t, rtErr.Error(), "context deadline exceeded",
+		"managed flow must abort on oauthInteractiveWaitTimeout; got: %v", rtErr)
 	assert.Equal(t, int32(0), srv.tokenCalls.Load(),
 		"token endpoint must NOT be hit on timeout")
 }

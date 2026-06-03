@@ -27,13 +27,13 @@ import (
 // resourceMetadataFromWWWAuth extracts resource metadata URL from WWW-Authenticate header
 var re = regexp.MustCompile(`resource="([^"]+)"`)
 
-// unmanagedOAuthWaitTimeout is the upper bound on how long the unmanaged
-// OAuth flow blocks waiting for a reply (elicitation result or
-// out-of-band callback). Generous enough to accommodate a user clicking
-// through an IdP consent screen and any IdP-side prompts; small enough
-// that a silently-disconnected MCP client can't hold the per-session
-// streaming lock indefinitely.
-var unmanagedOAuthWaitTimeout = 10 * time.Minute
+// oauthInteractiveWaitTimeout is the upper bound on how long an interactive
+// OAuth flow (managed or unmanaged) blocks waiting for a reply (elicitation
+// result, browser callback, or out-of-band callback). Generous enough to
+// accommodate a user clicking through an IdP consent screen and any IdP-side
+// prompts; small enough that a silently-disconnected MCP client can't hold
+// the per-session streaming lock indefinitely.
+var oauthInteractiveWaitTimeout = 10 * time.Minute
 
 // oauth is a simple struct for compatibility with existing code
 type oauth struct {
@@ -843,7 +843,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	// ErrSessionBusy. We also wire up user-initiated cancellation, which
 	// arrives via the original caller's ctx stashed at the Connect
 	// boundary (see cancellable_parent.go). Mirrors handleUnmanagedOAuthFlow.
-	waitCtx, cancelWait := context.WithTimeout(ctx, unmanagedOAuthWaitTimeout)
+	waitCtx, cancelWait := context.WithTimeout(ctx, oauthInteractiveWaitTimeout)
 	defer cancelWait()
 	if parentCtx := cancellableParentFromContext(ctx); parentCtx != nil {
 		defer context.AfterFunc(parentCtx, cancelWait)()
@@ -1105,14 +1105,14 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	// `requestElicitation` blocked forever, holding the per-session
 	// streaming lock at the SessionManager level. Subsequent user
 	// messages would then all return 409 / ErrSessionBusy until a
-	// process restart. unmanagedOAuthWaitTimeout caps that window;
+	// process restart. oauthInteractiveWaitTimeout caps that window;
 	// user-initiated cancellation still wins instantly via userCancelCh.
 	type elicResult struct {
 		result tools.ElicitationResult
 		err    error
 	}
 	elicCh := make(chan elicResult, 1)
-	elicCtx, elicCancel := context.WithTimeout(ctx, unmanagedOAuthWaitTimeout)
+	elicCtx, elicCancel := context.WithTimeout(ctx, oauthInteractiveWaitTimeout)
 	defer elicCancel()
 	go func() {
 		r, e := t.client.requestElicitation(elicCtx, &mcpsdk.ElicitParams{
@@ -1170,7 +1170,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 		// lock from being held indefinitely. In practice the elicCh
 		// case below usually fires first with a deadline-exceeded
 		// error wrapped from requestElicitation.
-		return fmt.Errorf("OAuth flow timed out waiting for a reply after %s", unmanagedOAuthWaitTimeout)
+		return fmt.Errorf("OAuth flow timed out waiting for a reply after %s", oauthInteractiveWaitTimeout)
 	case cb := <-callbackCh:
 		// Direct deeplink callback won. Release the in-flight
 		// elicitation goroutine; any UI the embedder showed for this
