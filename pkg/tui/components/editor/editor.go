@@ -141,6 +141,9 @@ type editor struct {
 	pasteCounter int
 	// recording tracks whether the editor is in recording mode (speech-to-text)
 	recording bool
+	// placeholder is the configured empty-editor placeholder, restored when
+	// transient placeholders (e.g. recording mode) end.
+	placeholder string
 	// recordingDotPhase tracks the animation phase for the recording dots cursor
 	recordingDotPhase int
 
@@ -177,9 +180,14 @@ func WithReadOnly() Option {
 	}
 }
 
+// defaultPlaceholder is shown in an empty editor unless WithPlaceholder
+// overrides it.
+const defaultPlaceholder = "Type your message here…"
+
 // WithPlaceholder sets the editor's placeholder text (shown while empty).
 func WithPlaceholder(placeholder string) Option {
 	return func(e *editor) {
+		e.placeholder = placeholder
 		e.textarea.Placeholder = placeholder
 	}
 }
@@ -188,7 +196,7 @@ func WithPlaceholder(placeholder string) Option {
 func New(hist *history.History, opts ...Option) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
-	ta.Placeholder = "Type your message here…"
+	ta.Placeholder = defaultPlaceholder
 	ta.Prompt = ""
 	ta.CharLimit = -1
 	ta.SetWidth(50)
@@ -212,6 +220,7 @@ func New(hist *history.History, opts ...Option) Editor {
 		textarea:                      ta,
 		searchInput:                   si,
 		hist:                          hist,
+		placeholder:                   defaultPlaceholder,
 		keyboardEnhancementsSupported: termfeatures.SupportsModifiedEnter(os.Getenv),
 		banner:                        newAttachmentBanner(),
 	}
@@ -1478,7 +1487,7 @@ func (e *editor) SetRecording(recording bool) tea.Cmd {
 		e.textarea.Placeholder = "🎤 Listening"
 		return e.tickRecordingDots()
 	}
-	e.textarea.Placeholder = "Type your message here…"
+	e.textarea.Placeholder = e.placeholder
 	return nil
 }
 
