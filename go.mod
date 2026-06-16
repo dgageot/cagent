@@ -1,6 +1,6 @@
 module github.com/docker/docker-agent
 
-go 1.26.3
+go 1.26.4
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -56,7 +56,7 @@ require (
 	github.com/openai/openai-go/v3 v3.39.0
 	github.com/pb33f/libopenapi v0.38.1
 	github.com/rivo/uniseg v0.4.7
-	github.com/rumpl/harness v0.0.0-20260519225334-1d956be4fff1
+	github.com/rumpl/harness v0.0.0-20260612213434-3f63cb8efc05
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
