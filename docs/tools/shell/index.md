@@ -26,6 +26,7 @@ toolsets:
 | Property       | Type    | Description                                                                                          |
 | -------------- | ------- | --------------------------------------------------------------------------------------------------- |
 | `env`          | object  | Environment variables to set for all shell commands                                                 |
+| `safer`        | boolean | Detect known destructive shell commands and always ask for confirmation with a blast-radius warning. Default `false`. |
 | `sudo_askpass` | boolean | Opt in to prompting for a `sudo` password (see [Sudo support](#sudo-support)). Default `false`.     |
 
 ### Custom Environment Variables
@@ -37,6 +38,22 @@ toolsets:
       MY_VAR: "value"
       PATH: "${PATH}:/custom/bin"
 ```
+
+### Safer mode
+
+Set `safer: true` to enable destructive command detection for the `shell` tool:
+
+```yaml
+toolsets:
+  - type: shell
+    safer: true
+```
+
+When enabled, docker-agent checks each `shell` tool call before the normal approval flow. The runtime always asks for explicit user approval, even when `--yolo` or permissions would otherwise auto-approve it. If the command matches a known destructive operation, the confirmation uses the taxonomy's blast-radius level; otherwise it still warns with an `unknown` blast radius.
+
+See [`examples/shell_safer.yaml`](https://github.com/docker/docker-agent/blob/main/examples/shell_safer.yaml) for a complete example.
+
+Current destructive command patterns are loaded from docker-agent's embedded `safety_patterns.json` taxonomy. The list covers filesystem deletion/overwrite commands, Docker cleanup commands, and selected out-of-scope-but-common destructive commands such as Git history rewrites. Each match carries a blast-radius level (`low`, `medium`, `high`, or `unknown`).
 
 ### Sudo support
 

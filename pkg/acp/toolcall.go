@@ -67,11 +67,18 @@ func buildToolCallComplete(arguments string, event *runtime.ToolCallResponseEven
 }
 
 // buildToolCallUpdate creates a tool call update for permission requests.
-func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, status acp.ToolCallStatus) acp.ToolCallUpdate {
+func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, safety *tools.ToolCallSafety, status acp.ToolCallStatus) acp.ToolCallUpdate {
 	kind := acp.ToolKindExecute
 	title := cmp.Or(tool.Annotations.Title, toolCall.Function.Name)
 
-	if tool.Annotations.ReadOnlyHint {
+	if safety != nil && safety.Destructive {
+		kind = acp.ToolKindDelete
+		level := safety.BlastRadius
+		if level == "" {
+			level = tools.BlastRadiusUnknown
+		}
+		title = fmt.Sprintf("Destructive tool: %s (blast radius: %s)", title, level)
+	} else if tool.Annotations.ReadOnlyHint {
 		kind = acp.ToolKindRead
 	}
 

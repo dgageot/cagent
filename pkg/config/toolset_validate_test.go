@@ -200,6 +200,67 @@ agents:
 	}
 }
 
+func TestToolset_Validate_Safer(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
+		{
+			name: "safer on shell is allowed",
+			config: `
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: shell
+        safer: true
+`,
+		},
+		{
+			name: "safer false on shell is allowed",
+			config: `
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: shell
+        safer: false
+`,
+		},
+		{
+			name: "safer on non-shell toolset is rejected",
+			config: `
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: filesystem
+        safer: true
+`,
+			wantErr: "safer can only be used with type 'shell'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var cfg latest.Config
+			err := yaml.Unmarshal([]byte(tt.config), &cfg)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestToolset_Validate_MCP_WorkingDir(t *testing.T) {
 	t.Parallel()
 

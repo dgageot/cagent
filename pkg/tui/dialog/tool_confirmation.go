@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tui/components/messages"
 	"github.com/docker/docker-agent/pkg/tui/components/toolconfirm"
 	"github.com/docker/docker-agent/pkg/tui/core"
@@ -53,6 +54,40 @@ func (d *toolConfirmationDialog) dialogDimensions() (dialogWidth, contentWidth i
 	return dialogWidth, contentWidth
 }
 
+func renderBlastRadiusLevel(level tools.BlastRadiusLevel) string {
+	return blastRadiusLevelStyle(level).Render(string(level))
+}
+
+func blastRadiusLevelStyle(level tools.BlastRadiusLevel) lipgloss.Style {
+	switch level {
+	case tools.BlastRadiusLow:
+		return lipgloss.NewStyle().Foreground(styles.Success).Bold(true)
+	case tools.BlastRadiusMedium:
+		return lipgloss.NewStyle().Foreground(styles.Warning).Bold(true)
+	case tools.BlastRadiusHigh:
+		return lipgloss.NewStyle().Foreground(styles.Error).Bold(true)
+	default:
+		return lipgloss.NewStyle().Foreground(styles.TextSecondary).Bold(true)
+	}
+}
+
+func renderConfirmationTitle(safety *tools.ToolCallSafety, contentWidth int) string {
+	style := styles.DialogTitleStyle.Width(contentWidth)
+	if safety != nil && safety.Destructive {
+		style = style.Foreground(styles.Warning)
+	}
+	return style.Render(toolconfirm.Title(safety))
+}
+
+func renderConfirmationQuestion(safety *tools.ToolCallSafety, contentWidth int) string {
+	if safety == nil || !safety.Destructive {
+		return styles.DialogQuestionStyle.Width(contentWidth).Render(toolconfirm.Question(safety))
+	}
+	level := renderBlastRadiusLevel(toolconfirm.BlastRadiusLevel(safety))
+	question := "This is a destructive tool call with blast radius level: " + level + ". Do you want to allow it?"
+	return styles.DialogQuestionStyle.Width(contentWidth).Render(question)
+}
+
 // SetSize implements [Dialog].
 func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	d.BaseDialog.SetSize(width, height)
@@ -62,14 +97,13 @@ func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	maxDialogHeight := height * toolConfirmDialogHeightPercent / 100
 
 	// Measure fixed UI elements using the same rendering as View()
-	titleStyle := styles.DialogTitleStyle.Width(contentWidth)
-	title := titleStyle.Render(toolconfirm.Title)
+	title := renderConfirmationTitle(d.msg.Safety, contentWidth)
 	titleHeight := lipgloss.Height(title)
 
 	separator := d.renderSeparator(contentWidth)
 	separatorHeight := lipgloss.Height(separator)
 
-	question := styles.DialogQuestionStyle.Width(contentWidth).Render(toolconfirm.Question)
+	question := renderConfirmationQuestion(d.msg.Safety, contentWidth)
 	questionHeight := lipgloss.Height(question)
 
 	options := d.renderOptions(contentWidth)
@@ -234,8 +268,7 @@ func (d *toolConfirmationDialog) View() string {
 
 	dialogStyle := styles.DialogStyle.Width(dialogWidth)
 
-	titleStyle := styles.DialogTitleStyle.Width(contentWidth)
-	title := titleStyle.Render(toolconfirm.Title)
+	title := renderConfirmationTitle(d.msg.Safety, contentWidth)
 
 	// Separator
 	separator := d.renderSeparator(contentWidth)
@@ -251,7 +284,7 @@ func (d *toolConfirmationDialog) View() string {
 	}
 
 	// Confirmation prompt
-	question := styles.DialogQuestionStyle.Width(contentWidth).Render(toolconfirm.Question)
+	question := renderConfirmationQuestion(d.msg.Safety, contentWidth)
 	options := d.renderOptions(contentWidth)
 
 	parts = append(parts, "", question, "", options)

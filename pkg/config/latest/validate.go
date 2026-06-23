@@ -226,6 +226,9 @@ func (t *Toolset) validate() error {
 	if t.AllowPrivateIPsEnabled() && t.Type != "fetch" && t.Type != "mcp" && t.Type != "api" && t.Type != "openapi" && t.Type != "a2a" {
 		return errors.New("allow_private_ips can only be used with type 'fetch', 'api', 'openapi', 'a2a' or remote MCP toolsets")
 	}
+	if t.Safer != nil && t.Type != "shell" {
+		return errors.New("safer can only be used with type 'shell'")
+	}
 	if t.SudoAskpass != nil && t.Type != "shell" {
 		return errors.New("sudo_askpass can only be used with type 'shell'")
 	}

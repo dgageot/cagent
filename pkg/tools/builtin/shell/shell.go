@@ -54,6 +54,7 @@ type shellHandler struct {
 	env             []string
 	timeout         time.Duration
 	workingDir      string
+	safer           bool
 	jobs            *concurrent.Map[string, *backgroundJob]
 	jobCounter      atomic.Int64
 
@@ -144,6 +145,29 @@ type RunShellArgs struct {
 	Cmd     string `json:"cmd" jsonschema:"Shell command"`
 	Cwd     string `json:"cwd,omitempty" jsonschema:"Working directory (default \".\")"`
 	Timeout int    `json:"timeout,omitempty" jsonschema:"Timeout in seconds (default 30)"`
+}
+
+func (h *shellHandler) ValidateShellToolCall(toolCall tools.ToolCall) *tools.ToolCallSafety {
+	if !h.safer || toolCall.Function.Name != ToolNameShell {
+		return nil
+	}
+
+	var params RunShellArgs
+	args := toolCall.Function.Arguments
+	if args == "" {
+		args = "{}"
+	}
+	if err := json.Unmarshal([]byte(args), &params); err != nil {
+		return nil
+	}
+	if safety := assessDestructiveShellCommand(params.Cmd); safety != nil {
+		return safety
+	}
+	return &tools.ToolCallSafety{
+		Destructive: true,
+		BlastRadius: tools.BlastRadiusUnknown,
+		Reason:      "Shell command requires safer-mode confirmation.",
+	}
 }
 
 // UnmarshalJSON accepts both the canonical "cmd" key and the common alias
@@ -521,6 +545,9 @@ func CreateToolSet(ctx context.Context, toolset latest.Toolset, runConfig *confi
 	env = append(env, os.Environ()...)
 
 	ts := New(env, runConfig)
+	if toolset.Safer != nil && *toolset.Safer {
+		ts.handler.safer = true
+	}
 	if toolset.SudoAskpass != nil && *toolset.SudoAskpass {
 		ts.handler.sudoAskpass = true
 	}
@@ -602,6 +629,7 @@ func (t *ToolSet) Tools(context.Context) ([]tools.Tool, error) {
 			Parameters:              tools.MustSchemaFor[RunShellArgs](),
 			OutputSchema:            tools.MustSchemaFor[string](),
 			Handler:                 tools.NewHandler(t.handler.RunShell),
+			SafetyValidator:         t.handler.ValidateShellToolCall,
 			Annotations:             tools.ToolAnnotations{Title: "Shell"},
 			AddDescriptionParameter: true,
 		},

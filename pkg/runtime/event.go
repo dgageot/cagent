@@ -108,16 +108,18 @@ func ToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName stri
 type ToolCallConfirmationEvent struct {
 	AgentContext
 
-	Type           string         `json:"type"`
-	ToolCall       tools.ToolCall `json:"tool_call"`
-	ToolDefinition tools.Tool     `json:"tool_definition"`
+	Type           string                `json:"type"`
+	ToolCall       tools.ToolCall        `json:"tool_call"`
+	ToolDefinition tools.Tool            `json:"tool_definition"`
+	Safety         *tools.ToolCallSafety `json:"safety,omitempty"`
 }
 
-func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
+func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, safety *tools.ToolCallSafety, agentName string) Event {
 	return &ToolCallConfirmationEvent{
 		Type:           "tool_call_confirmation",
 		ToolCall:       toolCall,
 		ToolDefinition: toolDefinition,
+		Safety:         safety,
 		AgentContext:   newAgentContext(agentName),
 	}
 }

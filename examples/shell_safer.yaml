@@ -1,0 +1,10 @@
+agents:
+  root:
+    model: anthropic/claude-haiku-4-5
+    description: Shell agent with safer mode; enable snapshots in user config
+    welcome_message: |
+      Shell safer mode is enabled. To capture snapshots for /undo, enable `settings.snapshot: true` in ~/.config/cagent/config.yaml.
+    instruction: Use the shell tool to run the command the user asks for.
+    toolsets:
+      - type: shell
+        safer: true

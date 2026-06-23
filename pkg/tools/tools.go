@@ -180,9 +180,30 @@ type Tool struct {
 	OutputSchema            any             `json:"outputSchema"`
 	Handler                 ToolHandler     `json:"-"`
 	AddDescriptionParameter bool            `json:"-"`
+	// SafetyValidator inspects a concrete tool call just before the approval
+	// pipeline. When it reports a destructive call, the runtime must ask the
+	// user even if permissions or --yolo would otherwise auto-approve it.
+	SafetyValidator ToolCallSafetyValidator `json:"-"`
 	// ModelOverride is the per-toolset model for the LLM turn that processes
 	// this tool's results. Set automatically from the toolset "model" field.
 	ModelOverride string `json:"-"`
 }
 
 type ToolAnnotations mcp.ToolAnnotations
+
+type BlastRadiusLevel string
+
+const (
+	BlastRadiusLow     BlastRadiusLevel = "low"
+	BlastRadiusMedium  BlastRadiusLevel = "medium"
+	BlastRadiusHigh    BlastRadiusLevel = "high"
+	BlastRadiusUnknown BlastRadiusLevel = "unknown"
+)
+
+type ToolCallSafety struct {
+	Destructive bool             `json:"destructive,omitempty"`
+	BlastRadius BlastRadiusLevel `json:"blast_radius,omitempty"`
+	Reason      string           `json:"reason,omitempty"`
+}
+
+type ToolCallSafetyValidator func(toolCall ToolCall) *ToolCallSafety

@@ -164,7 +164,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 			case *runtime.AgentChoiceReasoningEvent:
 				out.Print(e.Content)
 			case *runtime.ToolCallConfirmationEvent:
-				result := out.PrintToolCallWithConfirmation(ctx, e.ToolCall, rd)
+				result := out.PrintToolCallWithConfirmation(ctx, e.ToolCall, e.Safety, rd)
 				// If interrupted, skip resuming; the runtime will notice context cancellation and stop
 				if ctx.Err() != nil {
 					continue

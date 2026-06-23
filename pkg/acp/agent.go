@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/teamloader"
 	loaderdefaults "github.com/docker/docker-agent/pkg/teamloader/defaults"
+	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/version"
 )
 
@@ -707,28 +708,12 @@ func (a *Agent) runAgent(ctx context.Context, acpSess *Session) error {
 
 // handleToolCallConfirmation handles tool call permission requests.
 func (a *Agent) handleToolCallConfirmation(ctx context.Context, acpSess *Session, e *runtime.ToolCallConfirmationEvent) error {
-	toolCallUpdate := buildToolCallUpdate(e.ToolCall, e.ToolDefinition, acp.ToolCallStatusPending)
+	toolCallUpdate := buildToolCallUpdate(e.ToolCall, e.ToolDefinition, e.Safety, acp.ToolCallStatusPending)
 
 	permResp, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{
 		SessionId: acp.SessionId(acpSess.id),
 		ToolCall:  toolCallUpdate,
-		Options: []acp.PermissionOption{
-			{
-				Kind:     acp.PermissionOptionKindAllowOnce,
-				Name:     "Allow this action",
-				OptionId: "allow",
-			},
-			{
-				Kind:     acp.PermissionOptionKindAllowAlways,
-				Name:     "Allow and remember my choice",
-				OptionId: "allow-always",
-			},
-			{
-				Kind:     acp.PermissionOptionKindRejectOnce,
-				Name:     "Skip this action",
-				OptionId: "reject",
-			},
-		},
+		Options:   permissionOptions(e.Safety),
 	})
 	if err != nil {
 		return err
@@ -755,6 +740,34 @@ func (a *Agent) handleToolCallConfirmation(ctx context.Context, acpSess *Session
 	}
 
 	return nil
+}
+
+func permissionOptions(safety *tools.ToolCallSafety) []acp.PermissionOption {
+	allowName := "Allow this action"
+	if safety != nil && safety.Destructive {
+		level := safety.BlastRadius
+		if level == "" {
+			level = tools.BlastRadiusUnknown
+		}
+		allowName = fmt.Sprintf("Allow destructive tool (blast radius: %s)", level)
+	}
+	return []acp.PermissionOption{
+		{
+			Kind:     acp.PermissionOptionKindAllowOnce,
+			Name:     allowName,
+			OptionId: "allow",
+		},
+		{
+			Kind:     acp.PermissionOptionKindAllowAlways,
+			Name:     "Allow and remember my choice",
+			OptionId: "allow-always",
+		},
+		{
+			Kind:     acp.PermissionOptionKindRejectOnce,
+			Name:     "Skip this action",
+			OptionId: "reject",
+		},
+	}
 }
 
 // handleMaxIterationsReached handles max iterations events.

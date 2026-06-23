@@ -21,11 +21,30 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// User-facing strings of the confirmation prompt.
-const (
-	Title    = "Tool Confirmation"
-	Question = "Do you want to allow this tool call?"
-)
+const DestructiveWarningTitle = "WARNING: Destructrive Tool Confirmation"
+
+// Title returns the user-facing dialog title for this confirmation.
+func Title(safety *tools.ToolCallSafety) string {
+	if safety != nil && safety.Destructive {
+		return DestructiveWarningTitle
+	}
+	return "Tool Confirmation"
+}
+
+func BlastRadiusLevel(safety *tools.ToolCallSafety) tools.BlastRadiusLevel {
+	if safety == nil || safety.BlastRadius == "" {
+		return tools.BlastRadiusUnknown
+	}
+	return safety.BlastRadius
+}
+
+// Question returns the user-facing confirmation question.
+func Question(safety *tools.ToolCallSafety) string {
+	if safety == nil || !safety.Destructive {
+		return "Do you want to allow this tool call?"
+	}
+	return "This is a destructive tool call with blast radius level: " + string(BlastRadiusLevel(safety)) + ". Do you want to allow it?"
+}
 
 // Decision is the user's answer to a tool confirmation.
 type Decision int

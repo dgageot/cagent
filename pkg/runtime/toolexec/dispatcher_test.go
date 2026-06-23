@@ -61,7 +61,7 @@ func (e *captureEmitter) EmitToolCallResponse(toolCallID string, _ tools.Tool, r
 	})
 }
 
-func (e *captureEmitter) EmitToolCallConfirmation(tc tools.ToolCall, _ tools.Tool, _ string) {
+func (e *captureEmitter) EmitToolCallConfirmation(tc tools.ToolCall, _ tools.Tool, _ *tools.ToolCallSafety, _ string) {
 	e.confirmations = append(e.confirmations, tc)
 	if e.confirmed != nil {
 		select {
@@ -435,6 +435,41 @@ func TestDispatcher_DenyByPermissionsEmitsErrorResponse(t *testing.T) {
 	require.Len(t, em.responses, 1)
 	assert.True(t, em.responses[0].IsError)
 	assert.Contains(t, em.responses[0].Output, "denied by test policy")
+}
+
+func TestDispatcher_SafetyValidatorForcesPromptDespiteYolo(t *testing.T) {
+	a := newAgent()
+	sess := session.New()
+	sess.ToolsApproved = true
+
+	tool := tools.Tool{
+		Name: "shell",
+		SafetyValidator: func(tools.ToolCall) *tools.ToolCallSafety {
+			return &tools.ToolCallSafety{Destructive: true, BlastRadius: tools.BlastRadiusHigh}
+		},
+		Handler: func(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
+			panic("must not run before approval")
+		},
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	d := &toolexec.Dispatcher{AgentFor: func(*session.Session) *agent.Agent { return a }}
+	em := &captureEmitter{confirmed: make(chan struct{})}
+	go func() {
+		<-em.confirmed
+		cancel()
+	}()
+
+	d.Process(ctx, sess, []tools.ToolCall{{
+		ID:       "danger",
+		Function: tools.FunctionCall{Name: "shell", Arguments: `{"cmd":"rm -rf /tmp/x"}`},
+	}}, []tools.Tool{tool}, em)
+
+	require.Len(t, em.confirmations, 1)
+	require.Len(t, em.responses, 1)
+	assert.True(t, em.responses[0].IsError)
+	assert.Contains(t, em.responses[0].Output, "canceled by the user")
 }
 
 // TestDispatcher_ToolResponseTransformRewritesOutput pins the contract

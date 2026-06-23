@@ -15,7 +15,7 @@ Built-in tools are included with docker-agent and require no external dependenci
 | Type | Description | Page |
 | --- | --- | --- |
 | `filesystem` | Read, write, list, search, navigate | [Filesystem]({{ '/tools/filesystem/' | relative_url }}) |
-| `shell` | Execute shell commands (sync + background jobs) | [Shell]({{ '/tools/shell/' | relative_url }}) |
+| `shell` | Execute shell commands (sync + background jobs). Supports `safer: true` to force confirmation for known destructive commands. | [Shell]({{ '/tools/shell/' | relative_url }}) |
 | `think` | Reasoning scratchpad | [Think]({{ '/tools/think/' | relative_url }}) |
 | `todo` | Task list management | [Todo]({{ '/tools/todo/' | relative_url }}) |
 | `tasks` | Persistent task database shared across sessions | [Tasks]({{ '/tools/tasks/' | relative_url }}) |
@@ -40,6 +40,7 @@ Built-in tools are included with docker-agent and require no external dependenci
 toolsets:
   - type: filesystem
   - type: shell
+    safer: true
   - type: think
   - type: todo
   - type: memory

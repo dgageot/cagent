@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/input"
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tui/components/toolconfirm"
 )
 
 // ConfirmationResult represents the result of a user confirmation prompt
@@ -80,9 +81,35 @@ func (p *Printer) PrintToolCall(toolCall tools.ToolCall) {
 	p.Printf("\nCalling %s%s\n", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments))
 }
 
+func destructiveWarningPrinter() *color.Color {
+	return color.New(color.FgHiYellow, color.Bold)
+}
+
+func blastRadiusPrinter(level tools.BlastRadiusLevel) *color.Color {
+	switch level {
+	case tools.BlastRadiusLow:
+		return color.New(color.FgGreen, color.Bold)
+	case tools.BlastRadiusMedium:
+		return color.New(color.FgYellow, color.Bold)
+	case tools.BlastRadiusHigh:
+		return color.New(color.FgRed, color.Bold)
+	default:
+		return color.New(color.FgWhite, color.Bold)
+	}
+}
+
 // PrintToolCallWithConfirmation prints a tool call and prompts for confirmation
-func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
-	p.Printf("\n%s\n", bold("🛠️ Tool call requires confirmation 🛠️"))
+func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, safety *tools.ToolCallSafety, rd io.Reader) ConfirmationResult {
+	if safety != nil && safety.Destructive {
+		level := safety.BlastRadius
+		if level == "" {
+			level = tools.BlastRadiusUnknown
+		}
+		p.Printf("\n%s\n", destructiveWarningPrinter().Sprint(toolconfirm.DestructiveWarningTitle))
+		p.Printf("Blast radius level: %s\n", blastRadiusPrinter(level).Sprint(string(level)))
+	} else {
+		p.Printf("\n%s\n", bold("🛠️ Tool call requires confirmation 🛠️"))
+	}
 	p.PrintToolCall(toolCall)
 	p.Printf("\n%s", bold("Can I run this tool? ([y]es/[a]ll/[n]o): "))
 

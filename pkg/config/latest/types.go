@@ -1110,6 +1110,12 @@ type Toolset struct {
 	// nil means the field was omitted and may inherit from a referenced definition.
 	AllowPrivateIPs *bool `json:"allow_private_ips,omitempty" yaml:"allow_private_ips,omitempty"`
 
+	// For the `shell` toolset — enable destructive command detection for the
+	// shell tool. When a shell call matches a known destructive command, the
+	// runtime always asks the user and includes the blast-radius level in the
+	// confirmation, regardless of permissions or --yolo.
+	Safer *bool `json:"safer,omitempty" yaml:"safer,omitempty"`
+
 	// For the `shell` toolset — opt in to a sudo privilege escalation flow.
 	// When enabled, sudo commands prompt the user for their password (masked)
 	// through the host UI via SUDO_ASKPASS; in non-interactive runs the prompt

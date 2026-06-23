@@ -65,6 +65,7 @@ Examples that wire up one of the toolsets shipped with docker-agent
 | File | What it shows |
 |------|---------------|
 | [`shell.yaml`](shell.yaml) | Plain `shell` toolset. |
+| [`shell_safer.yaml`](shell_safer.yaml) | Shell toolset with `safer: true`, forcing confirmation for known destructive commands. |
 | [`filesystem.yaml`](filesystem.yaml) | Plain `filesystem` toolset. |
 | [`filesystem_allow_deny.yaml`](filesystem_allow_deny.yaml) | Restricting the filesystem tool with allow/deny path lists. |
 | [`script_shell.yaml`](script_shell.yaml) | Defining custom shell commands as named tools via `type: script`. |
@@ -210,6 +211,7 @@ remote MCP endpoints.
 | File | What it shows |
 |------|---------------|
 | [`permissions.yaml`](permissions.yaml) | Top-level `permissions` block with `allow`/`deny` patterns for tool calls. |
+| [`shell_safer.yaml`](shell_safer.yaml) | Shell `safer: true` mode that always asks before known destructive commands and shows blast radius. |
 | [`llm_judge.yaml`](llm_judge.yaml) | Layered defense: deterministic permissions + an LLM-as-judge `pre_tool_use` hook + user prompts. |
 | [`redact_secrets.yaml`](redact_secrets.yaml) | Single-flag (`redact_secrets: true`) scrubbing of detected secrets in args, chat content, and tool output. |
 | [`redact_secrets_hooks.yaml`](redact_secrets_hooks.yaml) | The same scrubbing wired manually as three hooks. |

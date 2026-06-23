@@ -1,0 +1,112 @@
+{
+  "version": "0.1",
+  "description": "Seed destructive-command taxonomy for the Gordon safety spike. Each entry pairs a command shape with a blast_radius tier and a category tag. Consumed by the L2 classifier (Phase 2). See linked-doodling-brooks.md Appendix A for full context.",
+  "blast_radius_legend": {
+    "HIGH": "Force L3 approval gate; irreversible data loss",
+    "MEDIUM": "Surface warning in the response stream; not gated",
+    "LOW": "Pass through unchanged",
+    "UNKNOWN": "Default to MEDIUM until compound-command parsing or wrapper recursion resolves"
+  },
+  "filesystem": [
+    { "pattern": "rm -rf <path>",                "blast_radius": "HIGH",        "category": "fs-delete",        "notes": "recursive + force; irreversible" },
+    { "pattern": "rm -r <path>",                 "blast_radius": "HIGH",        "category": "fs-delete",        "notes": "recursive; aborts only on tty interrupt" },
+    { "pattern": "rm -R <path>",                 "blast_radius": "HIGH",        "category": "fs-delete",        "notes": "alias of -r" },
+    { "pattern": "rm -f <single-file>",          "blast_radius": "MEDIUM",      "category": "fs-delete",        "notes": "force suppresses warning; ok for tmp" },
+    { "pattern": "rm <single-file>",             "blast_radius": "LOW",         "category": "fs-delete",        "notes": "prompts on tty" },
+    { "pattern": "rmdir <path>",                 "blast_radius": "LOW",         "category": "fs-delete",        "notes": "empty-dir only" },
+    { "pattern": "find <path> -delete",          "blast_radius": "HIGH",        "category": "fs-delete",        "notes": "recursive selective delete" },
+    { "pattern": "find <path> -exec rm {} \\;",  "blast_radius": "HIGH",        "category": "fs-delete",        "notes": "recursive selective delete via exec" },
+    { "pattern": "shred <file>",                 "blast_radius": "HIGH",        "category": "fs-secure-delete", "notes": "non-recoverable by design" },
+    { "pattern": "shred -u <file>",              "blast_radius": "HIGH",        "category": "fs-secure-delete", "notes": "overwrite + unlink" },
+    { "pattern": "dd if=/dev/zero of=<file>",    "blast_radius": "HIGH",        "category": "fs-overwrite",     "notes": "zeroes file content" },
+    { "pattern": "dd if=... of=/dev/<disk>",     "blast_radius": "HIGH",        "category": "block-device",     "notes": "wipes whole disk" },
+    { "pattern": "mkfs.<fs> <device>",           "blast_radius": "HIGH",        "category": "block-device",     "notes": "formats partition" },
+    { "pattern": "mkfs -t <fs> <device>",        "blast_radius": "HIGH",        "category": "block-device",     "notes": "alt invocation of mkfs" },
+    { "pattern": "wipefs <device>",              "blast_radius": "HIGH",        "category": "block-device",     "notes": "clears filesystem signatures" },
+    { "pattern": "> <file>",                     "blast_radius": "MEDIUM",      "category": "fs-overwrite",     "notes": "shell truncate redirect; easy to miss" },
+    { "pattern": "truncate -s 0 <file>",         "blast_radius": "MEDIUM",      "category": "fs-overwrite",     "notes": "explicit zero-length" },
+    { "pattern": "mv -f <src> <existing-dst>",   "blast_radius": "MEDIUM",      "category": "fs-modify",        "notes": "force overwrites dst" },
+    { "pattern": "mv <src> <existing-dst>",      "blast_radius": "MEDIUM",      "category": "fs-modify",        "notes": "overwrites without prompt on non-tty" },
+    { "pattern": "cp -f <src> <existing-dst>",   "blast_radius": "MEDIUM",      "category": "fs-modify",        "notes": "force overwrite" },
+    { "pattern": "cp -rf <src> <existing-dst>",  "blast_radius": "MEDIUM-HIGH", "category": "fs-modify",        "notes": "recursive force overwrite" },
+    { "pattern": "rsync --delete <src> <dst>",   "blast_radius": "HIGH",        "category": "fs-modify",        "notes": "deletes from dst what's missing in src" },
+    { "pattern": "ln -sf <target> <existing>",   "blast_radius": "LOW-MEDIUM",  "category": "fs-modify",        "notes": "replaces existing file/symlink" },
+    { "pattern": "chmod -R 000 <path>",          "blast_radius": "MEDIUM",      "category": "fs-permissions",   "notes": "recursive lockout" },
+    { "pattern": "chown -R <user> <path>",       "blast_radius": "MEDIUM",      "category": "fs-permissions",   "notes": "recursive ownership change" },
+    { "pattern": "chmod -R 777 <path>",          "blast_radius": "LOW",         "category": "fs-permissions",   "notes": "security regression, reversible" }
+  ],
+  "docker": [
+    { "pattern": "docker volume rm <name>",                                "blast_radius": "HIGH",        "category": "dk-volume-del",    "notes": "irreversible data loss" },
+    { "pattern": "docker volume prune",                                    "blast_radius": "MEDIUM",      "category": "dk-volume-del",    "notes": "unused only; can surprise" },
+    { "pattern": "docker volume prune -f",                                 "blast_radius": "MEDIUM",      "category": "dk-volume-del",    "notes": "bypasses prompt" },
+    { "pattern": "docker volume prune --force",                            "blast_radius": "MEDIUM",      "category": "dk-volume-del",    "notes": "long-form of -f" },
+    { "pattern": "docker container rm <id>",                               "blast_radius": "MEDIUM",      "category": "dk-container-del", "notes": "container only, image preserved" },
+    { "pattern": "docker container rm -v <id>",                            "blast_radius": "HIGH",        "category": "dk-container-del", "notes": "also drops attached volumes" },
+    { "pattern": "docker rm -fv <id>",                                     "blast_radius": "HIGH",        "category": "dk-container-del", "notes": "force-kill + volumes" },
+    { "pattern": "docker rm -f -v <id>",                                   "blast_radius": "HIGH",        "category": "dk-container-del", "notes": "expanded form" },
+    { "pattern": "docker container prune",                                 "blast_radius": "LOW-MEDIUM",  "category": "dk-container-del", "notes": "stopped only" },
+    { "pattern": "docker image rm <id>",                                   "blast_radius": "LOW-MEDIUM",  "category": "dk-image-del",     "notes": "rebuildable; image cache loss" },
+    { "pattern": "docker rmi <id>",                                        "blast_radius": "LOW-MEDIUM",  "category": "dk-image-del",     "notes": "shorthand of image rm" },
+    { "pattern": "docker image prune",                                     "blast_radius": "LOW",         "category": "dk-image-del",     "notes": "dangling only by default" },
+    { "pattern": "docker image prune -a",                                  "blast_radius": "MEDIUM",      "category": "dk-image-del",     "notes": "all unused; high rebuild cost" },
+    { "pattern": "docker network rm <name>",                               "blast_radius": "LOW-MEDIUM",  "category": "dk-network-del",   "notes": "breaks running connectivity" },
+    { "pattern": "docker network prune",                                   "blast_radius": "LOW-MEDIUM",  "category": "dk-network-del",   "notes": "unused only" },
+    { "pattern": "docker system prune",                                    "blast_radius": "MEDIUM",      "category": "dk-multi-del",     "notes": "containers + images + networks, NO volumes" },
+    { "pattern": "docker system prune -a",                                 "blast_radius": "MEDIUM-HIGH", "category": "dk-multi-del",     "notes": "adds all unused images" },
+    { "pattern": "docker system prune --volumes",                          "blast_radius": "HIGH",        "category": "dk-multi-del",     "notes": "adds named-volume deletion" },
+    { "pattern": "docker system prune -af --volumes",                      "blast_radius": "HIGH",        "category": "dk-multi-del",     "notes": "the YOLO combination" },
+    { "pattern": "docker buildx prune",                                    "blast_radius": "MEDIUM",      "category": "dk-build-cache",   "notes": "rebuild cost only" },
+    { "pattern": "docker buildx prune --all",                              "blast_radius": "MEDIUM-HIGH", "category": "dk-build-cache",   "notes": "every cached layer" },
+    { "pattern": "docker compose down",                                    "blast_radius": "LOW-MEDIUM",  "category": "dk-compose",       "notes": "preserves named volumes" },
+    { "pattern": "docker compose down -v",                                 "blast_radius": "HIGH",        "category": "dk-compose",       "notes": "drops named volumes" },
+    { "pattern": "docker compose down --volumes",                          "blast_radius": "HIGH",        "category": "dk-compose",       "notes": "long form of -v" },
+    { "pattern": "docker compose down --volumes --remove-orphans",         "blast_radius": "HIGH",        "category": "dk-compose",       "notes": "aggressive cleanup" },
+    { "pattern": "docker compose rm -v <svc>",                             "blast_radius": "MEDIUM-HIGH", "category": "dk-compose",       "notes": "volume removal per service" },
+    { "pattern": "docker context rm <name>",                               "blast_radius": "LOW",         "category": "dk-context",       "notes": "reversible if endpoint known" },
+    { "pattern": "docker plugin rm <name>",                                "blast_radius": "MEDIUM",      "category": "dk-plugin",        "notes": "plugin state typically lost" },
+    { "pattern": "docker stop $(docker ps -q)",                            "blast_radius": "LOW-MEDIUM",  "category": "dk-runtime",       "notes": "stops but doesn't delete" },
+    { "pattern": "docker kill <id>",                                       "blast_radius": "LOW",         "category": "dk-runtime",       "notes": "abrupt stop, no data loss" },
+    { "pattern": "docker exec <ctr> rm -rf <bind-mount-path>",             "blast_radius": "HIGH",        "category": "dk-exec-host",     "notes": "filesystem op via bind mount hits host" },
+    { "pattern": "docker run --rm -v $(pwd):/x <img> rm -rf /x",           "blast_radius": "HIGH",        "category": "dk-bind-mount",    "notes": "host-bind YOLO pattern" },
+    { "pattern": "docker run --rm -v /:/host <img> <destructive>",         "blast_radius": "HIGH",        "category": "dk-bind-mount",    "notes": "mounts host root — almost always wrong" }
+  ],
+  "unknown_dynamic": [
+    { "pattern": "docker rm $(docker ps -aq)",            "blast_radius": "MEDIUM", "resolution_path": "unpack $(...) — if inner is list-all, escalate based on outer op" },
+    { "pattern": "xargs rm -rf < <file>",                 "blast_radius": "MEDIUM", "resolution_path": "if <file> is readable in the working dir, classify its contents" },
+    { "pattern": "rm -rf $VAR",                           "blast_radius": "MEDIUM", "resolution_path": "unresolvable; MEDIUM unless var bound to a known-safe literal in same compound" },
+    { "pattern": "find ... -exec <cmd> ...",              "blast_radius": "match-inner", "resolution_path": "classify the inner command pattern" }
+  ],
+  "out_of_scope_v1": {
+    "rationale": "Local Docker state is the spike's threat model. Add when Gordon grows these surfaces or when telemetry shows the gap matters.",
+    "sql": [
+      { "pattern": "DROP DATABASE <name>",                    "blast_radius": "HIGH", "category": "sql-ddl" },
+      { "pattern": "DROP TABLE <name>",                       "blast_radius": "HIGH", "category": "sql-ddl" },
+      { "pattern": "DROP SCHEMA <name> CASCADE",              "blast_radius": "HIGH", "category": "sql-ddl" },
+      { "pattern": "TRUNCATE TABLE <name>",                   "blast_radius": "HIGH", "category": "sql-dml" },
+      { "pattern": "DELETE FROM <table> (no WHERE)",          "blast_radius": "HIGH", "category": "sql-dml" },
+      { "pattern": "UPDATE <table> SET ... (no WHERE)",       "blast_radius": "HIGH", "category": "sql-dml" }
+    ],
+    "git": [
+      { "pattern": "git push --force",                        "blast_radius": "HIGH",        "category": "git-history" },
+      { "pattern": "git push --force-with-lease",             "blast_radius": "MEDIUM",      "category": "git-history" },
+      { "pattern": "git reset --hard",                        "blast_radius": "MEDIUM-HIGH", "category": "git-local" },
+      { "pattern": "git clean -fd",                           "blast_radius": "MEDIUM-HIGH", "category": "git-local" },
+      { "pattern": "git branch -D <branch>",                  "blast_radius": "MEDIUM",      "category": "git-local" },
+      { "pattern": "git filter-branch / git filter-repo",     "blast_radius": "HIGH",        "category": "git-history" },
+      { "pattern": "git stash drop / git stash clear",        "blast_radius": "LOW-MEDIUM",  "category": "git-local" }
+    ],
+    "cloud_apis": [
+      { "pattern": "gcloud projects delete <id>",             "blast_radius": "HIGH", "category": "cloud-gcp" },
+      { "pattern": "aws s3 rb s3://<bucket> --force",         "blast_radius": "HIGH", "category": "cloud-aws" },
+      { "pattern": "kubectl delete -A",                       "blast_radius": "HIGH", "category": "cloud-k8s" }
+    ],
+    "package_managers": [
+      { "pattern": "npm uninstall -g <pkg>",                  "blast_radius": "LOW-MEDIUM", "category": "pkg-mgr" },
+      { "pattern": "pip uninstall -y <pkg>",                  "blast_radius": "LOW-MEDIUM", "category": "pkg-mgr" }
+    ],
+    "remote_code_exec": [
+      { "pattern": "curl <url> | bash",                       "blast_radius": "MEDIUM-HIGH", "category": "remote-code-exec", "notes": "URL response can change between classification and execution; flag separately" },
+      { "pattern": "wget -qO- <url> | sh",                    "blast_radius": "MEDIUM-HIGH", "category": "remote-code-exec", "notes": "same TOCTOU concern as curl|bash" }
+    ]
+  }
+}

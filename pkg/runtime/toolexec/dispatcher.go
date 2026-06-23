@@ -74,7 +74,7 @@ type Emitter interface {
 	EmitToolCall(toolCall tools.ToolCall, tool tools.Tool, agentName string)
 	EmitToolCallOutput(toolCallID string, tool tools.Tool, output, agentName string)
 	EmitToolCallResponse(toolCallID string, tool tools.Tool, result *tools.ToolCallResult, output, agentName string)
-	EmitToolCallConfirmation(toolCall tools.ToolCall, tool tools.Tool, agentName string)
+	EmitToolCallConfirmation(toolCall tools.ToolCall, tool tools.Tool, safety *tools.ToolCallSafety, agentName string)
 	EmitHookBlocked(toolCall tools.ToolCall, tool tools.Tool, message, agentName string)
 	EmitMessageAdded(sessionID string, msg *session.Message, agentName string)
 }
@@ -332,6 +332,12 @@ func (c *call) approveAndRun(ctx context.Context, runTool func() CallOutcome) Ca
 		checkers = c.d.Permissions(c.sess)
 	}
 
+	// Forced asks from safety validators must bypass deterministic
+	// auto-approval paths such as --yolo and permission allow rules.
+	if safety := c.assessSafety(); safety != nil && safety.Destructive {
+		return c.askUser(ctx, runTool)
+	}
+
 	// readOnlyHint is intentionally false here so the pre_tool_use hook
 	// gets a turn before the read-only fast-path applies.
 	decision := Decide(
@@ -372,6 +378,13 @@ func (c *call) approveAndRun(ctx context.Context, runTool func() CallOutcome) Ca
 		return runTool()
 	}
 	return c.askUser(ctx, runTool)
+}
+
+func (c *call) assessSafety() *tools.ToolCallSafety {
+	if c.tool.SafetyValidator == nil {
+		return nil
+	}
+	return c.tool.SafetyValidator(c.tc)
 }
 
 // consultPreToolUseHook fires the pre_tool_use hook chain in the
@@ -506,12 +519,14 @@ func denySourceForChecker(checkerSource string) string {
 // with an explicit allow or deny verdict; returning nothing falls
 // through to the interactive confirmation.
 func (c *call) askUser(ctx context.Context, runTool func() CallOutcome) CallOutcome {
-	if outcome, handled := c.runPermissionRequestHook(ctx, runTool); handled {
-		return outcome
+	if safety := c.assessSafety(); safety == nil || !safety.Destructive {
+		if outcome, handled := c.runPermissionRequestHook(ctx, runTool); handled {
+			return outcome
+		}
 	}
 
 	slog.DebugContext(ctx, "Tools not approved, waiting for resume", "tool", c.tc.Function.Name, "session_id", c.sess.ID)
-	c.em.EmitToolCallConfirmation(c.tc, c.tool, c.a.Name())
+	c.em.EmitToolCallConfirmation(c.tc, c.tool, c.assessSafety(), c.a.Name())
 
 	if c.d.Hooks != nil {
 		c.d.Hooks.NotifyUserInput(ctx, c.sess.ID, "tool confirmation")

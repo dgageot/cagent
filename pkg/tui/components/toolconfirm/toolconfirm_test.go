@@ -98,6 +98,13 @@ func TestRejectionReasonsAreStable(t *testing.T) {
 	assert.Equal(t, []string{"bad_args", "wrong_tool", "unsafe", "clarify"}, ids)
 }
 
+func TestTitleAndQuestionForDestructiveTool(t *testing.T) {
+	safety := &tools.ToolCallSafety{Destructive: true, BlastRadius: tools.BlastRadiusHigh}
+	assert.Equal(t, DestructiveWarningTitle, Title(safety))
+	assert.Contains(t, Question(safety), "destructive tool call")
+	assert.Contains(t, Question(safety), "blast radius level: high")
+}
+
 func TestKeyMapDecisionFor(t *testing.T) {
 	t.Parallel()
 

@@ -124,7 +124,7 @@ func TestSessionSendSurfacesConfirmationAndConfirmResumesRuntime(t *testing.T) {
 
 	call := tools.ToolCall{ID: "call-1", Function: tools.FunctionCall{Name: "write_file"}}
 	def := tools.Tool{Name: "write_file"}
-	rt.events <- dagentruntime.ToolCallConfirmation(call, def, "agent")
+	rt.events <- dagentruntime.ToolCallConfirmation(call, def, nil, "agent")
 
 	event := receiveEvent(t, out)
 	require.NotNil(t, event.Tool)
