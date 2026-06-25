@@ -441,6 +441,10 @@ type AgentConfig struct {
 
 	AddDate            bool `json:"add_date,omitempty"`
 	AddEnvironmentInfo bool `json:"add_environment_info,omitempty"`
+	// ReadOnly makes every one of the agent's toolsets read-only: only
+	// tools whose annotations carry a read-only hint are listed and
+	// callable. Equivalent to setting `readonly: true` on each toolset.
+	ReadOnly bool `json:"readonly,omitempty" yaml:"readonly,omitempty"`
 	// RedactSecrets enables every leg of the redact_secrets feature:
 	// the pre_tool_use builtin (scrubs tool arguments), the
 	// before_llm_call hook (scrubs outgoing chat content), and the
@@ -997,6 +1001,11 @@ type Toolset struct {
 	Tools       []string `json:"tools,omitempty"`
 	Instruction string   `json:"instruction,omitempty"`
 	Toon        string   `json:"toon,omitempty"`
+
+	// ReadOnly restricts the toolset to tools whose annotations carry a
+	// read-only hint. Every other tool is filtered out, so the agent can
+	// list and call only the non-mutating subset of the toolset.
+	ReadOnly bool `json:"readonly,omitempty" yaml:"readonly,omitempty"`
 
 	// Model overrides the LLM used for the turn that processes tool results
 	// from this toolset, enabling per-toolset model routing. Value can be a

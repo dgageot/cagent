@@ -215,6 +215,7 @@ remote MCP endpoints.
 | [`redact_secrets_hooks.yaml`](redact_secrets_hooks.yaml) | The same scrubbing wired manually as three hooks. |
 | [`sandbox_agent.yaml`](sandbox_agent.yaml) | Running tools inside a Docker sandbox via `docker agent run --sandbox`. |
 | [`filesystem_allow_deny.yaml`](filesystem_allow_deny.yaml) | Path-level allow/deny for the filesystem toolset. |
+| [`readonly.yaml`](readonly.yaml) | `readonly: true` on a toolset or agent keeps only read-only tools (mutating tools are filtered out). |
 
 ---
 

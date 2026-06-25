@@ -573,6 +573,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		}
 
 		wrapped := WithToolsFilter(tool, toolset.Tools...)
+		wrapped = WithReadOnlyFilter(wrapped, toolset.ReadOnly || a.ReadOnly)
 		wrapped = WithInstructions(wrapped, expander.Expand(ctx, toolset.Instruction, nil))
 		wrapped = WithToon(wrapped, toolset.Toon)
 		wrapped = WithModelOverride(wrapped, toolset.Model)

@@ -1,0 +1,54 @@
+# Demonstrates the `readonly` attribute on toolsets and agents.
+#
+# Every tool carries a read-only hint in its annotations: tools that only
+# observe state (list files, read a file, search) are marked read-only, while
+# tools that mutate state (write a file, run a shell command) are not.
+#
+# Setting `readonly: true` on a toolset keeps only the tools whose hint says
+# they are read-only; every other tool is filtered out so it can neither be
+# listed nor called. Setting `readonly: true` on an agent applies that filter
+# to all of its toolsets at once.
+#
+# A sub-agent or handoff agent is made read-only the same way: set the flag on
+# that agent's own definition and it stays read-only wherever it is referenced.
+#
+# Switch agents with `-a <name>` to try each variant.
+
+agents:
+  # Agent-level readonly: every toolset is restricted to its read-only tools.
+  root:
+    model: anthropic/claude-sonnet-4-5
+    description: A read-only agent that can inspect but never modify the project.
+    instruction: |
+      You can explore the filesystem and run read-only shell commands to
+      understand the project, but you cannot modify anything. If asked to make
+      a change, explain what you would do and hand off to the `editor` agent.
+    readonly: true
+    toolsets:
+      - type: filesystem
+      - type: shell
+    handoffs:
+      - editor
+
+  # Toolset-level readonly: only the filesystem toolset is restricted; the
+  # shell toolset keeps all of its tools.
+  inspector:
+    model: anthropic/claude-sonnet-4-5
+    description: An agent whose filesystem access is read-only but can still run shell commands.
+    instruction: |
+      Use the filesystem tools to read and search files (you cannot write
+      them), and the shell to run any command you need.
+    toolsets:
+      - type: filesystem
+        readonly: true
+      - type: shell
+
+  # A regular read-write agent used as a read-only handoff target would stay
+  # read-write; mark the agent itself readonly to constrain it everywhere.
+  editor:
+    model: anthropic/claude-sonnet-4-5
+    description: An agent that can modify files.
+    instruction: |
+      You can read and write files. Make the requested changes carefully.
+    toolsets:
+      - type: filesystem

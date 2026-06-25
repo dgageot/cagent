@@ -45,6 +45,19 @@ func addDescriptionParam(tool Tool) Tool {
 	return tool
 }
 
+// FilterReadOnly returns only the tools whose annotations carry a read-only
+// hint. It is used to enforce read-only toolsets and read-only agents: every
+// mutating tool is dropped so it can neither be listed nor called.
+func FilterReadOnly(toolList []Tool) []Tool {
+	var filtered []Tool
+	for _, tool := range toolList {
+		if tool.Annotations.ReadOnlyHint {
+			filtered = append(filtered, tool)
+		}
+	}
+	return filtered
+}
+
 // ExtractDescription extracts the description from tool call arguments.
 func ExtractDescription(arguments string) string {
 	var args map[string]any

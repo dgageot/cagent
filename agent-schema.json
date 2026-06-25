@@ -586,6 +586,10 @@
           "type": "boolean",
           "description": "Whether to add environment information"
         },
+        "readonly": {
+          "type": "boolean",
+          "description": "When true, makes every one of this agent's toolsets read-only: only tools whose annotations carry a read-only hint are listed and callable, and all other (mutating) tools are filtered out. Equivalent to setting 'readonly: true' on each toolset. A sub-agent or handoff agent is made read-only by setting this flag on that agent's own definition."
+        },
         "redact_secrets": {
           "type": "boolean",
           "default": true,
@@ -1851,6 +1855,10 @@
         "toon": {
           "type": "string",
           "description": "A comma-delimited list of regular expressions of tools to toonify"
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "When true, restricts this toolset to tools whose annotations carry a read-only hint. Every other (mutating) tool is filtered out, so the agent can only list and call the non-mutating subset of the toolset."
         },
         "model": {
           "type": "string",
