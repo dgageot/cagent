@@ -1,0 +1,48 @@
+# Two agents collaborate on shared, named plans stored in a global folder
+# under the docker-agent data directory.
+#
+# The architect writes a plan; the builder reads it and refines it. Both load
+# the `plan` toolset, so they see the same shared plans (addressed by name) and
+# the plans persist across runs.
+
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-5
+    description: Coordinator that routes work between the architect and the builder
+    instruction: |
+      You coordinate a planning session between two specialists.
+      - Hand off to the architect to draft or revise a high-level plan.
+      - Hand off to the builder to review the plan and add concrete
+        implementation steps.
+      Keep iterating until the plan is complete, then summarize it for the user.
+    handoffs:
+      - architect
+      - builder
+
+  architect:
+    model: anthropic/claude-sonnet-4-5
+    description: Drafts and revises high-level plans
+    instruction: |
+      You are a software architect. Use list_plans to see existing plans and
+      read_plan to inspect one, then use write_plan to create or revise a plan
+      by name. Always read before writing so you preserve content you want to
+      keep. Set the title and use "architect" as the author. When the
+      high-level plan is ready, hand off to the builder.
+    toolsets:
+      - type: plan
+    handoffs:
+      - builder
+
+  builder:
+    model: openai/gpt-4o
+    description: Reviews plans and adds concrete implementation steps
+    instruction: |
+      You are an implementation engineer. Use read_plan to read the architect's
+      plan, then use write_plan to append concrete, actionable implementation
+      steps. Always read before writing so you don't lose the architect's work.
+      Use "builder" as the author. Delete obsolete plans with delete_plan. When
+      done, hand off back to root.
+    toolsets:
+      - type: plan
+    handoffs:
+      - root
