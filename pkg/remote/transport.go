@@ -28,8 +28,10 @@ func NewTransport(ctx context.Context) http.RoundTripper {
 	transport := t.Clone()
 
 	desktopRunning, err := memoizer.Memoize("desktopRunning", func() (bool, error) {
-		//rubocop:disable Lint/ContextConnectivity
-		return desktop.IsDockerDesktopRunning(context.Background()), nil
+		// Memoized once per process: detach the first caller's cancellation
+		// (so a cancelled caller can't poison the cached result) while keeping
+		// its trace context.
+		return desktop.IsDockerDesktopRunning(context.WithoutCancel(ctx)), nil
 	})
 	if err != nil {
 		return transport

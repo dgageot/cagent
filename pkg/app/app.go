@@ -340,7 +340,7 @@ func (a *App) RunSkillFork(ctx context.Context, cancel context.CancelFunc, skill
 	// Mirrors App.Run's drain loop: forward events to the App bus and
 	// always let StreamStoppedEvent through, even after ctx cancellation,
 	// so the supervisor marks the session idle.
-	go func() { //nolint:gosec // background processing intentionally continues after request ctx ends; uses context.Background() only to forward StreamStoppedEvent
+	go func() {
 		events := make(chan runtime.Event, defaultRuntimeEventBuffer)
 		go func() {
 			defer close(events)
@@ -363,8 +363,9 @@ func (a *App) RunSkillFork(ctx context.Context, cancel context.CancelFunc, skill
 		for event := range events {
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
-					//rubocop:disable Lint/ContextConnectivity
-					a.sendEvent(context.Background(), event)
+					// ctx is cancelled; detach cancellation but keep its trace
+					// context so the stop event still reaches subscribers.
+					a.sendEvent(context.WithoutCancel(ctx), event)
 				}
 				continue
 			}
@@ -451,7 +452,7 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 		go a.generateTitle(ctx, []string{message})
 	}
 
-	go func() { //nolint:gosec // background processing intentionally continues after request ctx ends; uses context.Background() only to forward StreamStoppedEvent
+	go func() {
 		if len(attachments) > 0 {
 			// Build a single text string with the user's message and inlined text files.
 			// Keeping everything in one text block ensures the model sees file content
@@ -496,8 +497,9 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 			// supervisor can mark the session as no longer running.
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
-					//rubocop:disable Lint/ContextConnectivity
-					a.sendEvent(context.Background(), event)
+					// ctx is cancelled; detach cancellation but keep its trace
+					// context so the stop event still reaches subscribers.
+					a.sendEvent(context.WithoutCancel(ctx), event)
 				}
 				continue
 			}
@@ -686,7 +688,7 @@ func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg
 		go a.generateTitle(ctx, []string{userMessage})
 	}
 
-	go func() { //nolint:gosec // background processing intentionally continues after request ctx ends; uses context.Background() only to forward StreamStoppedEvent
+	go func() {
 		a.session.AddMessage(msg)
 		for event := range a.runtime.RunStream(ctx, a.session) {
 			// If context is cancelled, continue draining but don't forward events
@@ -694,8 +696,9 @@ func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg
 			// supervisor can mark the session as no longer running.
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
-					//rubocop:disable Lint/ContextConnectivity
-					a.sendEvent(context.Background(), event)
+					// ctx is cancelled; detach cancellation but keep its trace
+					// context so the stop event still reaches subscribers.
+					a.sendEvent(context.WithoutCancel(ctx), event)
 				}
 				continue
 			}
