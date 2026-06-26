@@ -2696,7 +2696,7 @@ func TestSkillSubSessionTools_ScopesAndInjects(t *testing.T) {
 	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
 	root := agent.New("root", "agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	inherited := []tools.Tool{
@@ -2726,7 +2726,7 @@ func TestSkillSubSessionTools_NoOpForOrdinarySession(t *testing.T) {
 	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
 	root := agent.New("root", "agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	inherited := []tools.Tool{{Name: "read_file"}, {Name: "shell"}}

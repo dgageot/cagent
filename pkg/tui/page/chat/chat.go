@@ -964,7 +964,7 @@ func (p *chatPage) handleRetry() (layout.Model, tea.Cmd) {
 	p.sidebar.ResetStreamTracking()
 
 	var ctx context.Context
-	ctx, p.msgCancel = context.WithCancel(context.Background())
+	ctx, p.msgCancel = context.WithCancel(p.ctx())
 
 	spinnerCmd := p.setWorking(true)
 	p.app.Retry(ctx, p.msgCancel)

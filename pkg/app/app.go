@@ -638,7 +638,7 @@ func (a *App) processInlineAttachment(att messages.Attachment, textBuilder *stri
 func (a *App) Retry(ctx context.Context, cancel context.CancelFunc) {
 	a.cancel = cancel
 
-	go func() { //nolint:gosec // background processing intentionally continues after request ctx ends; uses context.Background() only to forward StreamStoppedEvent
+	go func() {
 		streamStarted := false
 		for event := range a.runtime.RunStream(ctx, a.session) {
 			// If context is cancelled, continue draining but don't forward events
@@ -646,7 +646,7 @@ func (a *App) Retry(ctx context.Context, cancel context.CancelFunc) {
 			// supervisor can mark the session as no longer running.
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
-					a.sendEvent(context.Background(), event)
+					a.sendEvent(context.WithoutCancel(ctx), event)
 				}
 				continue
 			}

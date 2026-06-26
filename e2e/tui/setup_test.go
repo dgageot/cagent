@@ -53,11 +53,11 @@ func newTUI(t *testing.T, agentFile string, width, height int, tuiOpts ...tui.Op
 	agent, err := team.AgentOrDefault("")
 	require.NoError(t, err)
 
-	store, err := session.NewSQLiteSessionStore(filepath.Join(t.TempDir(), "session.db"))
+	store, err := session.NewSQLiteSessionStore(ctx, filepath.Join(t.TempDir(), "session.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
 
-	rt, err := runtime.New(team,
+	rt, err := runtime.New(ctx, team,
 		runtime.WithSessionStore(store),
 		runtime.WithCurrentAgent(agent.Name()),
 		runtime.WithModelSwitcherConfig(&runtime.ModelSwitcherConfig{
@@ -73,7 +73,7 @@ func newTUI(t *testing.T, agentFile string, width, height int, tuiOpts ...tui.Op
 	t.Cleanup(func() { _ = rt.Close() })
 
 	var appOpts []app.Opt
-	if gen := rt.TitleGenerator(); gen != nil {
+	if gen := rt.TitleGenerator(ctx); gen != nil {
 		appOpts = append(appOpts, app.WithTitleGenerator(gen))
 	}
 	application := app.New(ctx, rt, session.New(), appOpts...)
@@ -109,6 +109,7 @@ func startReplayProxy(t *testing.T) *config.RuntimeConfig {
 	matcher := fake.DefaultMatcher(func(err error) { require.NoError(t, err) })
 
 	proxyURL, cleanup, err := fake.StartProxyWithOptions(
+		t.Context(),
 		cassettePath,
 		recorder.ModeReplayOnly,
 		matcher,

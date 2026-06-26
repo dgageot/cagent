@@ -857,7 +857,7 @@ func TestMigration_ExistingMessagesToSessionItems(t *testing.T) {
 func TestAddError_SQLiteRoundTrip(t *testing.T) {
 	tempDB := filepath.Join(t.TempDir(), "test_add_error.db")
 
-	store, err := NewSQLiteSessionStore(tempDB)
+	store, err := NewSQLiteSessionStore(t.Context(), tempDB)
 	require.NoError(t, err)
 	defer store.(*SQLiteSessionStore).Close()
 
