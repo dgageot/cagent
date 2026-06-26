@@ -14,13 +14,13 @@ const binDir = "../../bin"
 
 func TestHelpInAllExecMode(t *testing.T) {
 	t.Run("cli plugin help", func(t *testing.T) {
-		res, err := Exec("docker", "agent", "help")
+		res, err := ExecWithContext(t.Context(), "docker", "agent", "help")
 		require.NoError(t, err)
 		require.Contains(t, res.Stdout, "docker agent run ./agent.yaml")
 	})
 
 	t.Run("docker-agent help", func(t *testing.T) {
-		res, err := Exec(binDir+"/docker-agent", "help")
+		res, err := ExecWithContext(t.Context(), binDir+"/docker-agent", "help")
 		require.NoError(t, err)
 		require.Contains(t, res.Stdout, "docker-agent run ./agent.yaml")
 	})
@@ -28,14 +28,14 @@ func TestHelpInAllExecMode(t *testing.T) {
 
 func TestExecMissingKeys(t *testing.T) {
 	t.Run("cli plugin exec", func(t *testing.T) {
-		res, err := Exec("docker", "agent", "run", "--exec", "./test-agent.yaml")
+		res, err := ExecWithContext(t.Context(), "docker", "agent", "run", "--exec", "./test-agent.yaml")
 		require.Error(t, err)
 		require.Contains(t, res.Stderr, "environment variables must be set")
 		require.Contains(t, res.Stderr, "OPENAI_API_KEY")
 	})
 
 	t.Run("docker-agent exec", func(t *testing.T) {
-		res, err := Exec(binDir+"/docker-agent", "run", "--exec", "./test-agent.yaml")
+		res, err := ExecWithContext(t.Context(), binDir+"/docker-agent", "run", "--exec", "./test-agent.yaml")
 		require.Error(t, err)
 		require.Contains(t, res.Stderr, "environment variables must be set")
 		require.Contains(t, res.Stderr, "OPENAI_API_KEY")
@@ -44,14 +44,14 @@ func TestExecMissingKeys(t *testing.T) {
 
 func TestAutoComplete(t *testing.T) {
 	t.Run("cli plugin auto-complete docker-agent", func(t *testing.T) {
-		res, err := Exec(binDir+"/docker-agent", "__complete", "ser")
+		res, err := ExecWithContext(t.Context(), binDir+"/docker-agent", "__complete", "ser")
 		require.NoError(t, err)
 		props := lines(res.Stdout)
 		require.Contains(t, props[0], "serve")
 	})
 
 	t.Run("cli plugin auto-complete docker-agent sub commands", func(t *testing.T) {
-		res, err := Exec(binDir+"/docker-agent", "__complete", "serve", "")
+		res, err := ExecWithContext(t.Context(), binDir+"/docker-agent", "__complete", "serve", "")
 		require.NoError(t, err)
 		props := lines(res.Stdout)
 		require.Greater(t, len(props), 5)
@@ -64,14 +64,14 @@ func TestAutoComplete(t *testing.T) {
 	})
 
 	t.Run("cli plugin auto-complete docker agent", func(t *testing.T) {
-		res, err := ExecWithEnv([]string{"DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND=/docker-agent"}, binDir+"/docker-agent", "__complete", "agent", "ser")
+		res, err := ExecWithContextAndEnv(t.Context(), []string{"DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND=/docker-agent"}, binDir+"/docker-agent", "__complete", "agent", "ser")
 		require.NoError(t, err)
 		props := lines(res.Stdout)
 		require.Contains(t, props[0], "serve")
 	})
 
 	t.Run("cli plugin auto-complete docker agent sub commands", func(t *testing.T) {
-		res, err := ExecWithEnv([]string{"DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND=/docker-agent"}, binDir+"/docker-agent", "__complete", "agent", "serve", "")
+		res, err := ExecWithContextAndEnv(t.Context(), []string{"DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND=/docker-agent"}, binDir+"/docker-agent", "__complete", "agent", "serve", "")
 		require.NoError(t, err)
 		props := lines(res.Stdout)
 		require.Greater(t, len(props), 2)
