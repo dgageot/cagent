@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -41,19 +42,29 @@ func startMemorySpan(ctx context.Context, op string) (context.Context, trace.Spa
 }
 
 type MemoryDatabase struct {
+	path string
+
+	mu sync.Mutex
 	db *sql.DB
 }
 
-func NewMemoryDatabase(ctx context.Context, path string) (database.Database, error) {
-	db, err := sqliteutil.OpenDB(ctx, path)
+func NewMemoryDatabase(path string) (database.Database, error) {
+	return &MemoryDatabase{path: path}, nil
+}
+
+func (m *MemoryDatabase) ensureDB(ctx context.Context) (*sql.DB, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.db != nil {
+		return m.db, nil
+	}
+
+	db, err := sqliteutil.OpenDB(ctx, m.path)
 	if err != nil {
 		return nil, err
 	}
-	// Ensure we close the connection if table creation fails
-	// Note: We don't defer close here because we return the db on success
 
-	_, err = db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)")
-	if err != nil {
+	if _, err = db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)"); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -66,7 +77,19 @@ func NewMemoryDatabase(ctx context.Context, path string) (database.Database, err
 		}
 	}
 
-	return &MemoryDatabase{db: db}, nil
+	m.db = db
+	return db, nil
+}
+
+func (m *MemoryDatabase) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.db == nil {
+		return nil
+	}
+	err := m.db.Close()
+	m.db = nil
+	return err
 }
 
 func (m *MemoryDatabase) AddMemory(ctx context.Context, memory database.UserMemory) error {
@@ -76,7 +99,13 @@ func (m *MemoryDatabase) AddMemory(ctx context.Context, memory database.UserMemo
 	if memory.ID == "" {
 		return database.ErrEmptyID
 	}
-	_, err := m.db.ExecContext(ctx, "INSERT INTO memories (id, created_at, memory, category) VALUES (?, ?, ?, ?)",
+	db, err := m.ensureDB(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	_, err = db.ExecContext(ctx, "INSERT INTO memories (id, created_at, memory, category) VALUES (?, ?, ?, ?)",
 		memory.ID, memory.CreatedAt, memory.Memory, memory.Category)
 	if err != nil {
 		span.RecordError(err)
@@ -89,7 +118,11 @@ func (m *MemoryDatabase) GetMemories(ctx context.Context) ([]database.UserMemory
 	ctx, span := startMemorySpan(ctx, "list")
 	defer span.End()
 
-	rows, err := m.db.QueryContext(ctx, "SELECT id, created_at, memory, COALESCE(category, '') FROM memories")
+	db, err := m.ensureDB(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx, "SELECT id, created_at, memory, COALESCE(category, '') FROM memories")
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +149,13 @@ func (m *MemoryDatabase) DeleteMemory(ctx context.Context, memory database.UserM
 	ctx, span := startMemorySpan(ctx, "delete")
 	defer span.End()
 
-	_, err := m.db.ExecContext(ctx, "DELETE FROM memories WHERE id = ?", memory.ID)
+	db, err := m.ensureDB(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	_, err = db.ExecContext(ctx, "DELETE FROM memories WHERE id = ?", memory.ID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -169,7 +208,11 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category str
 	}
 
 	var rows *sql.Rows
-	rows, err = m.db.QueryContext(ctx, stmt, args...)
+	db, err := m.ensureDB(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err = db.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +244,11 @@ func (m *MemoryDatabase) UpdateMemory(ctx context.Context, memory database.UserM
 		return database.ErrEmptyID
 	}
 
-	result, err := m.db.ExecContext(ctx, "UPDATE memories SET memory = ?, category = ? WHERE id = ?",
+	db, err := m.ensureDB(ctx)
+	if err != nil {
+		return err
+	}
+	result, err := db.ExecContext(ctx, "UPDATE memories SET memory = ?, category = ? WHERE id = ?",
 		memory.Memory, memory.Category, memory.ID)
 	if err != nil {
 		return err
