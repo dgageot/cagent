@@ -9,6 +9,8 @@ import (
 
 	"github.com/dgageot/rubocop-go/config"
 	"github.com/dgageot/rubocop-go/cop"
+	rubocops "github.com/dgageot/rubocop-go/cops"
+	"github.com/dgageot/rubocop-go/prog"
 	"github.com/dgageot/rubocop-go/runner"
 )
 
@@ -31,13 +33,20 @@ var cops = []cop.Cop{
 	SlogContextual,
 }
 
+// programCops lists whole-program, inter-procedural cops. These run once over
+// the entire loaded program rather than once per file.
+var programCops = []prog.Cop{
+	rubocops.NewLintContextConnectivity(),
+}
+
 func main() {
 	paths := os.Args[1:]
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}
 
-	r := runner.New(cops, config.DefaultConfig(), os.Stdout)
+	r := runner.New(cops, config.DefaultConfig(), os.Stdout).
+		WithProgramCops(programCops)
 	offenseCount, err := r.Run(paths)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
