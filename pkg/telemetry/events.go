@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-func (tc *Client) TrackSynchronous(_ context.Context, structuredEvent StructuredEvent) {
-	tc.track(context.Background(), structuredEvent, false)
+func (tc *Client) TrackSynchronous(ctx context.Context, structuredEvent StructuredEvent) {
+	tc.track(ctx, structuredEvent, false)
 }
 
 // Track records a structured telemetry event with type-safe properties (synchronous)
