@@ -21,7 +21,7 @@ func newAgentPanelSidebar(t *testing.T, current string, width int, agents ...run
 	sess := session.New()
 	ss := service.NewSessionState(sess)
 	ss.SetCurrentAgentName(current)
-	m := New(ss).(*model)
+	m := New(t.Context(), ss).(*model)
 	m.sessionHasContent = true
 	m.titleGenerated = true
 	m.sessionTitle = "Test"
@@ -343,7 +343,7 @@ func TestClickZonesCardAndRow(t *testing.T) {
 	sess := session.New()
 	ss := service.NewSessionState(sess)
 	ss.SetCurrentAgentName("root")
-	sb := New(ss)
+	sb := New(t.Context(), ss)
 	m := sb.(*model)
 	m.sessionHasContent = true
 	m.titleGenerated = true

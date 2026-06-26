@@ -433,7 +433,7 @@ description: Test project skill
 `
 	require.NoError(t, os.WriteFile(filepath.Join(claudeProjectDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -467,7 +467,7 @@ description: A global agents skill
 	tmpCwd := t.TempDir()
 	t.Chdir(tmpCwd)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -516,7 +516,7 @@ description: A flat global agents skill
 	tmpCwd := t.TempDir()
 	t.Chdir(tmpCwd)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	// Both nested and flat skills should be found
 	foundNested := false
@@ -604,7 +604,7 @@ description: A skill from repo root
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -645,7 +645,7 @@ description: Cross-repo helper skill
 	require.NoError(t, os.Mkdir(filepath.Join(repo, ".git"), 0o755))
 	t.Chdir(workdir)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -693,7 +693,7 @@ description: Grouping version
 	require.NoError(t, os.Mkdir(filepath.Join(repo, ".git"), 0o755))
 	t.Chdir(repo)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -742,7 +742,7 @@ description: Project version of shared skill
 
 	t.Chdir(tmpRepo)
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -797,7 +797,7 @@ description: Subproject version
 
 	// From repo root, should get root version
 	t.Chdir(tmpRepo)
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 	for _, s := range skills {
 		if s.Name == "local-skill" {
 			assert.Equal(t, "Root version", s.Description)
@@ -807,7 +807,7 @@ description: Subproject version
 
 	// From subproject, should get subproject version (closer wins)
 	t.Chdir(subDir)
-	skills = Load([]string{"local"})
+	skills = Load(t.Context(), []string{"local"})
 	for _, s := range skills {
 		if s.Name == "local-skill" {
 			assert.Equal(t, "Subproject version", s.Description)
@@ -872,7 +872,7 @@ func TestLoad_KitDirOverridesEverything(t *testing.T) {
 	t.Setenv(KitDirEnv, kitDir)
 	t.Chdir(t.TempDir())
 
-	skills := Load([]string{"local"})
+	skills := Load(t.Context(), []string{"local"})
 
 	names := make([]string, 0, len(skills))
 	for _, s := range skills {

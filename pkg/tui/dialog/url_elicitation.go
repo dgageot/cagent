@@ -18,6 +18,8 @@ import (
 type URLElicitationDialog struct {
 	BaseDialog
 
+	ctx func() context.Context
+
 	message     string
 	url         string
 	keyMap      ConfirmKeyMap
@@ -26,8 +28,9 @@ type URLElicitationDialog struct {
 }
 
 // NewURLElicitationDialog creates a new URL elicitation dialog.
-func NewURLElicitationDialog(message, url string) Dialog {
+func NewURLElicitationDialog(ctx context.Context, message, url string) Dialog {
 	return &URLElicitationDialog{
+		ctx:     func() context.Context { return context.WithoutCancel(ctx) },
 		message: message,
 		url:     url,
 		keyMap:  DefaultConfirmKeyMap(),
@@ -84,8 +87,7 @@ func (d *URLElicitationDialog) openURLInBrowser() tea.Cmd {
 		if d.url == "" {
 			return nil
 		}
-		//rubocop:disable Lint/ContextConnectivity
-		if err := browser.Open(context.Background(), d.url); err != nil {
+		if err := browser.Open(d.ctx(), d.url); err != nil {
 			slog.Error("Failed to open URL in browser", "url", d.url, "error", err)
 		}
 		return nil

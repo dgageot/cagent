@@ -70,7 +70,7 @@ func (s Skill) IsFork() bool {
 //     enclosing git root outside $HOME — down to cwd)
 //
 // The returned slice is sorted by skill name for deterministic ordering.
-func Load(sources []string) []Skill {
+func Load(ctx context.Context, sources []string) []Skill {
 	skillMap := make(map[string]Skill)
 
 	var remoteCache *diskCache
@@ -82,8 +82,7 @@ func Load(sources []string) []Skill {
 			if remoteCache == nil {
 				remoteCache = newDiskCache(filepath.Join(paths.GetCacheDir(), "skills"))
 			}
-			//rubocop:disable Lint/ContextConnectivity
-			for _, skill := range loadRemoteSkills(context.Background(), source, remoteCache) {
+			for _, skill := range loadRemoteSkills(ctx, source, remoteCache) {
 				skillMap[source+"/"+skill.Name] = skill
 			}
 		}

@@ -104,7 +104,7 @@ func TestAttachRuntime_RegistersRuntimeForExternalDriver(t *testing.T) {
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
 	fake := &fakeRuntime{streamDelay: 10 * time.Millisecond}
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	// Steer routes through the attached runtime, not a freshly built one.
 	require.NoError(t, sm.SteerSession(ctx, sess.ID, []api.Message{{Content: "hi"}}))

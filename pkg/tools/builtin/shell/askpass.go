@@ -128,7 +128,7 @@ func randomToken() (string, error) {
 // startAskpassServer creates the private socket plus the SUDO_ASKPASS wrapper
 // script and starts accepting connections. handler is consulted per request so
 // it always reflects the current elicitation handler.
-func startAskpassServer(handler func() tools.ElicitationHandler) (*askpassServer, error) {
+func startAskpassServer(ctx context.Context, handler func() tools.ElicitationHandler) (*askpassServer, error) {
 	if !askpassSupported() {
 		return nil, errors.New("sudo askpass is not supported on this platform")
 	}
@@ -151,8 +151,7 @@ func startAskpassServer(handler func() tools.ElicitationHandler) (*askpassServer
 
 	socket := filepath.Join(dir, "sock")
 	var lnConfig net.ListenConfig
-	//rubocop:disable Lint/ContextConnectivity
-	listener, err := lnConfig.Listen(context.Background(), "unix", socket)
+	listener, err := lnConfig.Listen(ctx, "unix", socket)
 	if err != nil {
 		_ = os.RemoveAll(dir)
 		return nil, err
@@ -439,16 +438,16 @@ func (h *shellHandler) askpassActive() bool {
 // It returns nil (askpass disabled for this command) on any startup failure.
 // The mutex makes lazy start safe against concurrent commands and a concurrent
 // stopAskpass.
-func (h *shellHandler) ensureAskpass() *askpassServer {
+func (h *shellHandler) ensureAskpass(ctx context.Context) *askpassServer {
 	h.askpassMu.Lock()
 	defer h.askpassMu.Unlock()
 	if h.askpassStarted {
 		return h.askpass
 	}
 	h.askpassStarted = true
-	srv, err := startAskpassServer(h.currentElicitationHandler)
+	srv, err := startAskpassServer(ctx, h.currentElicitationHandler)
 	if err != nil {
-		slog.Warn("Failed to start sudo askpass helper; sudo will run without it", "error", err)
+		slog.WarnContext(ctx, "Failed to start sudo askpass helper; sudo will run without it", "error", err)
 		return nil
 	}
 	h.askpass = srv
@@ -462,11 +461,11 @@ func (h *shellHandler) ensureAskpass() *askpassServer {
 // shared base env are returned unchanged, and the askpass server is not even
 // started. This keeps normal shell behaviour and the env surface untouched for
 // the common (non-sudo) case.
-func (h *shellHandler) applyAskpass(command string) (string, []string) {
+func (h *shellHandler) applyAskpass(ctx context.Context, command string) (string, []string) {
 	if !h.askpassActive() || !commandInvokesSudo(command) {
 		return command, h.env
 	}
-	srv := h.ensureAskpass()
+	srv := h.ensureAskpass(ctx)
 	if srv == nil {
 		return command, h.env
 	}

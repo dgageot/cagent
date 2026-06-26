@@ -77,7 +77,7 @@ func TestSetAgentInfo_UpdatesProviderAndModel(t *testing.T) {
 			// Create a sidebar model with initial agent details
 			sess := session.New()
 			sessionState := service.NewSessionState(sess)
-			m := New(sessionState).(*model)
+			m := New(t.Context(), sessionState).(*model)
 
 			// Set up initial availableAgents
 			m.availableAgents = []runtime.AgentDetails{
@@ -107,7 +107,7 @@ func TestSetAgentInfo_OnlyUpdatesMatchingAgent(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	m := New(sessionState).(*model)
+	m := New(t.Context(), sessionState).(*model)
 
 	// Set up multiple agents
 	m.availableAgents = []runtime.AgentDetails{
@@ -135,7 +135,7 @@ func TestSetAgentInfo_EmptyModelIDNoUpdate(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	m := New(sessionState).(*model)
+	m := New(t.Context(), sessionState).(*model)
 
 	// Set up initial agent
 	m.availableAgents = []runtime.AgentDetails{
@@ -155,7 +155,7 @@ func TestSetAgentInfo_NonexistentAgent(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	m := New(sessionState).(*model)
+	m := New(t.Context(), sessionState).(*model)
 
 	// Set up agents without the target
 	m.availableAgents = []runtime.AgentDetails{

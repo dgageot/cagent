@@ -13,7 +13,7 @@ import (
 )
 
 func TestKeyboardEnhancementsInvalidateStatusBarHelp(t *testing.T) {
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.focusedPanel = PanelEditor
 	m.tabBar = tabbar.New(0)
 	m.statusBar = statusbar.New(m)
@@ -271,7 +271,7 @@ func TestCommandCategories_DisabledCommandsFilter(t *testing.T) {
 
 	t.Run("no filter keeps everything", func(t *testing.T) {
 		t.Parallel()
-		m := &appModel{buildCommandCategories: build}
+		m := &appModel{ctx: t.Context, buildCommandCategories: build}
 		got := m.commandCategories()
 		if len(got) != 2 {
 			t.Fatalf("len(categories) = %d, want 2", len(got))
@@ -280,7 +280,7 @@ func TestCommandCategories_DisabledCommandsFilter(t *testing.T) {
 
 	t.Run("filters slash commands and drops empty categories", func(t *testing.T) {
 		t.Parallel()
-		m := &appModel{buildCommandCategories: build}
+		m := &appModel{ctx: t.Context, buildCommandCategories: build}
 		WithDisabledCommands([]string{"/cost", "eval", "/theme"})(m)
 
 		got := m.commandCategories()
@@ -297,7 +297,7 @@ func TestCommandCategories_DisabledCommandsFilter(t *testing.T) {
 
 	t.Run("blank entries are ignored", func(t *testing.T) {
 		t.Parallel()
-		m := &appModel{buildCommandCategories: build}
+		m := &appModel{ctx: t.Context, buildCommandCategories: build}
 		WithDisabledCommands([]string{"", "  "})(m)
 		got := m.commandCategories()
 		if len(got) != 2 {
@@ -307,7 +307,7 @@ func TestCommandCategories_DisabledCommandsFilter(t *testing.T) {
 
 	t.Run("matching is case-insensitive", func(t *testing.T) {
 		t.Parallel()
-		m := &appModel{buildCommandCategories: build}
+		m := &appModel{ctx: t.Context, buildCommandCategories: build}
 		WithDisabledCommands([]string{"/Cost", "EVAL", "/Theme"})(m)
 		got := m.commandCategories()
 		if len(got) != 1 {

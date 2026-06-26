@@ -279,7 +279,7 @@ func (h *shellHandler) runNativeCommand(timeoutCtx, ctx context.Context, command
 	// Cancellation is handled manually below (timeoutCtx + Process.Kill +
 	// process group + WaitDelay), so we use exec.Command rather than
 	// exec.CommandContext to keep that flow in one place.
-	command, cmdEnv := h.applyAskpass(command)
+	command, cmdEnv := h.applyAskpass(ctx, command)
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, command)...) //nolint:noctx // see comment above
 	cmd.Env = cmdEnv
 	cmd.Dir = cwd
@@ -327,7 +327,7 @@ func (h *shellHandler) runNativeCommand(timeoutCtx, ctx context.Context, command
 	return tools.ResultSuccess(limitOutput(formattedOutput))
 }
 
-func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBackgroundArgs) (*tools.ToolCallResult, error) {
+func (h *shellHandler) RunShellBackground(ctx context.Context, params RunShellBackgroundArgs) (*tools.ToolCallResult, error) {
 	if strings.TrimSpace(params.Cmd) == "" {
 		return tools.ResultError(`Error: missing or empty "cmd" parameter. Pass the shell command as {"cmd": "..."}.`), nil
 	}
@@ -335,7 +335,7 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 	counter := h.jobCounter.Add(1)
 	jobID := fmt.Sprintf("job_%d_%d", time.Now().Unix(), counter)
 
-	bgCmd, bgEnv := h.applyAskpass(params.Cmd)
+	bgCmd, bgEnv := h.applyAskpass(ctx, params.Cmd)
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, bgCmd)...) //nolint:noctx // RunShellBackground intentionally outlives the request context
 	cmd.Env = bgEnv
 	cmd.Dir = h.resolveWorkDir(params.Cwd)

@@ -25,7 +25,7 @@ func applyOpenDialogMsgs(t *testing.T, m *appModel, cmd tea.Cmd) {
 func TestCtrlC_NoDialog_OpensExitConfirmation(t *testing.T) {
 	t.Parallel()
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	require.False(t, m.dialogMgr.Open(), "no dialog should be open initially")
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -39,7 +39,7 @@ func TestCtrlC_NoDialog_OpensExitConfirmation(t *testing.T) {
 func TestCtrlC_OnOtherDialog_StacksExitConfirmation(t *testing.T) {
 	t.Parallel()
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 
 	// Open an arbitrary, non-exit dialog first.
 	_, cmd := m.Update(dialog.OpenDialogMsg{Model: dialog.NewHelpDialog(nil)})
@@ -62,7 +62,7 @@ func TestCtrlC_OnOtherDialog_StacksExitConfirmation(t *testing.T) {
 func TestCtrlC_OnExitConfirmation_ForwardsAndExits(t *testing.T) {
 	neutralizeExitFunc(t)
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 
 	// Put the exit confirmation dialog on top first (via a regular ctrl+c).
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})

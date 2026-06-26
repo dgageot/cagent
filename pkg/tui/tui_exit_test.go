@@ -126,11 +126,13 @@ func hasMsg[T any](msgs []tea.Msg) bool {
 	return false
 }
 
-func newTestModel() (*appModel, *mockEditor) {
+func newTestModel(tb testing.TB) (*appModel, *mockEditor) {
+	tb.Helper()
 	page := &mockChatPage{}
 	ed := &mockEditor{}
 
 	m := &appModel{
+		ctx:                     tb.Context,
 		chatPages:               map[string]chat.Page{"test": page},
 		sessionStates:           map[string]*service.SessionState{},
 		editors:                 map[string]editor.Editor{"test": ed},
@@ -177,7 +179,7 @@ func neutralizeExitFunc(t *testing.T) {
 func TestExitSessionMsg_ExitsImmediately(t *testing.T) {
 	neutralizeExitFunc(t)
 
-	m, ed := newTestModel()
+	m, ed := newTestModel(t)
 
 	_, cmd := m.Update(messages.ExitSessionMsg{})
 
@@ -190,7 +192,7 @@ func TestExitSessionMsg_ExitsImmediately(t *testing.T) {
 func TestExitConfirmedMsg_ExitsImmediately(t *testing.T) {
 	neutralizeExitFunc(t)
 
-	m, ed := newTestModel()
+	m, ed := newTestModel(t)
 
 	_, cmd := m.Update(dialog.ExitConfirmedMsg{})
 
@@ -325,7 +327,7 @@ func TestCleanupAll_SpawnsSafetyNet(t *testing.T) {
 		exitDone <- code
 	}
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.program = tea.NewProgram(&quitModel{})
 	m.cleanupAll()
 
@@ -368,7 +370,7 @@ func TestCleanupAll_GracefulShutdownSkipsExit(t *testing.T) {
 	// initialized p.finished — otherwise Wait() races the assignment.
 	p.Send(syncMsg{})
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.program = p
 	m.cleanupAll()
 
@@ -403,7 +405,7 @@ func TestCleanupAll_NilProgramIsSafe(t *testing.T) {
 	var exitCalled atomic.Bool
 	exitFunc = func(int) { exitCalled.Store(true) }
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.program = nil
 	assert.NotPanics(t, func() { m.cleanupAll() })
 
@@ -430,7 +432,7 @@ func TestCleanupAll_WedgedStdoutFiresExit(t *testing.T) {
 	p, w, _ := initBlockingBubbletea(t, &quitModel{})
 	defer w.unblock()
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.program = p
 	m.cleanupAll()
 
@@ -464,7 +466,7 @@ func TestCleanupAll_MultipleCallsFireExitOnce(t *testing.T) {
 	var exitCount atomic.Int32
 	exitFunc = func(int) { exitCount.Add(1) }
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.program = tea.NewProgram(&quitModel{})
 
 	m.cleanupAll()

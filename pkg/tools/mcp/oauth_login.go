@@ -64,7 +64,7 @@ func PerformOAuthLogin(ctx context.Context, serverURL string) error {
 	}
 
 	// Set up the callback server for the redirect.
-	callbackServer, err := NewCallbackServer()
+	callbackServer, err := NewCallbackServer(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}

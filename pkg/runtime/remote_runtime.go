@@ -452,7 +452,7 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 	defer cancel()
 
 	slog.DebugContext(ctx, "Creating OAuth callback server")
-	callbackServer, err := mcp.NewCallbackServer()
+	callbackServer, err := mcp.NewCallbackServer(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create callback server", "error", err)
 		_ = r.client.ResumeElicitation(ctx, r.sessionID, "decline", nil)

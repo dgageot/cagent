@@ -10,7 +10,7 @@ import (
 )
 
 func TestCallbackServer_Port(t *testing.T) {
-	cs, err := NewCallbackServer()
+	cs, err := NewCallbackServer(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestBuildRedirectURI(t *testing.T) {
 // a full result channel. Sends are now non-blocking; the first callback
 // wins and later ones must be dropped without wedging the server.
 func TestCallbackServer_DuplicateCallbacksDoNotBlock(t *testing.T) {
-	cs, err := NewCallbackServer()
+	cs, err := NewCallbackServer(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestCallbackServer_DuplicateCallbacksDoNotBlock(t *testing.T) {
 // TestCallbackServer_ResolveRedirectURI exercises the method wrapper end-to-end
 // to make sure it stitches GetRedirectURI() and Port() together correctly.
 func TestCallbackServer_ResolveRedirectURI(t *testing.T) {
-	cs, err := NewCallbackServer()
+	cs, err := NewCallbackServer(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

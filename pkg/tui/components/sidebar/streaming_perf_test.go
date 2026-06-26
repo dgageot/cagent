@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -28,6 +29,18 @@ func makeStreamingTodos(n int) []todo.Todo {
 	return out
 }
 
+type contextTB interface {
+	Context() context.Context
+}
+
+func testContext(tb testing.TB) context.Context {
+	tb.Helper()
+	if c, ok := tb.(contextTB); ok {
+		return c.Context()
+	}
+	panic("testing.TB does not expose Context")
+}
+
 // buildStreamingSidebar returns a sidebar in a realistic "agent is streaming"
 // state (working agent set, spinner active, token usage, two agents, a todo
 // list) with its render cache warmed.
@@ -36,7 +49,7 @@ func buildStreamingSidebar(tb testing.TB, nTodos int) *model {
 	sess := session.New()
 	ss := service.NewSessionState(sess)
 	ss.SetCurrentAgentName("root")
-	m := New(ss).(*model)
+	m := New(testContext(tb), ss).(*model)
 	m.SetSize(40, 30)
 	m.SetTeamInfo([]runtime.AgentDetails{
 		{Name: "root", Provider: "openai", Model: "gpt-4o", Description: "Expert developer that plans and executes migrations"},

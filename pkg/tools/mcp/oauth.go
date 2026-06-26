@@ -986,7 +986,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	if t.oauthConfig != nil {
 		callbackPort = t.oauthConfig.CallbackPort
 	}
-	callbackServer, err := NewCallbackServerOnPort(callbackPort)
+	callbackServer, err := NewCallbackServerOnPort(ctx, callbackPort)
 	if err != nil {
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}

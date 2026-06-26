@@ -201,9 +201,8 @@ func (sm *SessionManager) StreamEvents(ctx context.Context, sessionID string, si
 // The internal cancellation signal is fired by [SessionManager.DeleteSession];
 // SSE streams and other lifetime-bound consumers use it (via
 // [SessionManager.StreamEvents]) to terminate when the session is detached.
-func (sm *SessionManager) AttachRuntime(sessionID string, rt runtime.Runtime, sess *session.Session) {
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithCancel(context.Background())
+func (sm *SessionManager) AttachRuntime(ctx context.Context, sessionID string, rt runtime.Runtime, sess *session.Session) {
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	sm.runtimeSessions.Store(sessionID, &activeRuntimes{
 		runtime: rt,
 		done:    ctx.Done(),

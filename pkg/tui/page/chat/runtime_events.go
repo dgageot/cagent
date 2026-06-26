@@ -365,7 +365,7 @@ func (p *chatPage) handleElicitationRequest(msg *runtime.ElicitationRequestEvent
 				serverURL = url
 			}
 			dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-				Model:            dialog.NewOAuthAuthorizationDialog(serverURL, p.app),
+				Model:            dialog.NewOAuthAuthorizationDialog(p.ctx(), serverURL, p.app),
 				OriginatingEvent: msg,
 			})
 			return tea.Batch(spinnerCmd, dialogCmd)
@@ -377,7 +377,7 @@ func (p *chatPage) handleElicitationRequest(msg *runtime.ElicitationRequestEvent
 	case "url":
 		// URL-based elicitation - show URL dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model:            dialog.NewURLElicitationDialog(msg.Message, msg.URL),
+			Model:            dialog.NewURLElicitationDialog(p.ctx(), msg.Message, msg.URL),
 			OriginatingEvent: msg,
 		})
 		return tea.Batch(spinnerCmd, dialogCmd)

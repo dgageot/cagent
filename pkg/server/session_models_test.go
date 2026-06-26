@@ -172,7 +172,7 @@ func TestAttachedServer_GetSessionModels(t *testing.T) {
 	fake := newModelSwitchingRuntime(choices)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 	resp := httpDoTCP(t, ctx, http.MethodGet, addr+"/api/sessions/"+sess.ID+"/models", nil)
@@ -208,7 +208,7 @@ func TestAttachedServer_GetSessionModels_DefaultMarkedCurrent(t *testing.T) {
 	fake := newModelSwitchingRuntime(choices)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 	resp := httpDoTCP(t, ctx, http.MethodGet, addr+"/api/sessions/"+sess.ID+"/models", nil)
@@ -240,7 +240,7 @@ func TestAttachedServer_GetSessionModels_AppendsCustomModels(t *testing.T) {
 	fake := newModelSwitchingRuntime(choices)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 	resp := httpDoTCP(t, ctx, http.MethodGet, addr+"/api/sessions/"+sess.ID+"/models", nil)
@@ -271,7 +271,7 @@ func TestAttachedServer_SetSessionModel_PersistsViaRunAgent(t *testing.T) {
 	fake := newModelSwitchingRuntime(nil)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 	resp := httpDoTCP(t, ctx, http.MethodPost,
@@ -313,7 +313,7 @@ func TestAttachedServer_RunAgent_EmptyModelLeavesOverrideUntouched(t *testing.T)
 	fake.overrides["root"] = "openai/gpt-4o"
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 	_ = httpDoTCP(t, ctx, http.MethodPost,
@@ -340,7 +340,7 @@ func TestAttachedServer_GetSessionModels_NotSupported(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	addr := startAttachedServer(t, ctx, sm)
 
@@ -385,7 +385,7 @@ func TestSessionManager_SetSessionAgentModel_RollsBackOnStoreFailure(t *testing.
 	fake := newModelSwitchingRuntime(nil)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	store.mu.Lock()
 	store.failUpdate = true
@@ -422,7 +422,7 @@ func TestSessionManager_SetSessionAgentModel_RuntimeFailureLeavesStateUntouched(
 	fake.setErr = errors.New("runtime says no")
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	_, _, err := sm.SetSessionAgentModel(ctx, sess.ID, "anthropic/claude-sonnet-4-0")
 	require.Error(t, err)
@@ -446,7 +446,7 @@ func TestAttachedServer_RunAgent_StoreFailureReturns500(t *testing.T) {
 	fake := newModelSwitchingRuntime(nil)
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	store.mu.Lock()
 	store.failUpdate = true
@@ -516,8 +516,8 @@ func TestSessionManager_AvailableSessionModels_DoesNotHoldMuxDuringRuntimeIO(t *
 	slow.availableModelsDelay = release
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(slowSess.ID, slow, slowSess)
-	sm.AttachRuntime(unrelatedSess.ID, &fakeRuntime{}, unrelatedSess)
+	sm.AttachRuntime(t.Context(), slowSess.ID, slow, slowSess)
+	sm.AttachRuntime(t.Context(), unrelatedSess.ID, &fakeRuntime{}, unrelatedSess)
 
 	// Start a slow AvailableSessionModels call on the first session.
 	done := make(chan struct{})
@@ -575,8 +575,8 @@ func TestSessionManager_SetSessionAgentModel_DoesNotHoldMuxDuringRuntimeIO(t *te
 	slow.setAgentModelDelay = release
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(slowSess.ID, slow, slowSess)
-	sm.AttachRuntime(unrelatedSess.ID, &fakeRuntime{}, unrelatedSess)
+	sm.AttachRuntime(t.Context(), slowSess.ID, slow, slowSess)
+	sm.AttachRuntime(t.Context(), unrelatedSess.ID, &fakeRuntime{}, unrelatedSess)
 
 	done := make(chan struct{})
 	go func() {

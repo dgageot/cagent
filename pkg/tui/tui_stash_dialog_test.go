@@ -44,7 +44,7 @@ func TestReplayPendingEvent_RestoresStashedDialog(t *testing.T) {
 
 	// Build a model with a single-session supervisor so ConsumePendingEvent
 	// has a real runner to read from.
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.supervisor = supervisor.New(nil)
 	require.NotEmpty(t, m.supervisor.AddSession(
 		t.Context(),
@@ -95,7 +95,7 @@ func TestReplayPendingEvent_DiscardsStaleStash(t *testing.T) {
 
 	const sessionID = "session-A"
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.supervisor = supervisor.New(nil)
 	m.supervisor.AddSession(
 		t.Context(),
@@ -147,7 +147,7 @@ func TestReplayPendingEvent_NoPendingEvent_ClearsStash(t *testing.T) {
 
 	const sessionID = "session-A"
 
-	m, _ := newTestModel()
+	m, _ := newTestModel(t)
 	m.supervisor = supervisor.New(nil)
 	m.supervisor.AddSession(
 		t.Context(),

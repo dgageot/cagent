@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 
@@ -78,8 +77,7 @@ func (p *chatPage) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
 // persistSessionTitle saves the new session title to the store
 func (p *chatPage) persistSessionTitle(newTitle string) tea.Cmd {
 	return func() tea.Msg {
-		//rubocop:disable Lint/ContextConnectivity
-		if err := p.app.UpdateSessionTitle(context.Background(), newTitle); err != nil {
+		if err := p.app.UpdateSessionTitle(p.ctx(), newTitle); err != nil {
 			// Show warning if title generation is in progress
 			if errors.Is(err, app.ErrTitleGenerating) {
 				return notification.ShowMsg{Text: "Title is being generated, please wait", Type: notification.TypeWarning}

@@ -145,6 +145,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 
 	// Create vector store
 	store := NewVectorStore(VectorStoreConfig{
+		Context:              func() context.Context { return context.WithoutCancel(ctx) },
 		Name:                 strategyName,
 		Database:             db,
 		Embedder:             embedder,
@@ -173,7 +174,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 			return
 		}
 
-		cost := calculateSemanticUsageCost(embeddingCfg.ModelsStore, chatModelID, usage)
+		cost := calculateSemanticUsageCost(context.WithoutCancel(ctx), embeddingCfg.ModelsStore, chatModelID, usage)
 		store.RecordUsage(totalTokens, cost)
 	}
 
@@ -501,15 +502,14 @@ func humanizeMetadataKey(key string) string {
 }
 
 // calculateSemanticUsageCost calculates cost for semantic LLM usage.
-func calculateSemanticUsageCost(modelsStore modelStore, id modelsdev.ID, usage *chat.Usage) float64 {
+func calculateSemanticUsageCost(ctx context.Context, modelsStore modelStore, id modelsdev.ID, usage *chat.Usage) float64 {
 	if usage == nil || modelsStore == nil || !id.IsValid() || id.Provider == "dmr" {
 		return 0
 	}
 
-	//rubocop:disable Lint/ContextConnectivity
-	model, err := modelsStore.GetModel(context.Background(), id)
+	model, err := modelsStore.GetModel(ctx, id)
 	if err != nil {
-		slog.Debug("Failed to get semantic model pricing from models.dev, cost will be 0",
+		slog.DebugContext(ctx, "Failed to get semantic model pricing from models.dev, cost will be 0",
 			"model_id", id.String(),
 			"error", err)
 		return 0

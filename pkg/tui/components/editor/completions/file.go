@@ -16,13 +16,15 @@ const (
 )
 
 type fileCompletion struct {
+	ctx func() context.Context
+
 	mu     sync.Mutex
 	items  []completion.Item
 	loaded bool
 }
 
-func NewFileCompletion() Completion {
-	return &fileCompletion{}
+func NewFileCompletion(ctx context.Context) Completion {
+	return &fileCompletion{ctx: func() context.Context { return context.WithoutCancel(ctx) }}
 }
 
 func (c *fileCompletion) AutoSubmit() bool {
@@ -56,8 +58,7 @@ func (c *fileCompletion) Items() []completion.Item {
 	}
 
 	// Use bounded walker to avoid scanning huge directories
-	//rubocop:disable Lint/ContextConnectivity
-	files, err := fsx.WalkFiles(context.Background(), ".", fsx.WalkFilesOptions{
+	files, err := fsx.WalkFiles(c.ctx(), ".", fsx.WalkFilesOptions{
 		ShouldIgnore: shouldIgnore,
 	})
 	if err != nil {

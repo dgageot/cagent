@@ -242,7 +242,7 @@ func Build(ctx context.Context, opts Options) (*Result, error) {
 		cfg = &latestcfg.Config{}
 	}
 
-	skillsEntries, redactions, err := stageSkills(stagingDir, cfg)
+	skillsEntries, redactions, err := stageSkills(ctx, stagingDir, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +380,7 @@ func loadConfig(ctx context.Context, opts Options) (*latestcfg.Config, error) {
 // filter, only the union of those filters is staged. An agent that
 // enables local skills without a filter is the wide case — every local
 // skill is staged.
-func stageSkills(kitDir string, cfg *latestcfg.Config) ([]Entry, []Redaction, error) {
+func stageSkills(ctx context.Context, kitDir string, cfg *latestcfg.Config) ([]Entry, []Redaction, error) {
 	target := filepath.Join(kitDir, skills.KitSkillsSubdir)
 	if err := os.MkdirAll(target, 0o750); err != nil {
 		return nil, nil, fmt.Errorf("creating kit skills dir: %w", err)
@@ -395,7 +395,7 @@ func stageSkills(kitDir string, cfg *latestcfg.Config) ([]Entry, []Redaction, er
 		entries    []Entry
 		redactions []Redaction
 	)
-	for _, skill := range skills.Load([]string{"local"}) {
+	for _, skill := range skills.Load(ctx, []string{"local"}) {
 		if skill.BaseDir == "" {
 			continue
 		}

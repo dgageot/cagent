@@ -151,6 +151,8 @@ type model struct {
 	titleInput         textinput.Model
 	lastTitleClickTime time.Time // for double-click detection on title
 
+	ctx func() context.Context
+
 	// Render cache to avoid re-rendering sections on every frame during scroll
 	cachedLines          []string // Cached rendered lines
 	cachedWidth          int      // Width used for cached render
@@ -168,15 +170,16 @@ type model struct {
 }
 
 // New creates a new sidebar bound to the given session state.
-func New(sessionState *service.SessionState) Model {
+func New(ctx context.Context, sessionState *service.SessionState) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Session title"
 	ti.CharLimit = 50
 	ti.Prompt = "" // No prompt to maximize usable width in collapsed sidebar
 
-	wd, branch := getCurrentWorkingDirectory()
+	wd, branch := getCurrentWorkingDirectory(ctx)
 
 	m := &model{
+		ctx:          func() context.Context { return context.WithoutCancel(ctx) },
 		width:        20,
 		layoutCfg:    DefaultLayoutConfig(),
 		height:       24,
@@ -494,7 +497,7 @@ func (m *model) LoadFromSession(sess *session.Session) {
 
 	// Load working directory from session
 	if sess.WorkingDir != "" {
-		m.workingDirectory, m.gitBranchName = formatWorkingDirectory(sess.WorkingDir)
+		m.workingDirectory, m.gitBranchName = formatWorkingDirectory(m.ctx(), sess.WorkingDir)
 	}
 
 	// Session has content if it has messages or token usage
@@ -570,12 +573,11 @@ func (m *model) contextPercent() string {
 
 // gitBranch returns the current git branch name for the given directory,
 // or an empty string if the directory is not inside a git repository.
-func gitBranch(dir string) string {
+func gitBranch(ctx context.Context, dir string) string {
 	if dir == "" {
 		return ""
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD").Output()
 	if err != nil {
@@ -587,12 +589,12 @@ func gitBranch(dir string) string {
 // formatWorkingDirectory formats a raw directory path for display,
 // replacing the home prefix with ~/. Returns the display path and the
 // current git branch (empty if not in a repo).
-func formatWorkingDirectory(rawDir string) (display, branch string) {
+func formatWorkingDirectory(ctx context.Context, rawDir string) (display, branch string) {
 	if rawDir == "" {
 		return "", ""
 	}
 
-	branch = gitBranch(rawDir)
+	branch = gitBranch(ctx, rawDir)
 
 	display = rawDir
 	if homeDir := paths.GetHomeDir(); homeDir != "" && strings.HasPrefix(display, homeDir) {
@@ -604,13 +606,13 @@ func formatWorkingDirectory(rawDir string) (display, branch string) {
 
 // getCurrentWorkingDirectory returns the current working directory with home directory
 // replaced by ~/, along with the current git branch name.
-func getCurrentWorkingDirectory() (string, string) {
+func getCurrentWorkingDirectory(ctx context.Context) (string, string) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", ""
 	}
 
-	return formatWorkingDirectory(pwd)
+	return formatWorkingDirectory(ctx, pwd)
 }
 
 // workingDirWithBranch returns the working directory path with the git branch

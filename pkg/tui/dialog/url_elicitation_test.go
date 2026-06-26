@@ -30,7 +30,7 @@ func TestNewURLElicitationDialog(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			dialog := NewURLElicitationDialog(tt.message, tt.url)
+			dialog := NewURLElicitationDialog(t.Context(), tt.message, tt.url)
 			require.NotNil(t, dialog)
 
 			ud, ok := dialog.(*URLElicitationDialog)
@@ -44,7 +44,7 @@ func TestNewURLElicitationDialog(t *testing.T) {
 func TestURLElicitationDialog_View(t *testing.T) {
 	t.Parallel()
 
-	dialog := NewURLElicitationDialog("Please visit the URL", "https://example.com/callback").(*URLElicitationDialog)
+	dialog := NewURLElicitationDialog(t.Context(), "Please visit the URL", "https://example.com/callback").(*URLElicitationDialog)
 	dialog.SetSize(100, 50)
 
 	view := dialog.View()
@@ -61,7 +61,7 @@ func TestURLElicitationDialog_View(t *testing.T) {
 func TestURLElicitationDialog_HasOpenKeyBinding(t *testing.T) {
 	t.Parallel()
 
-	dialog := NewURLElicitationDialog("Test", "https://example.com").(*URLElicitationDialog)
+	dialog := NewURLElicitationDialog(t.Context(), "Test", "https://example.com").(*URLElicitationDialog)
 
 	// Verify the openBrowser key binding exists and is configured correctly
 	require.NotNil(t, dialog.openBrowser)

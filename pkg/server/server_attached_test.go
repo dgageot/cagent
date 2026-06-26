@@ -31,7 +31,7 @@ func TestAttachedServer_SteerReachesAttachedRuntime(t *testing.T) {
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
 	fake := &fakeRuntime{}
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	srv := NewWithManager(sm, "")
 
@@ -56,7 +56,7 @@ func TestAttachedServer_EventStreamEmitsRegisteredEvents(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	events := make(chan any, 4)
 	sm.RegisterEventSource(sess.ID, func(ctx context.Context, send func(any)) {
@@ -138,7 +138,7 @@ func TestAttachedServer_DeleteSessionStopsEventStream(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	sourceStarted := make(chan struct{})
 	sourceCtxDone := make(chan struct{})
@@ -203,7 +203,7 @@ func TestAttachedServer_StatusEndpointReturnsCurrentState(t *testing.T) {
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
 	fake := &fakeRuntime{}
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	srv := NewWithManager(sm, "")
 
@@ -235,7 +235,7 @@ func TestAttachedServer_FollowUpWhileIdleReturnsQueuedIdle(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	srv := NewWithManager(sm, "")
 
@@ -262,7 +262,7 @@ func TestAttachedServer_ReadyEndpointReturnsImmediately(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	srv := NewWithManager(sm, "")
 
@@ -313,7 +313,7 @@ func TestAttachedServer_DeleteWithWaitBlocksUntilStreamStops(t *testing.T) {
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
 	fake := &fakeRuntime{streamDelay: 200 * time.Millisecond}
-	sm.AttachRuntime(sess.ID, fake, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, fake, sess)
 
 	srv := NewWithManager(sm, "")
 
@@ -350,7 +350,7 @@ func TestAttachedServer_EventStreamReplaysFromLastEventID(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	events := make(chan any, 8)
 	sm.RegisterEventSource(sess.ID, func(ctx context.Context, send func(any)) {
@@ -405,7 +405,7 @@ func TestAttachedServer_EventStreamSignalsGapWhenResumePointEvicted(t *testing.T
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	// Tiny buffer so early events are evicted.
 	_, pumpCancel := context.WithCancel(t.Context())
@@ -476,7 +476,7 @@ func TestAttachedServer_SnapshotReturnsStateAndLastEventSeq(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	events := make(chan any, 4)
 	sm.RegisterEventSource(sess.ID, func(ctx context.Context, send func(any)) {
@@ -543,7 +543,7 @@ func TestAttachedServer_DeleteEmitsSessionExited(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 	sm.RegisterEventSource(sess.ID, func(ctx context.Context, _ func(any)) {
 		<-ctx.Done()
 	})
@@ -584,7 +584,7 @@ func TestAttachedServer_FollowUpIdempotencyKeyDedupes(t *testing.T) {
 	require.NoError(t, store.AddSession(ctx, sess))
 
 	sm := NewSessionManager(ctx, config.Sources{}, store, 0, &config.RuntimeConfig{})
-	sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+	sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 
 	var mu sync.Mutex
 	var delivered []string
@@ -650,7 +650,7 @@ func TestAttachedServer_StatusWaitBlocksUntilAttached(t *testing.T) {
 	// Attach a little later, while the request is already waiting.
 	go func() {
 		time.Sleep(80 * time.Millisecond)
-		sm.AttachRuntime(sess.ID, &fakeRuntime{}, sess)
+		sm.AttachRuntime(t.Context(), sess.ID, &fakeRuntime{}, sess)
 	}()
 
 	resp := httpDoTCP(t, ctx, http.MethodGet, addr+"/api/sessions/"+sess.ID+"/status?wait=5s", nil)

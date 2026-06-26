@@ -15,7 +15,7 @@ func (tc *Client) Track(ctx context.Context, structuredEvent StructuredEvent) {
 	tc.track(ctx, structuredEvent, true)
 }
 
-func (tc *Client) track(_ context.Context, structuredEvent StructuredEvent, async bool) {
+func (tc *Client) track(ctx context.Context, structuredEvent StructuredEvent, async bool) {
 	eventType := structuredEvent.GetEventType()
 	structuredProps := structuredEvent.ToStructuredProperties()
 
@@ -43,9 +43,9 @@ func (tc *Client) track(_ context.Context, structuredEvent StructuredEvent, asyn
 	}
 
 	if async {
-		go tc.sendEvent(&event) //nolint:gosec // telemetry is fire-and-forget; sendEvent uses its own context internally
+		go tc.sendEvent(context.WithoutCancel(ctx), &event)
 	} else {
-		tc.sendEvent(&event)
+		tc.sendEvent(ctx, &event)
 	}
 }
 

@@ -17,7 +17,7 @@ type Store struct {
 }
 
 // New creates a new TUI state store, initializing the database if needed.
-func New() (*Store, error) {
+func New(ctx context.Context) (*Store, error) {
 	dbPath := filepath.Join(paths.GetDataDir(), "tui_state.db")
 	db, err := sqliteutil.OpenDB(dbPath)
 	if err != nil {
@@ -25,7 +25,7 @@ func New() (*Store, error) {
 	}
 
 	store := &Store{db: db}
-	if err := store.migrate(); err != nil {
+	if err := store.migrate(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrating TUI state store: %w", err)
 	}
@@ -34,9 +34,7 @@ func New() (*Store, error) {
 }
 
 // migrate runs database migrations.
-func (s *Store) migrate() error {
-	//rubocop:disable Lint/ContextConnectivity
-	ctx := context.Background()
+func (s *Store) migrate(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS tabs (
 			session_id TEXT PRIMARY KEY,

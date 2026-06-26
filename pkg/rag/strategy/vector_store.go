@@ -109,6 +109,7 @@ func (d DefaultEmbeddingInputBuilder) BuildEmbeddingInput(_ context.Context, _ s
 
 // VectorStoreConfig holds configuration for creating a VectorStore.
 type VectorStoreConfig struct {
+	Context              func() context.Context
 	Name                 string
 	Database             vectorStoreDB
 	Embedder             *embed.Embedder
@@ -150,8 +151,9 @@ func NewVectorStore(cfg VectorStoreConfig) *VectorStore {
 
 	// Set usage handler to calculate cost from models.dev and emit events with CUMULATIVE totals
 	// This matches how chat completions calculate cost in runtime.go
+	costCtx := cfg.Context
 	cfg.Embedder.SetUsageHandler(func(tokens int64, _ float64) {
-		cost := s.calculateCost(tokens)
+		cost := s.calculateCost(costCtx(), tokens)
 		s.recordUsage(tokens, cost)
 	})
 
@@ -170,15 +172,14 @@ func (s *VectorStore) SetEmbeddingInputBuilder(builder EmbeddingInputBuilder) {
 }
 
 // calculateCost calculates embedding cost using models.dev pricing
-func (s *VectorStore) calculateCost(tokens int64) float64 {
+func (s *VectorStore) calculateCost(ctx context.Context, tokens int64) float64 {
 	if s.modelsStore == nil || s.modelID.Provider == "dmr" {
 		return 0
 	}
 
-	//rubocop:disable Lint/ContextConnectivity
-	model, err := s.modelsStore.GetModel(context.Background(), s.modelID)
+	model, err := s.modelsStore.GetModel(ctx, s.modelID)
 	if err != nil {
-		slog.Debug("Failed to get model pricing from models.dev, cost will be 0",
+		slog.DebugContext(ctx, "Failed to get model pricing from models.dev, cost will be 0",
 			"model_id", s.modelID.String(),
 			"error", err)
 		return 0

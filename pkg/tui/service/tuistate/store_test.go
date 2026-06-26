@@ -19,7 +19,7 @@ func newTestStore(t *testing.T) *Store {
 	t.Cleanup(func() { db.Close() })
 
 	store := &Store{db: db}
-	require.NoError(t, store.migrate())
+	require.NoError(t, store.migrate(t.Context()))
 	return store
 }
 

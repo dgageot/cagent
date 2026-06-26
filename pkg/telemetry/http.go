@@ -60,7 +60,7 @@ func (tc *Client) printEvent(event *EventPayload) {
 }
 
 // sendEvent sends a single event to Docker events API and handles logging
-func (tc *Client) sendEvent(event *EventPayload) {
+func (tc *Client) sendEvent(ctx context.Context, event *EventPayload) {
 	// Get version before acquiring lock to avoid deadlock
 	version := tc.getVersion()
 
@@ -72,7 +72,7 @@ func (tc *Client) sendEvent(event *EventPayload) {
 		tc.logger.Debug("Sending telemetry event via HTTP", "event_type", event.Event, "endpoint", tc.endpoint)
 
 		// Perform HTTP request inline
-		if err := tc.performHTTPRequest(event, version); err != nil {
+		if err := tc.performHTTPRequest(ctx, event, version); err != nil {
 			tc.logger.Debug("Failed to send telemetry event to Docker API", "error", err, "event_type", event.Event)
 		} else {
 			tc.logger.Debug("Successfully sent telemetry event via HTTP", "event_type", event.Event)
@@ -103,8 +103,7 @@ func (tc *Client) sendEvent(event *EventPayload) {
 	tc.logger.Debug("Event recorded", logArgs...)
 
 	// Enhanced debug logging with full event structure
-	//rubocop:disable Lint/ContextConnectivity
-	if tc.logger.Enabled(context.Background(), slog.LevelDebug) {
+	if tc.logger.Enabled(ctx, slog.LevelDebug) {
 		if jsonData, err := json.Marshal(event); err == nil {
 			tc.logger.Debug("Full telemetry event JSON", "json", string(jsonData))
 		}
@@ -112,7 +111,7 @@ func (tc *Client) sendEvent(event *EventPayload) {
 }
 
 // performHTTPRequest handles the actual HTTP request to the telemetry API
-func (tc *Client) performHTTPRequest(event *EventPayload, version string) error {
+func (tc *Client) performHTTPRequest(ctx context.Context, event *EventPayload, version string) error {
 	// Wrap event in records array to match MarlinRequest format
 	requestBody := map[string]any{
 		"records": []any{event},
@@ -124,9 +123,9 @@ func (tc *Client) performHTTPRequest(event *EventPayload, version string) error 
 		return fmt.Errorf("failed to marshal request to JSON: %w", err)
 	}
 
-	// Send request with timeout context
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Send request with timeout context. Telemetry sends should outlive a
+	// cancelled caller, but keep its trace context for correlation.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 
 	// Create HTTP request

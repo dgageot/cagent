@@ -15,7 +15,7 @@ func TestSidebar_TitleEditStateTransitions(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	// Initially not editing
 	assert.False(t, sb.IsEditingTitle(), "should not be editing initially")
@@ -43,7 +43,7 @@ func TestSidebar_TitleEditPreservesInput(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	// Set initial title by simulating session load
 	m := sb.(*model)
@@ -65,7 +65,7 @@ func TestSidebar_TitleEditCancelRestoresOriginal(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	// Set initial title
 	m := sb.(*model)
@@ -87,7 +87,7 @@ func TestSidebar_HandleClickType(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true // Enable star visibility
@@ -125,7 +125,7 @@ func TestSidebar_TitleRegenerating(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionTitle = "Original Title"
@@ -153,7 +153,7 @@ func TestSidebar_HandleClickType_WrappedTitle_Collapsed(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true
@@ -190,7 +190,7 @@ func TestSidebar_HandleClickType_WrappedTitle_Vertical(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true
@@ -228,7 +228,7 @@ func TestSidebar_HandleClickType_NoWrap(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true
@@ -261,7 +261,7 @@ func TestSidebar_HandleClickType_WorkingDir_Vertical(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true
@@ -295,7 +295,7 @@ func TestSidebar_HandleClickType_WorkingDir_Collapsed(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.sessionHasContent = true
@@ -325,7 +325,7 @@ func TestSidebar_WorkingDirectory(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	sb := New(sessionState)
+	sb := New(t.Context(), sessionState)
 
 	m := sb.(*model)
 	m.workingDirectory = "~/projects/myapp"

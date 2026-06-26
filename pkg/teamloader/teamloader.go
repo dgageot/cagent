@@ -309,7 +309,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 		// Add skills toolset if skills are enabled
 		if agentConfig.Skills.Enabled() {
-			loadedSkills := skills.Load(agentConfig.Skills.Sources)
+			loadedSkills := skills.Load(ctx, agentConfig.Skills.Sources)
 			loadedSkills = filterSkillsByName(loadedSkills, agentConfig.Skills.Include)
 			// Inline skills are defined in the agent config itself; they are
 			// always exposed and never subject to the include filter.

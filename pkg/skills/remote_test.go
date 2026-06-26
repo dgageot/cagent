@@ -213,7 +213,7 @@ func TestLoadWithRemoteSources(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	skills := Load([]string{srv.URL})
+	skills := Load(t.Context(), []string{srv.URL})
 
 	found := false
 	for _, s := range skills {
@@ -248,7 +248,7 @@ func TestLoadWithMixedSources(t *testing.T) {
 	t.Chdir(tmpDir)
 	t.Setenv("HOME", t.TempDir())
 
-	skills := Load([]string{"local", srv.URL})
+	skills := Load(t.Context(), []string{"local", srv.URL})
 
 	found := false
 	for _, s := range skills {
@@ -261,10 +261,10 @@ func TestLoadWithMixedSources(t *testing.T) {
 }
 
 func TestLoadWithEmptySources(t *testing.T) {
-	skills := Load(nil)
+	skills := Load(t.Context(), nil)
 	assert.Empty(t, skills)
 
-	skills = Load([]string{})
+	skills = Load(t.Context(), []string{})
 	assert.Empty(t, skills)
 }
 

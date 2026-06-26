@@ -34,7 +34,7 @@ func TestAskpass_RoundTrip(t *testing.T) {
 		t.Skip("sudo askpass unsupported on this platform")
 	}
 
-	srv, err := startAskpassServer(acceptHandler("hunter2"))
+	srv, err := startAskpassServer(t.Context(), acceptHandler("hunter2"))
 	require.NoError(t, err)
 	defer srv.close()
 
@@ -51,7 +51,7 @@ func TestAskpass_Decline(t *testing.T) {
 		t.Skip("sudo askpass unsupported on this platform")
 	}
 
-	srv, err := startAskpassServer(func() tools.ElicitationHandler {
+	srv, err := startAskpassServer(t.Context(), func() tools.ElicitationHandler {
 		return func(_ context.Context, _ *mcp.ElicitParams) (tools.ElicitationResult, error) {
 			return tools.ElicitationResult{Action: tools.ElicitationActionDecline}, nil
 		}
@@ -72,7 +72,7 @@ func TestAskpass_BadToken(t *testing.T) {
 		t.Skip("sudo askpass unsupported on this platform")
 	}
 
-	srv, err := startAskpassServer(acceptHandler("hunter2"))
+	srv, err := startAskpassServer(t.Context(), acceptHandler("hunter2"))
 	require.NoError(t, err)
 	defer srv.close()
 
@@ -110,7 +110,7 @@ func TestAskpass_CancelledWhenHelperDies(t *testing.T) {
 	}
 
 	cancelled := make(chan struct{})
-	srv, err := startAskpassServer(func() tools.ElicitationHandler {
+	srv, err := startAskpassServer(t.Context(), func() tools.ElicitationHandler {
 		return func(ctx context.Context, _ *mcp.ElicitParams) (tools.ElicitationResult, error) {
 			<-ctx.Done() // block like a real prompt until the context is cancelled
 			close(cancelled)
@@ -155,7 +155,7 @@ func TestAskpass_PromptsSerialized(t *testing.T) {
 	}
 
 	var active, maxActive int32
-	srv, err := startAskpassServer(func() tools.ElicitationHandler {
+	srv, err := startAskpassServer(t.Context(), func() tools.ElicitationHandler {
 		return func(_ context.Context, _ *mcp.ElicitParams) (tools.ElicitationResult, error) {
 			n := atomic.AddInt32(&active, 1)
 			for {

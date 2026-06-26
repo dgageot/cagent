@@ -42,16 +42,15 @@ type callbackResult struct {
 }
 
 // NewCallbackServer creates a new OAuth callback server on a random available port
-func NewCallbackServer() (*CallbackServer, error) {
-	return NewCallbackServerOnPort(0)
+func NewCallbackServer(ctx context.Context) (*CallbackServer, error) {
+	return NewCallbackServerOnPort(ctx, 0)
 }
 
 // NewCallbackServerOnPort creates a new OAuth callback server on a specific port.
 // Use port 0 to let the OS pick a random available port.
-func NewCallbackServerOnPort(port int) (*CallbackServer, error) {
+func NewCallbackServerOnPort(ctx context.Context, port int) (*CallbackServer, error) {
 	var lc net.ListenConfig
-	//rubocop:disable Lint/ContextConnectivity
-	listener, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find available port: %w", err)
 	}

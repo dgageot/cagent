@@ -82,6 +82,12 @@ type appModel struct {
 	chatPage     chat.Page
 	editor       editor.Editor
 
+	// ctx preserves values from the root TUI context (trace context,
+	// baggage, log attrs) without inheriting cancellation. Bubble Tea
+	// handlers have no ctx parameter and many calls are persistence/cleanup
+	// work that must survive shutdown cancellation.
+	ctx func() context.Context
+
 	// Shared history for command history across all editors
 	history *history.History
 
@@ -319,6 +325,8 @@ func WithToolRenderers(renderers map[string]tool.Builder) Option {
 
 // New creates a new Model.
 func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initialWorkingDir string, cleanup func(), opts ...Option) tea.Model {
+	tuiCtx := func() context.Context { return context.WithoutCancel(ctx) }
+
 	// Initialize supervisor
 	sv := supervisor.New(spawner)
 
@@ -329,7 +337,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	// Initialize tab store
 	var ts *tuistate.Store
 	var tsErr error
-	ts, tsErr = tuistate.New()
+	ts, tsErr = tuistate.New(tuiCtx())
 	if tsErr != nil {
 		slog.WarnContext(ctx, "Failed to open TUI state store, tabs won't persist", "error", tsErr)
 	}
@@ -354,6 +362,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		editors:                       map[string]editor.Editor{},
 		sessionStates:                 map[string]*service.SessionState{sessID: initialSessionState},
 		application:                   initialApp,
+		ctx:                           tuiCtx,
 		sessionState:                  initialSessionState,
 		history:                       historyStore,
 		pendingRestores:               make(map[string]string),
@@ -383,7 +392,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	m.editor = initialEditor
 
 	// Create initial chat page (after options are applied so leanMode is set)
-	initialChatPage := chat.New(initialApp, initialSessionState, m.chatPageOpts()...)
+	initialChatPage := chat.New(m.ctx(), initialApp, initialSessionState, m.chatPageOpts()...)
 	m.chatPages[sessID] = initialChatPage
 	m.chatPage = initialChatPage
 
@@ -451,8 +460,7 @@ func (m *appModel) reapplyKeyboardEnhancements() {
 }
 
 func (m *appModel) commandCategories() []commands.Category {
-	//rubocop:disable Lint/ContextConnectivity
-	categories := m.buildCommandCategories(context.Background(), m)
+	categories := m.buildCommandCategories(m.ctx(), m)
 	if len(m.disabledCommands) == 0 {
 		return categories
 	}
@@ -495,7 +503,7 @@ func (m *appModel) editorOpts() []editor.Option {
 	opts := []editor.Option{
 		editor.WithCompletions(
 			completions.NewCommandCompletion(m.commandCategories()),
-			completions.NewFileCompletion(),
+			completions.NewFileCompletion(m.ctx()),
 		),
 	}
 	if m.application.IsReadOnly() {
@@ -509,7 +517,7 @@ func (m *appModel) editorOpts() []editor.Option {
 // convenience pointers (m.chatPage, m.sessionState, m.editor) are also updated.
 func (m *appModel) initSessionComponents(tabID string, a *app.App, sess *session.Session) {
 	ss := service.NewSessionState(sess)
-	cp := chat.New(a, ss, m.chatPageOpts()...)
+	cp := chat.New(m.ctx(), a, ss, m.chatPageOpts()...)
 	ed := editor.New(m.history, m.editorOpts()...)
 
 	m.chatPages[tabID] = cp
@@ -553,14 +561,11 @@ func (m *appModel) Init() tea.Cmd {
 	if oldSessionID, ok := m.pendingRestores[activeID]; ok {
 		delete(m.pendingRestores, activeID)
 		if store := m.application.SessionStore(); store != nil {
-			//rubocop:disable Lint/ContextConnectivity
-			if sess, err := store.GetSession(context.Background(), oldSessionID); err == nil {
-				//rubocop:disable Lint/ContextConnectivity
-				_, cmd := m.replaceActiveSession(context.Background(), sess)
+			if sess, err := store.GetSession(m.ctx(), oldSessionID); err == nil {
+				_, cmd := m.replaceActiveSession(m.ctx(), sess)
 
 				if m.tuiStore != nil && sess.WorkingDir != "" {
-					//rubocop:disable Lint/ContextConnectivity
-					if err := m.tuiStore.UpdateTabWorkingDir(context.Background(), oldSessionID, sess.WorkingDir); err != nil {
+					if err := m.tuiStore.UpdateTabWorkingDir(m.ctx(), oldSessionID, sess.WorkingDir); err != nil {
 						slog.Warn("Failed to update persisted working dir", "error", err)
 					}
 				}
@@ -653,8 +658,7 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.tuiStore != nil {
 			persistedID := m.persistedSessionID(m.supervisor.ActiveID())
-			//rubocop:disable Lint/ContextConnectivity
-			if err := m.tuiStore.ToggleSidebarCollapsed(context.Background(), persistedID); err != nil {
+			if err := m.tuiStore.ToggleSidebarCollapsed(m.ctx(), persistedID); err != nil {
 				slog.Warn("Failed to persist sidebar collapsed state", "error", err)
 			}
 		}
@@ -1052,8 +1056,7 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.application.IsReadOnly() {
 			return m, notification.WarningCmd("Session is read-only. No new messages can be sent.")
 		}
-		//rubocop:disable Lint/ContextConnectivity
-		m.application.RunWithMessage(context.Background(), nil, msg.Content)
+		m.application.RunWithMessage(m.ctx(), nil, msg.Content)
 		return m, nil
 
 	// --- URL opening ---
@@ -1170,9 +1173,7 @@ func (m *appModel) handleOpenSessionBrowser() (tea.Model, tea.Cmd) {
 	if store == nil {
 		return m, notification.InfoCmd("No session store configured")
 	}
-
-	//rubocop:disable Lint/ContextConnectivity
-	sessions, err := store.GetSessionSummaries(context.Background())
+	sessions, err := store.GetSessionSummaries(m.ctx())
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to load sessions: %v", err))
 	}
@@ -1191,9 +1192,7 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	if store == nil {
 		return m, notification.ErrorCmd("No session store configured")
 	}
-
-	//rubocop:disable Lint/ContextConnectivity
-	sess, err := store.GetSession(context.Background(), sessionID)
+	sess, err := store.GetSession(m.ctx(), sessionID)
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
 	}
@@ -1208,8 +1207,7 @@ func (m *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	if workingDir == "" {
 		workingDir = m.application.Session().WorkingDir
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	ctx := context.Background()
+	ctx := m.ctx()
 
 	// If the current session is empty (no messages, no title — the default state
 	// when opening the TUI or creating a new tab), replace it in-place instead of
@@ -1337,8 +1335,7 @@ func (m *appModel) handleClearSession() (tea.Model, tea.Cmd) {
 
 	// Update persisted tab to point to the new session.
 	if m.tuiStore != nil {
-		//rubocop:disable Lint/ContextConnectivity
-		ctx := context.Background()
+		ctx := m.ctx()
 		oldPersistedID := m.persistedSessionID(activeID)
 		if err := m.tuiStore.UpdateTabSessionID(ctx, oldPersistedID, newSess.ID); err != nil {
 			slog.WarnContext(ctx, "Failed to update tab session ID after clear", "error", err)
@@ -1363,8 +1360,7 @@ func (m *appModel) handleSpawnSession(workingDir string) (tea.Model, tea.Cmd) {
 	}
 
 	// Spawn the new session
-	//rubocop:disable Lint/ContextConnectivity
-	ctx := context.Background()
+	ctx := m.ctx()
 	sessionID, err := m.supervisor.SpawnSession(ctx, workingDir)
 	if err != nil {
 		return m, notification.ErrorCmd("Failed to spawn session: " + err.Error())
@@ -1385,10 +1381,8 @@ func (m *appModel) handleSpawnSession(workingDir string) (tea.Model, tea.Cmd) {
 func (m *appModel) openWorkingDirPicker() (tea.Model, tea.Cmd) {
 	var recentDirs, favoriteDirs []string
 	if m.tuiStore != nil {
-		//rubocop:disable Lint/ContextConnectivity
-		recentDirs, _ = m.tuiStore.GetRecentDirs(context.Background(), 10)
-		//rubocop:disable Lint/ContextConnectivity
-		favoriteDirs, _ = m.tuiStore.GetFavoriteDirs(context.Background())
+		recentDirs, _ = m.tuiStore.GetRecentDirs(m.ctx(), 10)
+		favoriteDirs, _ = m.tuiStore.GetFavoriteDirs(m.ctx())
 	}
 
 	// Use the active session's working directory so the picker reflects it
@@ -1399,7 +1393,7 @@ func (m *appModel) openWorkingDirPicker() (tea.Model, tea.Cmd) {
 	}
 
 	return m, core.CmdHandler(dialog.OpenDialogMsg{
-		Model: dialog.NewWorkingDirPickerDialog(recentDirs, favoriteDirs, m.tuiStore, sessionWorkingDir),
+		Model: dialog.NewWorkingDirPickerDialog(m.ctx(), recentDirs, favoriteDirs, m.tuiStore, sessionWorkingDir),
 	})
 }
 
@@ -1466,15 +1460,12 @@ func (m *appModel) handleSwitchTab(sessionID string) (tea.Model, tea.Cmd) {
 		delete(m.pendingRestores, sessionID)
 		m.application = runner.App
 		if store := runner.App.SessionStore(); store != nil {
-			//rubocop:disable Lint/ContextConnectivity
-			if sess, err := store.GetSession(context.Background(), oldSessionID); err == nil {
+			if sess, err := store.GetSession(m.ctx(), oldSessionID); err == nil {
 				m.persistActiveTab(sess.ID)
-				//rubocop:disable Lint/ContextConnectivity
-				model, cmd := m.replaceActiveSession(context.Background(), sess)
+				model, cmd := m.replaceActiveSession(m.ctx(), sess)
 
 				if m.tuiStore != nil && sess.WorkingDir != "" {
-					//rubocop:disable Lint/ContextConnectivity
-					if err := m.tuiStore.UpdateTabWorkingDir(context.Background(), oldSessionID, sess.WorkingDir); err != nil {
+					if err := m.tuiStore.UpdateTabWorkingDir(m.ctx(), oldSessionID, sess.WorkingDir); err != nil {
 						slog.Warn("Failed to update persisted working dir", "error", err)
 					}
 				}
@@ -1615,7 +1606,7 @@ func (m *appModel) replayElicitationEvent(ev *runtime.ElicitationRequestEvent) t
 				serverURL = url
 			}
 			return core.CmdHandler(dialog.OpenDialogMsg{
-				Model:            dialog.NewOAuthAuthorizationDialog(serverURL, m.application),
+				Model:            dialog.NewOAuthAuthorizationDialog(m.ctx(), serverURL, m.application),
 				OriginatingEvent: ev,
 			})
 		}
@@ -1624,7 +1615,7 @@ func (m *appModel) replayElicitationEvent(ev *runtime.ElicitationRequestEvent) t
 	switch ev.Mode {
 	case "url":
 		return core.CmdHandler(dialog.OpenDialogMsg{
-			Model:            dialog.NewURLElicitationDialog(ev.Message, ev.URL),
+			Model:            dialog.NewURLElicitationDialog(m.ctx(), ev.Message, ev.URL),
 			OriginatingEvent: ev,
 		})
 	default:
@@ -1645,8 +1636,7 @@ func (m *appModel) handleReorderTab(msg messages.ReorderTabMsg) (tea.Model, tea.
 		for i, tab := range tabs {
 			ids[i] = m.persistedSessionID(tab.SessionID)
 		}
-		//rubocop:disable Lint/ContextConnectivity
-		if err := m.tuiStore.ReorderTab(context.Background(), ids); err != nil {
+		if err := m.tuiStore.ReorderTab(m.ctx(), ids); err != nil {
 			slog.Warn("Failed to persist tab reorder", "error", err)
 		}
 	}
@@ -1683,8 +1673,7 @@ func (m *appModel) handleCloseTab(sessionID string) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	// Remove from persistent store using the persisted session-store ID.
 	if m.tuiStore != nil {
-		//rubocop:disable Lint/ContextConnectivity
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(m.ctx(), 1*time.Second)
 		defer cancel()
 		if err := m.tuiStore.RemoveTab(ctx, persistedID); err != nil {
 			slog.ErrorContext(ctx, "Failed to remove tab from store", "error", err)

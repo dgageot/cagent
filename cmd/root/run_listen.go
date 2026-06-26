@@ -28,7 +28,7 @@ func (f *runExecFlags) startAttachedServer(ctx context.Context, out *cli.Printer
 	}
 
 	sm := server.NewSessionManager(ctx, nil, rt.SessionStore(), 0, &f.runConfig)
-	sm.AttachRuntime(sess.ID, rt, sess)
+	sm.AttachRuntime(ctx, sess.ID, rt, sess)
 
 	ln, err := server.Listen(ctx, f.listenAddr)
 	if err != nil {

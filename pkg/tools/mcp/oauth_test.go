@@ -354,7 +354,7 @@ func TestRefreshAccessToken_SendsEmptyClientIDWhenNotStored(t *testing.T) {
 // TestCallbackServer_RejectsCallbackBeforeStateSet verifies that a callback
 // arriving before SetExpectedState is called is rejected (CSRF protection).
 func TestCallbackServer_RejectsCallbackBeforeStateSet(t *testing.T) {
-	cs, err := NewCallbackServer()
+	cs, err := NewCallbackServer(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -35,6 +35,8 @@ import (
 )
 
 type App struct {
+	ctx func() context.Context
+
 	runtime                runtime.Runtime
 	session                *session.Session
 	firstMessage           *string
@@ -119,6 +121,7 @@ func WithSnapshotController(c builtins.SnapshotController) Opt {
 
 func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ...Opt) *App {
 	app := &App{
+		ctx:              func() context.Context { return context.WithoutCancel(ctx) },
 		runtime:          rt,
 		session:          sess,
 		events:           make(chan tea.Msg, 128),
@@ -167,8 +170,7 @@ func (a *App) SendFirstMessage() tea.Cmd {
 	cmds := []tea.Cmd{
 		func() tea.Msg {
 			// Use the shared PrepareUserMessage function for consistent attachment handling
-			//rubocop:disable Lint/ContextConnectivity
-			userMsg, attachedPath, err := cli.PrepareUserMessage(context.Background(), a.runtime, *a.firstMessage, a.firstMessageAttach)
+			userMsg, attachedPath, err := cli.PrepareUserMessage(a.ctx(), a.runtime, *a.firstMessage, a.firstMessageAttach)
 			if err != nil {
 				slog.Error("Failed to prepare first message", "error", err)
 				return nil
@@ -785,8 +787,7 @@ func (a *App) removeSubscriber(ch chan tea.Msg) {
 // non-blocking; if a subscriber's buffer is full the event is dropped for
 // that subscriber so one slow consumer cannot stall the others.
 func (a *App) startFanOut() {
-	//rubocop:disable Lint/ContextConnectivity
-	throttled := a.throttleEvents(context.Background(), a.events)
+	throttled := a.throttleEvents(a.ctx(), a.events)
 	go func() {
 		for msg := range throttled {
 			a.subsMu.Lock()
@@ -805,8 +806,7 @@ func (a *App) startFanOut() {
 
 // Resume resumes the runtime with the given confirmation request
 func (a *App) Resume(req runtime.ResumeRequest) {
-	//rubocop:disable Lint/ContextConnectivity
-	a.runtime.Resume(context.Background(), req)
+	a.runtime.Resume(a.ctx(), req)
 }
 
 // TogglePause toggles whether the runtime loop is paused at iteration
@@ -814,8 +814,7 @@ func (a *App) Resume(req runtime.ResumeRequest) {
 // doesn't support pausing (e.g. remote runtimes), in which case the first
 // return value is meaningless.
 func (a *App) TogglePause() (paused, supported bool) {
-	//rubocop:disable Lint/ContextConnectivity
-	p, err := a.runtime.TogglePause(context.Background())
+	p, err := a.runtime.TogglePause(a.ctx())
 	if errors.Is(err, runtime.ErrUnsupported) {
 		return false, false
 	}
@@ -852,8 +851,7 @@ func (a *App) NewSession() {
 	a.firstMessageAttach = ""
 
 	// Re-emit startup info so the sidebar shows agent/tools info in the new session
-	//rubocop:disable Lint/ContextConnectivity
-	a.reEmitStartupInfo(context.Background())
+	a.reEmitStartupInfo(a.ctx())
 }
 
 // reEmitStartupInfo resets and re-emits startup info (agent, team, tools)
@@ -938,8 +936,7 @@ func (a *App) HasPermissions() bool {
 func (a *App) SwitchAgent(agentName string) error {
 	// Called from the Bubble Tea event loop, which has no context; this is
 	// a TUI-root boundary.
-	//rubocop:disable Lint/ContextConnectivity
-	return a.runtime.SetCurrentAgent(context.Background(), agentName)
+	return a.runtime.SetCurrentAgent(a.ctx(), agentName)
 }
 
 // SetCurrentAgentModel sets the model for the current agent and persists

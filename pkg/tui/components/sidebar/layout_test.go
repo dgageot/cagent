@@ -149,7 +149,7 @@ func TestScrollbarGapInOutput(t *testing.T) {
 // This verifies that scrolling uses the render cache instead of re-rendering sections.
 func BenchmarkSidebarVerticalView_Scroll(b *testing.B) {
 	sessionState := &service.SessionState{}
-	m := New(sessionState).(*model)
+	m := New(b.Context(), sessionState).(*model)
 	m.SetSize(35, 50)
 	m.SetMode(ModeVertical)
 
@@ -191,7 +191,7 @@ func BenchmarkSidebarVerticalView_Scroll(b *testing.B) {
 // This shows the cost of full re-rendering for comparison.
 func BenchmarkSidebarVerticalView_NoCache(b *testing.B) {
 	sessionState := &service.SessionState{}
-	m := New(sessionState).(*model)
+	m := New(b.Context(), sessionState).(*model)
 	m.SetSize(35, 50)
 	m.SetMode(ModeVertical)
 

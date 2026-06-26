@@ -13,7 +13,7 @@ import (
 func TestContextPercent_SingleSession(t *testing.T) {
 	t.Parallel()
 
-	m := newTestSidebar()
+	m := newTestSidebar(t)
 	m.startStream("session-1", "root")
 	m.recordUsage("session-1", "root", 10000, 100000)
 
@@ -26,7 +26,7 @@ func TestContextPercent_SingleSession(t *testing.T) {
 func TestContextPercent_TracksActiveSession(t *testing.T) {
 	t.Parallel()
 
-	m := newTestSidebar()
+	m := newTestSidebar(t)
 
 	m.startStream("session-root", "root")
 	m.recordUsage("session-root", "root", 30000, 100000)
@@ -42,7 +42,7 @@ func TestContextPercent_TracksActiveSession(t *testing.T) {
 func TestContextPercent_NoContextLimit(t *testing.T) {
 	t.Parallel()
 
-	m := newTestSidebar()
+	m := newTestSidebar(t)
 	m.startStream("session-1", "root")
 	m.recordUsage("session-1", "root", 10000, 0) // No context limit
 
@@ -54,7 +54,7 @@ func TestContextPercent_EmptyUsage(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	m := New(sessionState).(*model)
+	m := New(t.Context(), sessionState).(*model)
 
 	assert.Empty(t, m.contextPercent())
 }
@@ -64,7 +64,7 @@ func TestContextPercent_FallbackToSingleSession(t *testing.T) {
 
 	sess := session.New()
 	sessionState := service.NewSessionState(sess)
-	m := New(sessionState).(*model)
+	m := New(t.Context(), sessionState).(*model)
 
 	// Session with no active stream (e.g., restored from persistence)
 	m.sessionUsage["session-1"] = &runtime.Usage{
@@ -83,7 +83,7 @@ func TestContextPercent_FallbackToSingleSession(t *testing.T) {
 func TestContextPercent_StableDuringSubAgent(t *testing.T) {
 	t.Parallel()
 
-	m := newTestSidebar()
+	m := newTestSidebar(t)
 
 	m.startStream("session-root", "root")
 	m.recordUsage("session-root", "root", 30000, 100000)
@@ -102,7 +102,7 @@ func TestContextPercent_StableDuringSubAgent(t *testing.T) {
 func TestContextPercent_RoundTripDelegations(t *testing.T) {
 	t.Parallel()
 
-	m := newTestSidebar()
+	m := newTestSidebar(t)
 
 	// Parent starts.
 	m.startStream("parent-session", "root")
@@ -141,10 +141,11 @@ type testSidebar struct {
 	*model
 }
 
-func newTestSidebar() *testSidebar {
+func newTestSidebar(tb testing.TB) *testSidebar {
+	tb.Helper()
 	sess := session.New()
 	return &testSidebar{
-		model: New(service.NewSessionState(sess)).(*model),
+		model: New(testContext(tb), service.NewSessionState(sess)).(*model),
 	}
 }
 

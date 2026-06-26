@@ -112,6 +112,8 @@ type tabRegion struct {
 type workingDirPickerDialog struct {
 	BaseDialog
 
+	ctx func() context.Context
+
 	textInput textinput.Model
 	section   dirSection
 
@@ -154,7 +156,7 @@ type workingDirPickerDialog struct {
 // store is used for persisting favorite directory changes (may be nil).
 // sessionWorkingDir is the working directory of the active session; when non-empty
 // it is used as the initial browse directory instead of the process working directory.
-func NewWorkingDirPickerDialog(recentDirs, favoriteDirs []string, store *tuistate.Store, sessionWorkingDir string) Dialog {
+func NewWorkingDirPickerDialog(ctx context.Context, recentDirs, favoriteDirs []string, store *tuistate.Store, sessionWorkingDir string) Dialog {
 	ti := textinput.New()
 	ti.Placeholder = "Type to filter directories…"
 	ti.Focus()
@@ -184,6 +186,7 @@ func NewWorkingDirPickerDialog(recentDirs, favoriteDirs []string, store *tuistat
 	}
 
 	d := &workingDirPickerDialog{
+		ctx:          func() context.Context { return context.WithoutCancel(ctx) },
 		textInput:    ti,
 		section:      sectionBrowse,
 		currentDir:   cwd,
@@ -480,8 +483,7 @@ func (d *workingDirPickerDialog) toggleFavorite() {
 		return
 	}
 
-	//rubocop:disable Lint/ContextConnectivity
-	isFav, err := d.tuiStore.ToggleFavoriteDir(context.Background(), togglePath)
+	isFav, err := d.tuiStore.ToggleFavoriteDir(d.ctx(), togglePath)
 	if err != nil {
 		return
 	}

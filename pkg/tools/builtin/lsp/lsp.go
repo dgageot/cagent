@@ -696,7 +696,7 @@ func isProviderEnabled(v any) bool {
 // responsible for the per-request JSON-RPC protocol and the persistent
 // state (open files, diagnostics) that survives reconnects.
 
-func (h *lspHandler) ensureInitialized() error {
+func (h *lspHandler) ensureInitialized(ctx context.Context) error {
 	// Fast path: rely on the atomic initialized flag. lspConnector.Connect
 	// only sets initialized=true after publishing h.cmd / h.stdin /
 	// h.stdout under h.mu, and lspSession.Close clears initialized BEFORE
@@ -712,8 +712,7 @@ func (h *lspHandler) ensureInitialized() error {
 	// Lazy-start through the supervisor. Concurrent ensureInitialized
 	// callers serialize inside Supervisor.Start.
 	if !h.supervisor.IsReady() {
-		//rubocop:disable Lint/ContextConnectivity
-		if err := h.supervisor.Start(context.Background()); err != nil {
+		if err := h.supervisor.Start(ctx); err != nil {
 			return fmt.Errorf("failed to start LSP server: %w", err)
 		}
 	}
@@ -797,7 +796,7 @@ func (h *lspHandler) initializeLocked() error {
 
 // prepareFileRequest handles common setup for file-based requests
 func (h *lspHandler) prepareFileRequest(ctx context.Context, file string) (string, error) {
-	if err := h.ensureInitialized(); err != nil {
+	if err := h.ensureInitialized(ctx); err != nil {
 		return "", fmt.Errorf("LSP initialization failed: %w", err)
 	}
 	uri := pathToURI(file)
@@ -810,7 +809,7 @@ func (h *lspHandler) prepareFileRequest(ctx context.Context, file string) (strin
 // Tool handler implementations
 
 func (h *lspHandler) workspace(ctx context.Context, _ WorkspaceArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(); err != nil {
+	if err := h.ensureInitialized(ctx); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
@@ -995,7 +994,7 @@ func (h *lspHandler) documentSymbols(ctx context.Context, args FileArgs) (*tools
 }
 
 func (h *lspHandler) workspaceSymbols(ctx context.Context, args WorkspaceSymbolsArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(); err != nil {
+	if err := h.ensureInitialized(ctx); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
@@ -1018,7 +1017,7 @@ func (h *lspHandler) workspaceSymbols(ctx context.Context, args WorkspaceSymbols
 }
 
 func (h *lspHandler) getDiagnostics(ctx context.Context, args FileArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(); err != nil {
+	if err := h.ensureInitialized(ctx); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
