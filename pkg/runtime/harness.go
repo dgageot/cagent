@@ -34,7 +34,7 @@ func (r *LocalRuntime) runHarnessAgent(ctx context.Context, sess *session.Sessio
 		return turnEndReasonError
 	}
 
-	modelID := agentModelLabel(a)
+	modelID := agentModelLabel(ctx, a)
 	events.Emit(AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage()))
 
 	endReason := turnEndReasonNormal
@@ -211,14 +211,14 @@ func (r *LocalRuntime) runHarnessAgent(ctx context.Context, sess *session.Sessio
 	return endReason
 }
 
-func agentModelLabel(a *agent.Agent) string {
+func agentModelLabel(ctx context.Context, a *agent.Agent) string {
 	if a == nil {
 		return ""
 	}
 	if a.HasHarness() {
 		return codingharness.Label(a.Harness())
 	}
-	return getAgentModelID(a).String()
+	return getAgentModelID(ctx, a).String()
 }
 
 func traceAttributesForHarness(sess *session.Session, a *agent.Agent) []attribute.KeyValue {

@@ -235,6 +235,7 @@ func TestApp_NewSession_WithNilSession(t *testing.T) {
 
 	// Create app with nil session (edge case)
 	app := &App{
+		ctx:     t.Context,
 		runtime: rt,
 		session: nil,
 	}
@@ -385,6 +386,7 @@ func TestApp_SnapshotsEnabled_DoesNotRequireSession(t *testing.T) {
 	// SnapshotsEnabled answers a controller-capability question; it
 	// must not silently return false just because no session is attached.
 	app := &App{
+		ctx:                t.Context,
 		runtime:            &mockRuntime{},
 		session:            nil,
 		snapshotController: &stubSnapshotController{enabled: true},
@@ -500,6 +502,7 @@ func TestApp_InjectUserMessage(t *testing.T) {
 
 	events := make(chan tea.Msg, 4)
 	app := &App{
+		ctx:     t.Context,
 		runtime: &mockRuntime{},
 		session: session.New(),
 		events:  events,

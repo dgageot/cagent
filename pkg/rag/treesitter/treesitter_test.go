@@ -20,7 +20,7 @@ func (c *Calculator) Add(a, b int) int {
 }
 `)
 
-	chunks, err := processor.Process("calc.go", content)
+	chunks, err := processor.Process(t.Context(), "calc.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -54,7 +54,7 @@ func Subtract(a, b int) int {
 `)
 
 	// Use small chunk size to force separate chunks
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 2, "Expected 2 chunks (one per function)")
 
@@ -78,7 +78,7 @@ func Multiply(a, b int) int {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -100,7 +100,7 @@ func (c Calculator) Calculate(a, b int) int {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -125,7 +125,7 @@ func Divide(a, b int) (int, error) {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -151,7 +151,7 @@ func Process() {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -172,7 +172,7 @@ func Handler() {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -205,7 +205,7 @@ func Third() {
 `)
 
 	// Use small chunk size to force separate chunks
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 3)
 
@@ -240,7 +240,7 @@ func Another(x int) int {
 `)
 
 	// Set a small chunk size to force separate chunks
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 
 	// With a small chunk size, functions should be in separate chunks
@@ -269,7 +269,7 @@ func ProcessData() {
 `)
 
 	// Set chunk size smaller than the function
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1, "Large function should be in its own chunk despite exceeding limit")
 
@@ -284,7 +284,7 @@ func TestTreeSitterPreProcessor_UnsupportedExtension(t *testing.T) {
 	content := []byte(`console.log("hello");`)
 
 	// For unsupported extensions, it falls back to text chunking
-	chunks, err := processor.Process("test.js", content)
+	chunks, err := processor.Process(t.Context(), "test.js", content)
 	require.NoError(t, err)
 	// Text fallback should produce chunks
 	require.NotNil(t, chunks)
@@ -296,7 +296,7 @@ func TestTreeSitterPreProcessor_EmptyFile(t *testing.T) {
 
 	content := []byte(`package main`)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	// Falls back to text chunking for files with no functions
 	require.NotEmpty(t, chunks)
@@ -316,7 +316,7 @@ func BlockCommented() {
 }
 `)
 
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -348,7 +348,7 @@ func C() int {
 `)
 
 	// Large chunk size should group all functions together
-	chunks, err := processor.Process("test.go", content)
+	chunks, err := processor.Process(t.Context(), "test.go", content)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1, "Expected all small functions to be grouped in one chunk")
 

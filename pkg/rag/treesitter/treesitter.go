@@ -59,8 +59,8 @@ func NewDocumentProcessor(chunkSize, chunkOverlap int, respectWordBoundaries boo
 }
 
 // Process implements chunk.DocumentProcessor.
-func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk, error) {
-	slog.Debug("[TreeSitter] Starting to process file",
+func (p *DocumentProcessor) Process(ctx context.Context, path string, content []byte) ([]chunk.Chunk, error) {
+	slog.DebugContext(ctx, "[TreeSitter] Starting to process file",
 		"path", path,
 		"content_size", len(content),
 		"chunk_size", p.chunkSize,
@@ -69,13 +69,13 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 	ext := strings.ToLower(filepath.Ext(path))
 	lang, ok := p.langByExt[ext]
 	if !ok {
-		slog.Debug("[TreeSitter] Unsupported file extension, falling back to text chunking",
+		slog.DebugContext(ctx, "[TreeSitter] Unsupported file extension, falling back to text chunking",
 			"path", path,
 			"extension", ext)
-		return p.textFallback.Process(path, content)
+		return p.textFallback.Process(ctx, path, content)
 	}
 
-	slog.Debug("[TreeSitter] Language detected",
+	slog.DebugContext(ctx, "[TreeSitter] Language detected",
 		"path", path,
 		"extension", ext)
 
@@ -83,30 +83,29 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 	parser := sitter.NewParser()
 	parser.SetLanguage(lang)
 
-	slog.Debug("[TreeSitter] Parsing source code with tree-sitter",
+	slog.DebugContext(ctx, "[TreeSitter] Parsing source code with tree-sitter",
 		"path", path)
 
 	// Use ParseCtx instead of deprecated Parse
-	//rubocop:disable Lint/ContextConnectivity
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
+	tree, err := parser.ParseCtx(ctx, nil, content)
 	if err != nil || tree == nil || tree.RootNode() == nil {
-		slog.Debug("[TreeSitter] Parsing failed, falling back to text chunking",
+		slog.DebugContext(ctx, "[TreeSitter] Parsing failed, falling back to text chunking",
 			"path", path,
 			"error", err)
-		return p.textFallback.Process(path, content)
+		return p.textFallback.Process(ctx, path, content)
 	}
 
-	slog.Debug("[TreeSitter] Successfully parsed source code",
+	slog.DebugContext(ctx, "[TreeSitter] Successfully parsed source code",
 		"path", path)
 
 	root := tree.RootNode()
 	packageName := extractPackageName(root, content)
 	fnFilter, ok := p.functionNode[ext]
 	if !ok {
-		slog.Debug("[TreeSitter] No function filter defined for extension, falling back to text chunking",
+		slog.DebugContext(ctx, "[TreeSitter] No function filter defined for extension, falling back to text chunking",
 			"path", path,
 			"extension", ext)
-		return p.textFallback.Process(path, content)
+		return p.textFallback.Process(ctx, path, content)
 	}
 
 	// Extract function-like nodes.
@@ -127,15 +126,15 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 	}
 	walk(root)
 
-	slog.Debug("[TreeSitter] Extracted function nodes from syntax tree",
+	slog.DebugContext(ctx, "[TreeSitter] Extracted function nodes from syntax tree",
 		"path", path,
 		"function_count", len(funcNodes))
 
 	// If we didn't find any function-like nodes, fall back to text chunking.
 	if len(funcNodes) == 0 {
-		slog.Debug("[TreeSitter] No function nodes found, falling back to text chunking",
+		slog.DebugContext(ctx, "[TreeSitter] No function nodes found, falling back to text chunking",
 			"path", path)
-		return p.textFallback.Process(path, content)
+		return p.textFallback.Process(ctx, path, content)
 	}
 
 	// Group functions into chunks under the size budget where possible, without
@@ -163,7 +162,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 			Content:  c,
 			Metadata: buildChunkMetadata(chunkFunctions),
 		})
-		slog.Debug("[TreeSitter] Created code-aware chunk",
+		slog.DebugContext(ctx, "[TreeSitter] Created code-aware chunk",
 			"chunk_index", index,
 			"chunk_content", c)
 		index++
@@ -177,7 +176,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 		start := int(findPrecedingComments(fn, content))
 		end := int(fn.EndByte())
 		if start < 0 || end <= start || end > len(text) {
-			slog.Debug("[TreeSitter] Skipping function node with invalid byte range",
+			slog.DebugContext(ctx, "[TreeSitter] Skipping function node with invalid byte range",
 				"path", path,
 				"function_index", funcIdx,
 				"start_byte", start,
@@ -187,7 +186,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 
 		fnText := strings.TrimSpace(text[start:end])
 		if fnText == "" {
-			slog.Debug("[TreeSitter] Skipping empty function node",
+			slog.DebugContext(ctx, "[TreeSitter] Skipping empty function node",
 				"path", path,
 				"function_index", funcIdx)
 			continue
@@ -202,7 +201,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 			docText = string(content[start:funcStart])
 		}
 
-		slog.Debug("[TreeSitter] Processing function node",
+		slog.DebugContext(ctx, "[TreeSitter] Processing function node",
 			"path", path,
 			"function_index", funcIdx,
 			"function_type", fnType,
@@ -213,7 +212,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 		// If the function alone is larger than chunkSize, emit it as its own
 		// chunk to avoid splitting function bodies.
 		if p.chunkSize > 0 && fnLen > p.chunkSize {
-			slog.Debug("[TreeSitter] Function exceeds chunk size, creating dedicated chunk",
+			slog.DebugContext(ctx, "[TreeSitter] Function exceeds chunk size, creating dedicated chunk",
 				"path", path,
 				"function_index", funcIdx,
 				"function_length", fnLen,
@@ -226,7 +225,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 				Content:  fnText,
 				Metadata: buildChunkMetadata([]functionMetadata{meta}),
 			})
-			slog.Debug("[TreeSitter] Created code-aware chunk for large function",
+			slog.DebugContext(ctx, "[TreeSitter] Created code-aware chunk for large function",
 				"chunk_index", index,
 				"chunk_content", fnText)
 			index++
@@ -235,7 +234,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 
 		// If adding this function would exceed the budget, flush and start new.
 		if p.chunkSize > 0 && currentLen > 0 && currentLen+fnLen > p.chunkSize {
-			slog.Debug("[TreeSitter] Adding function would exceed chunk size, flushing current chunk",
+			slog.DebugContext(ctx, "[TreeSitter] Adding function would exceed chunk size, flushing current chunk",
 				"path", path,
 				"function_index", funcIdx,
 				"current_chunk_length", currentLen,
@@ -246,7 +245,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 			flush()
 		}
 
-		slog.Debug("[TreeSitter] Adding function to current chunk",
+		slog.DebugContext(ctx, "[TreeSitter] Adding function to current chunk",
 			"path", path,
 			"function_index", funcIdx,
 			"function_length", fnLen,
@@ -263,9 +262,9 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 	flush()
 
 	if len(chunksOut) == 0 {
-		slog.Debug("[TreeSitter] No chunks produced after processing, falling back to text chunking",
+		slog.DebugContext(ctx, "[TreeSitter] No chunks produced after processing, falling back to text chunking",
 			"path", path)
-		return p.textFallback.Process(path, content)
+		return p.textFallback.Process(ctx, path, content)
 	}
 
 	// Calculate statistics
@@ -287,7 +286,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 		avgChunkSize = totalChars / len(chunksOut)
 	}
 
-	slog.Debug("[TreeSitter] Successfully chunked file using syntax tree",
+	slog.DebugContext(ctx, "[TreeSitter] Successfully chunked file using syntax tree",
 		"path", path,
 		"total_functions", len(funcNodes),
 		"total_chunks", len(chunksOut),

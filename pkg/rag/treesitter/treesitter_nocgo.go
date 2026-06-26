@@ -3,6 +3,7 @@
 package treesitter
 
 import (
+	"context"
 	"errors"
 
 	"github.com/docker/docker-agent/pkg/rag/chunk"
@@ -19,6 +20,6 @@ func NewDocumentProcessor(_, _ int, _ bool) *DocumentProcessor {
 }
 
 // Process implements chunk.DocumentProcessor.
-func (p *DocumentProcessor) Process(_ string, _ []byte) ([]chunk.Chunk, error) {
+func (p *DocumentProcessor) Process(context.Context, string, []byte) ([]chunk.Chunk, error) {
 	return nil, errors.New("rag/treesitter: document processor must be built with CGO_ENABLED=1")
 }

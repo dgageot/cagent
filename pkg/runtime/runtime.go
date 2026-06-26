@@ -757,7 +757,7 @@ type AgentConfigInfo struct {
 // already-started toolsets (never starting one), so it is safe to call for any
 // agent whether or not it has run. Unknown agents yield the zero value, so the
 // modal omits the corresponding sections.
-func (r *LocalRuntime) AgentConfigInfo(agentName string) AgentConfigInfo {
+func (r *LocalRuntime) AgentConfigInfo(ctx context.Context, agentName string) AgentConfigInfo {
 	a, err := r.team.Agent(agentName)
 	if err != nil || a == nil {
 		return AgentConfigInfo{}
@@ -794,7 +794,7 @@ func (r *LocalRuntime) AgentConfigInfo(agentName string) AgentConfigInfo {
 		NumHistoryItems:         a.NumHistoryItems(),
 		MaxConsecutiveToolCalls: a.MaxConsecutiveToolCalls(),
 		Options:                 agentOptionFlags(a, cfg, hasCfg),
-		Toolsets:                toolsetDetails(a, cfg, hasCfg),
+		Toolsets:                toolsetDetails(ctx, a, cfg, hasCfg),
 		IsCurrent:               r.agents != nil && r.agents.Name() == agentName,
 	}
 	if hasCfg {
@@ -843,7 +843,7 @@ func configSkillNames(cfg latest.AgentConfig) []string {
 // combining the side-effect-free lifecycle status with tool names: live names
 // for started toolsets, otherwise the declared `tools:` allow-list keyed by the
 // same name the registry assigns (cmp.Or(name, type)).
-func toolsetDetails(a *agent.Agent, cfg latest.AgentConfig, hasCfg bool) []ToolsetDetail {
+func toolsetDetails(ctx context.Context, a *agent.Agent, cfg latest.AgentConfig, hasCfg bool) []ToolsetDetail {
 	toolSets := a.ToolSets()
 	if len(toolSets) == 0 {
 		return nil
@@ -860,7 +860,7 @@ func toolsetDetails(a *agent.Agent, cfg latest.AgentConfig, hasCfg bool) []Tools
 			Kind:  status.Kind,
 			State: toolsetStateBucket(status.State),
 		}
-		if live, ok := startedToolNames(ts); ok {
+		if live, ok := startedToolNames(ctx, ts); ok {
 			info.Tools = live
 		} else if names, ok := declared[status.Name]; ok {
 			info.Tools = names
@@ -890,15 +890,12 @@ func toolsetStateBucket(s lifecycle.State) ToolsetState {
 // caller can fall back to the declared allow-list. context.TODO is safe here:
 // the toolset is already started, so listing returns its cached tools without
 // a cancellable round-trip.
-func startedToolNames(ts tools.ToolSet) ([]string, bool) {
+func startedToolNames(ctx context.Context, ts tools.ToolSet) ([]string, bool) {
 	s, ok := tools.As[*tools.StartableToolSet](ts)
 	if !ok || !s.IsStarted() {
 		return nil, false
 	}
-	// startedToolNames is a leaf helper below the ctx boundary; Tools' ctx is
-	// only used for log correlation. context.TODO marks the intentional gap.
-	//rubocop:disable Lint/ContextConnectivity
-	tl, err := s.Tools(context.TODO())
+	tl, err := s.Tools(ctx)
 	if err != nil {
 		return nil, false
 	}
@@ -1216,14 +1213,11 @@ func (r *LocalRuntime) TitleGenerator() *sessiontitle.Generator {
 
 // getAgentModelID returns the model ID for an agent. The zero ID is
 // returned when no model is configured.
-func getAgentModelID(a *agent.Agent) modelsdev.ID {
+func getAgentModelID(ctx context.Context, a *agent.Agent) modelsdev.ID {
 	if a == nil {
 		return modelsdev.ID{}
 	}
-	// getAgentModelID is reached from several ctx-less callbacks; Model's ctx
-	// is only used for log correlation. context.TODO marks the intentional gap.
-	//rubocop:disable Lint/ContextConnectivity
-	if model := a.Model(context.TODO()); model != nil {
+	if model := a.Model(ctx); model != nil {
 		return model.ID()
 	}
 	return modelsdev.ID{}
@@ -1232,7 +1226,7 @@ func getAgentModelID(a *agent.Agent) modelsdev.ID {
 // getEffectiveModelID returns the currently active model ID for an agent, accounting
 // for any active fallback cooldown. During a cooldown period, this returns the fallback
 // model ID instead of the configured primary model, so the UI reflects the actual model in use.
-func (r *LocalRuntime) getEffectiveModelID(a *agent.Agent) modelsdev.ID {
+func (r *LocalRuntime) getEffectiveModelID(ctx context.Context, a *agent.Agent) modelsdev.ID {
 	cooldownState := r.fallback.cooldowns.Get(a.Name())
 	if cooldownState != nil {
 		fallbacks := a.FallbackModels()
@@ -1240,14 +1234,14 @@ func (r *LocalRuntime) getEffectiveModelID(a *agent.Agent) modelsdev.ID {
 			return fallbacks[cooldownState.fallbackIndex].ID()
 		}
 	}
-	return getAgentModelID(a)
+	return getAgentModelID(ctx, a)
 }
 
 // agentDetailsFromTeam converts team agent info to AgentDetails for events.
 // It accounts for active fallback cooldowns, returning the effective model
 // instead of the configured model when a fallback is in effect.
 func (r *LocalRuntime) agentDetailsFromTeam(ctx context.Context) []AgentDetails {
-	agentsInfo := r.team.AgentsInfo()
+	agentsInfo := r.team.AgentsInfo(ctx)
 	details := make([]AgentDetails, len(agentsInfo))
 	for i, info := range agentsInfo {
 		providerName := info.Provider
@@ -1398,9 +1392,9 @@ func (r *LocalRuntime) emitToolsChanged() {
 // aborted (e.g. the context was cancelled). Shared by EmitStartupInfo and
 // EmitAgentInfo so both render identical model labels.
 func (r *LocalRuntime) emitAgentAndTeamInfo(ctx context.Context, a *agent.Agent, send func(Event) bool) bool {
-	modelLabel := r.getEffectiveModelID(a).String()
+	modelLabel := r.getEffectiveModelID(ctx, a).String()
 	if a.HasHarness() {
-		modelLabel = agentModelLabel(a)
+		modelLabel = agentModelLabel(ctx, a)
 	}
 	if !send(AgentInfo(a.Name(), modelLabel, a.Description(), a.WelcomeMessage())) {
 		return false
@@ -1447,7 +1441,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 
 	// Emit agent and team information immediately for fast sidebar display.
 	// Use getEffectiveModelID to account for active fallback cooldowns.
-	modelID := r.getEffectiveModelID(a)
+	modelID := r.getEffectiveModelID(ctx, a)
 	if !r.emitAgentAndTeamInfo(ctx, a, send) {
 		return
 	}
@@ -1784,7 +1778,7 @@ func (r *LocalRuntime) compactWithReason(ctx context.Context, sess *session.Sess
 	// Emit a TokenUsageEvent so the sidebar immediately reflects the
 	// compaction: tokens drop to the summary size, context % drops, and
 	// cost increases by the summary generation cost.
-	modelID := r.getEffectiveModelID(a)
+	modelID := r.getEffectiveModelID(ctx, a)
 	contextLimit := r.resolveContextLimit(ctx, a.Model(ctx), modelID)
 	events.Emit(NewTokenUsageEvent(sess.ID, a.Name(), SessionUsage(sess, contextLimit)))
 }

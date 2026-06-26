@@ -72,7 +72,7 @@ type AgentInfo struct {
 }
 
 // AgentsInfo returns information about all agents in the team
-func (t *Team) AgentsInfo() []AgentInfo {
+func (t *Team) AgentsInfo(ctx context.Context) []AgentInfo {
 	var infos []AgentInfo
 	for _, a := range t.agents {
 		info := AgentInfo{
@@ -80,10 +80,7 @@ func (t *Team) AgentsInfo() []AgentInfo {
 			Description: a.Description(),
 			Commands:    a.Commands(),
 		}
-		// AgentsInfo has no caller context; Model's ctx is only used for log
-		// correlation. context.TODO marks the intentional gap.
-		//rubocop:disable Lint/ContextConnectivity
-		if model := a.Model(context.TODO()); model != nil {
+		if model := a.Model(ctx); model != nil {
 			id := model.ID()
 			info.Provider = id.Provider
 			info.Model = id.Model

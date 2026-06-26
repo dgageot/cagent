@@ -1,6 +1,7 @@
 package chunk
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -19,7 +20,7 @@ type Chunk struct {
 // DocumentProcessor takes file content and returns chunks.
 // Config (size, overlap, etc.) is set at construction time.
 type DocumentProcessor interface {
-	Process(path string, content []byte) ([]Chunk, error)
+	Process(ctx context.Context, path string, content []byte) ([]Chunk, error)
 }
 
 // TextDocumentProcessor is the default text-based chunker
@@ -46,7 +47,7 @@ func NewTextDocumentProcessor(size, overlap int, respectWordBoundaries bool) *Te
 }
 
 // Process implements DocumentProcessor for text-based chunking
-func (t *TextDocumentProcessor) Process(_ string, content []byte) ([]Chunk, error) {
+func (t *TextDocumentProcessor) Process(_ context.Context, _ string, content []byte) ([]Chunk, error) {
 	return t.chunkText(string(content)), nil
 }
 
@@ -169,12 +170,12 @@ func (t *TextDocumentProcessor) isWhitespace(r rune) bool {
 // --- File utility functions (standalone, not tied to any processor) ---
 
 // ProcessFile reads a file and processes it using the given document processor
-func ProcessFile(dp DocumentProcessor, path string) ([]Chunk, error) {
+func ProcessFile(ctx context.Context, dp DocumentProcessor, path string) ([]Chunk, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	return dp.Process(path, content)
+	return dp.Process(ctx, path, content)
 }
 
 // FileHash calculates SHA256 hash of a file

@@ -95,7 +95,7 @@ func TestChunkText_RespectWordBoundaries(t *testing.T) {
 			t.Parallel()
 
 			pp := NewTextDocumentProcessor(tt.size, tt.overlap, tt.respectWordBoundaries)
-			chunks, err := pp.Process("test.txt", []byte(tt.text))
+			chunks, err := pp.Process(t.Context(), "test.txt", []byte(tt.text))
 			require.NoError(t, err)
 
 			assert.NotEmpty(t, chunks)
@@ -113,7 +113,7 @@ func TestChunkText_BackwardCompatibility(t *testing.T) {
 
 	// Test that default behavior (respectWordBoundaries=false) still works as before
 	text := "This is a test text for chunking"
-	chunks, err := pp.Process("test.txt", []byte(text))
+	chunks, err := pp.Process(t.Context(), "test.txt", []byte(text))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, chunks)

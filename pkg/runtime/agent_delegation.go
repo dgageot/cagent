@@ -235,12 +235,12 @@ func (r *LocalRuntime) swapCurrentAgent(ctx context.Context, sessionID string, f
 	evts.Emit(AgentSwitching(true, from.Name(), to.Name()))
 	r.executeOnAgentSwitchHooks(ctx, from, sessionID, from.Name(), to.Name(), agentSwitchKindTransferTask)
 	r.setCurrentAgent(to.Name())
-	evts.Emit(AgentInfo(to.Name(), agentModelLabel(to), to.Description(), to.WelcomeMessage()))
+	evts.Emit(AgentInfo(to.Name(), agentModelLabel(ctx, to), to.Description(), to.WelcomeMessage()))
 	return func() {
 		r.setCurrentAgent(from.Name())
 		evts.Emit(AgentSwitching(false, to.Name(), from.Name()))
 		r.executeOnAgentSwitchHooks(ctx, from, sessionID, to.Name(), from.Name(), agentSwitchKindTransferTaskReturn)
-		evts.Emit(AgentInfo(from.Name(), agentModelLabel(from), from.Description(), from.WelcomeMessage()))
+		evts.Emit(AgentInfo(from.Name(), agentModelLabel(ctx, from), from.Description(), from.WelcomeMessage()))
 	}
 }
 

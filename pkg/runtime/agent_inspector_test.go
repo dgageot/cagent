@@ -114,7 +114,7 @@ func TestAgentConfigInfo_Inspector(t *testing.T) {
 	started := root.ToolSets()[0].(*tools.StartableToolSet)
 	require.NoError(t, started.Start(ctx))
 
-	got := r.AgentConfigInfo("root")
+	got := r.AgentConfigInfo(t.Context(), "root")
 
 	assert.Equal(t, []string{"coder"}, got.SubAgents)
 	assert.Equal(t, []string{"planner"}, got.Handoffs)
@@ -154,9 +154,9 @@ func TestAgentConfigInfo_Degrades(t *testing.T) {
 
 	r := &LocalRuntime{team: tm, agents: newAgentRouter(tm, "root")}
 
-	assert.Equal(t, AgentConfigInfo{}, r.AgentConfigInfo("missing"), "unknown agent -> zero value")
+	assert.Equal(t, AgentConfigInfo{}, r.AgentConfigInfo(t.Context(), "missing"), "unknown agent -> zero value")
 
-	got := r.AgentConfigInfo("other")
+	got := r.AgentConfigInfo(t.Context(), "other")
 	assert.False(t, got.IsCurrent, "non-current agent")
 	assert.Nil(t, got.Skills, "no skills without retained config")
 	assert.Nil(t, got.Options, "no enabled options")

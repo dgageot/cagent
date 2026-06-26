@@ -329,7 +329,7 @@ func (m *appModel) handleSwitchAgent(agentName string) (tea.Model, tea.Cmd) {
 func (m *appModel) handleShowAgentDetails(agentName string) (tea.Model, tea.Cmd) {
 	for _, agent := range m.sessionState.AvailableAgents() {
 		if agent.Name == agentName {
-			cfg := m.application.AgentConfigInfo(agentName)
+			cfg := m.application.AgentConfigInfo(m.ctx(), agentName)
 			return m, core.CmdHandler(dialog.OpenDialogMsg{
 				Model: dialog.NewAgentDetailsDialog(agent, cfg),
 			})

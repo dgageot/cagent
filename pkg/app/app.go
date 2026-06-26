@@ -219,19 +219,19 @@ func (a *App) CurrentAgentTools(ctx context.Context) ([]tools.Tool, error) {
 // Only the local runtime (which holds the team) implements it; remote runtimes
 // don't, so the agent-details config sections are simply omitted for them.
 type agentConfigProvider interface {
-	AgentConfigInfo(agentName string) runtime.AgentConfigInfo
+	AgentConfigInfo(ctx context.Context, agentName string) runtime.AgentConfigInfo
 }
 
 // AgentConfigInfo returns the named agent's static configuration for the
 // read-only agent-details dialog, or the zero value when it can't be resolved
 // (remote runtime or unknown agent). It reads resolved config only and starts
 // no toolsets.
-func (a *App) AgentConfigInfo(agentName string) runtime.AgentConfigInfo {
+func (a *App) AgentConfigInfo(ctx context.Context, agentName string) runtime.AgentConfigInfo {
 	cp, ok := a.runtime.(agentConfigProvider)
 	if !ok {
 		return runtime.AgentConfigInfo{}
 	}
-	return cp.AgentConfigInfo(agentName)
+	return cp.AgentConfigInfo(ctx, agentName)
 }
 
 // CurrentAgentToolsetStatuses returns lifecycle status for each toolset of

@@ -556,7 +556,7 @@ func (s *BM25Strategy) indexFile(ctx context.Context, filePath string) error {
 		return fmt.Errorf("failed to delete old documents: %w", err)
 	}
 
-	chunks, err := chunk.ProcessFile(s.docProcessor, filePath)
+	chunks, err := chunk.ProcessFile(ctx, s.docProcessor, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to process file: %w", err)
 	}
