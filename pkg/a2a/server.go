@@ -62,7 +62,7 @@ func Run(ctx context.Context, agentFilename, agentName, sessionDB string, runCon
 	if err != nil {
 		return fmt.Errorf("failed to expand session db path: %w", err)
 	}
-	sessStore, err := session.NewSQLiteSessionStore(expandedSessionDB)
+	sessStore, err := session.NewSQLiteSessionStore(ctx, expandedSessionDB)
 	if err != nil {
 		return fmt.Errorf("failed to open session store: %w", err)
 	}

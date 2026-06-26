@@ -19,6 +19,7 @@ import (
 // summary (embedding_input) for debugging what text produced the embedding.
 type semanticVectorDB struct {
 	db               *sql.DB
+	ctx              func() context.Context
 	vectorDimensions int
 	tablePrefix      string
 	filesTable       string
@@ -26,12 +27,12 @@ type semanticVectorDB struct {
 }
 
 // newSemanticVectorDB creates a new SQLite database for semantic embeddings.
-func newSemanticVectorDB(dbPath string, vectorDimensions int, strategyName string) (*semanticVectorDB, error) {
+func newSemanticVectorDB(ctx context.Context, dbPath string, vectorDimensions int, strategyName string) (*semanticVectorDB, error) {
 	if err := ensureDir(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sqliteutil.OpenDB(dbPath)
+	db, err := sqliteutil.OpenDB(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -40,18 +41,19 @@ func newSemanticVectorDB(dbPath string, vectorDimensions int, strategyName strin
 
 	sdb := &semanticVectorDB{
 		db:               db,
+		ctx:              func() context.Context { return context.WithoutCancel(ctx) },
 		vectorDimensions: vectorDimensions,
 		tablePrefix:      tablePrefix,
 		filesTable:       tablePrefix + "_files",
 		chunksTable:      tablePrefix + "_chunks",
 	}
 
-	if err := sdb.createSchema(); err != nil {
+	if err := sdb.createSchema(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	slog.Info("Semantic vector database initialized",
+	slog.InfoContext(ctx, "Semantic vector database initialized",
 		"vector_dimensions", vectorDimensions,
 		"path", dbPath,
 		"table_prefix", tablePrefix)
@@ -59,7 +61,7 @@ func newSemanticVectorDB(dbPath string, vectorDimensions int, strategyName strin
 	return sdb, nil
 }
 
-func (d *semanticVectorDB) createSchema() error {
+func (d *semanticVectorDB) createSchema(ctx context.Context) error {
 	schema := fmt.Sprintf( //nolint:gosec // table names are internal, no user input
 		`
 	CREATE TABLE IF NOT EXISTS %s (
@@ -80,14 +82,11 @@ func (d *semanticVectorDB) createSchema() error {
 	);
 	`, d.filesTable, d.tablePrefix, d.filesTable, d.chunksTable, d.filesTable)
 
-	//rubocop:disable Lint/ContextConnectivity
-	if _, err := d.db.ExecContext(context.Background(), schema); err != nil {
+	if _, err := d.db.ExecContext(ctx, schema); err != nil {
 		return err
 	}
 
-	// Migration for existing databases that don't have embedding_input column
-	//rubocop:disable Lint/ContextConnectivity
-	_, _ = d.db.ExecContext(context.Background(), fmt.Sprintf(`ALTER TABLE %s ADD COLUMN embedding_input TEXT`, d.chunksTable))
+	_, _ = d.db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE %s ADD COLUMN embedding_input TEXT`, d.chunksTable))
 
 	return nil
 }
@@ -258,5 +257,5 @@ func (d *semanticVectorDB) DeleteFileMetadata(ctx context.Context, sourcePath st
 }
 
 func (d *semanticVectorDB) Close() error {
-	return sqliteutil.CheckpointAndClose(d.db)
+	return sqliteutil.CheckpointAndClose(d.ctx(), d.db)
 }

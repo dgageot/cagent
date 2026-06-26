@@ -21,7 +21,7 @@ func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.W
 	}
 
 	// Create SQLite session store for persistent sessions
-	sessStore, err := session.NewSQLiteSessionStore(sessionDB)
+	sessStore, err := session.NewSQLiteSessionStore(ctx, sessionDB)
 	if err != nil {
 		return fmt.Errorf("creating session store: %w", err)
 	}

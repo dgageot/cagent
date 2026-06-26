@@ -27,7 +27,7 @@ func SaveRunSessions(ctx context.Context, run *EvalRun, outputDir string) (strin
 	}
 
 	// Create a new SQLite session store for this eval run
-	store, err := session.NewSQLiteSessionStore(dbPath)
+	store, err := session.NewSQLiteSessionStore(ctx, dbPath)
 	if err != nil {
 		return "", fmt.Errorf("creating session store: %w", err)
 	}

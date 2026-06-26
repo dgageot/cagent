@@ -27,14 +27,14 @@ func openMemoryStore(t *testing.T) *SQLiteSessionStore {
 	t.Cleanup(func() { _ = db.Close() })
 	db.SetMaxOpenConns(1)
 
-	store, err := NewSQLiteSessionStoreFromDB(db)
+	store, err := NewSQLiteSessionStoreFromDB(t.Context(), db)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
 	return store
 }
 
 func TestNewSQLiteSessionStoreFromDB_NilDB(t *testing.T) {
-	_, err := NewSQLiteSessionStoreFromDB(nil)
+	_, err := NewSQLiteSessionStoreFromDB(t.Context(), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil")
 }

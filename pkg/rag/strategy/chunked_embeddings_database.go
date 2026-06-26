@@ -18,6 +18,7 @@ import (
 // It stores document chunks with their embedding vectors (no semantic summaries).
 type chunkedVectorDB struct {
 	db               *sql.DB
+	ctx              func() context.Context
 	vectorDimensions int
 	tablePrefix      string
 	filesTable       string
@@ -25,12 +26,12 @@ type chunkedVectorDB struct {
 }
 
 // newChunkedVectorDB creates a new SQLite database for chunked vector embeddings.
-func newChunkedVectorDB(dbPath string, vectorDimensions int, strategyName string) (*chunkedVectorDB, error) {
+func newChunkedVectorDB(ctx context.Context, dbPath string, vectorDimensions int, strategyName string) (*chunkedVectorDB, error) {
 	if err := ensureDir(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sqliteutil.OpenDB(dbPath)
+	db, err := sqliteutil.OpenDB(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -39,18 +40,19 @@ func newChunkedVectorDB(dbPath string, vectorDimensions int, strategyName string
 
 	cdb := &chunkedVectorDB{
 		db:               db,
+		ctx:              func() context.Context { return context.WithoutCancel(ctx) },
 		vectorDimensions: vectorDimensions,
 		tablePrefix:      tablePrefix,
 		filesTable:       tablePrefix + "_files",
 		chunksTable:      tablePrefix + "_chunks",
 	}
 
-	if err := cdb.createSchema(); err != nil {
+	if err := cdb.createSchema(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	slog.Info("Chunked vector database initialized",
+	slog.InfoContext(ctx, "Chunked vector database initialized",
 		"vector_dimensions", vectorDimensions,
 		"path", dbPath,
 		"table_prefix", tablePrefix)
@@ -58,7 +60,7 @@ func newChunkedVectorDB(dbPath string, vectorDimensions int, strategyName string
 	return cdb, nil
 }
 
-func (d *chunkedVectorDB) createSchema() error {
+func (d *chunkedVectorDB) createSchema(ctx context.Context) error {
 	schema := fmt.Sprintf( //nolint:gosec // table names are internal, no user input
 		`
 	CREATE TABLE IF NOT EXISTS %s (
@@ -78,8 +80,7 @@ func (d *chunkedVectorDB) createSchema() error {
 	);
 	`, d.filesTable, d.tablePrefix, d.filesTable, d.chunksTable, d.filesTable)
 
-	//rubocop:disable Lint/ContextConnectivity
-	_, err := d.db.ExecContext(context.Background(), schema)
+	_, err := d.db.ExecContext(ctx, schema)
 	return err
 }
 
@@ -247,5 +248,5 @@ func (d *chunkedVectorDB) DeleteFileMetadata(ctx context.Context, sourcePath str
 }
 
 func (d *chunkedVectorDB) Close() error {
-	return sqliteutil.CheckpointAndClose(d.db)
+	return sqliteutil.CheckpointAndClose(d.ctx(), d.db)
 }

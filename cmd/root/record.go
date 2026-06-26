@@ -1,14 +1,16 @@
 package root
 
 import (
+	"context"
+
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/recording"
 )
 
 // setupFakeProxy starts a fake proxy if fakeResponses is non-empty.
 // It configures the runtime config's ModelsGateway to point to the proxy.
-func setupFakeProxy(fakeResponses string, streamDelayMs int, runConfig *config.RuntimeConfig) (cleanup func() error, err error) {
-	proxyURL, cleanupFn, err := recording.SetupFakeProxy(fakeResponses, streamDelayMs)
+func setupFakeProxy(ctx context.Context, fakeResponses string, streamDelayMs int, runConfig *config.RuntimeConfig) (cleanup func() error, err error) {
+	proxyURL, cleanupFn, err := recording.SetupFakeProxy(ctx, fakeResponses, streamDelayMs)
 	if err != nil {
 		return nil, err
 	}
@@ -22,8 +24,8 @@ func setupFakeProxy(fakeResponses string, streamDelayMs int, runConfig *config.R
 
 // setupRecordingProxy starts a recording proxy if recordPath is non-empty.
 // It configures the runtime config's ModelsGateway to point to the proxy.
-func setupRecordingProxy(recordPath string, runConfig *config.RuntimeConfig) (cassettePath string, cleanup func() error, err error) {
-	cassettePath, proxyURL, cleanupFn, err := recording.SetupRecordingProxy(recordPath)
+func setupRecordingProxy(ctx context.Context, recordPath string, runConfig *config.RuntimeConfig) (cassettePath string, cleanup func() error, err error) {
+	cassettePath, proxyURL, cleanupFn, err := recording.SetupRecordingProxy(ctx, recordPath)
 	if err != nil {
 		return "", nil, err
 	}

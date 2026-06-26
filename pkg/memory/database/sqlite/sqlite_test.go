@@ -16,7 +16,7 @@ func setupTestDB(t *testing.T) database.Database {
 
 	tmpFile := t.TempDir() + "/test.db"
 
-	db, err := NewMemoryDatabase(tmpFile)
+	db, err := NewMemoryDatabase(t.Context(), tmpFile)
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
@@ -34,7 +34,7 @@ func TestNewMemoryDatabase(t *testing.T) {
 
 	assert.NotNil(t, db, "Database should be created successfully")
 
-	_, err := NewMemoryDatabase("/:invalid:path")
+	_, err := NewMemoryDatabase(t.Context(), "/:invalid:path")
 	require.Error(t, err, "Should fail with invalid database path")
 }
 
@@ -275,7 +275,7 @@ func TestMigrationAddsCategory(t *testing.T) {
 	tmpFile := t.TempDir() + "/migrate.db"
 
 	// Create a DB with the old schema (no category column)
-	db1, err := NewMemoryDatabase(tmpFile)
+	db1, err := NewMemoryDatabase(t.Context(), tmpFile)
 	require.NoError(t, err)
 	memDB1 := db1.(*MemoryDatabase)
 
@@ -289,7 +289,7 @@ func TestMigrationAddsCategory(t *testing.T) {
 	memDB1.db.Close()
 
 	// Reopen - migration should be idempotent
-	db2, err := NewMemoryDatabase(tmpFile)
+	db2, err := NewMemoryDatabase(t.Context(), tmpFile)
 	require.NoError(t, err)
 	memDB2 := db2.(*MemoryDatabase)
 	defer memDB2.db.Close()
@@ -331,7 +331,7 @@ func TestDatabaseOperationsWithCanceledContext(t *testing.T) {
 
 func TestDatabaseWithMultipleInstances(t *testing.T) {
 	tmpFile := t.TempDir() + "/shared.db"
-	db1, err := NewMemoryDatabase(tmpFile)
+	db1, err := NewMemoryDatabase(t.Context(), tmpFile)
 	require.NoError(t, err)
 	defer func() {
 		memDB := db1.(*MemoryDatabase)
@@ -347,7 +347,7 @@ func TestDatabaseWithMultipleInstances(t *testing.T) {
 	err = db1.AddMemory(t.Context(), memory)
 	require.NoError(t, err)
 
-	db2, err := NewMemoryDatabase(tmpFile)
+	db2, err := NewMemoryDatabase(t.Context(), tmpFile)
 	require.NoError(t, err)
 	defer func() {
 		memDB := db2.(*MemoryDatabase)

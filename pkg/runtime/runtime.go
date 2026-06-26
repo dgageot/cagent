@@ -197,6 +197,7 @@ type ModelStore interface {
 
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
+	ctx                       func() context.Context
 	toolMap                   map[string]ToolHandlerFunc
 	team                      *team.Team
 	agents                    *agentRouter
@@ -544,6 +545,7 @@ func NewLocalRuntime(ctx context.Context, agents *team.Team, opts ...Opt) (*Loca
 	}
 
 	r := &LocalRuntime{
+		ctx:                    func() context.Context { return context.WithoutCancel(ctx) },
 		toolMap:                make(map[string]ToolHandlerFunc),
 		team:                   agents,
 		agents:                 newAgentRouter(agents, defaultAgent.Name()),
@@ -1371,8 +1373,7 @@ func (r *LocalRuntime) emitToolsChanged() {
 	if r.onToolsChanged == nil {
 		return
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), toolsChangedTimeout)
+	ctx, cancel := context.WithTimeout(r.ctx(), toolsChangedTimeout)
 	defer cancel()
 	a := r.CurrentAgent()
 	agentTools, err := a.StartedTools(ctx)

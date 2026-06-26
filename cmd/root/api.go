@@ -69,7 +69,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	os.Stdin = nil
 
 	// Start fake proxy if --fake is specified
-	cleanup, err := setupFakeProxy(f.fakeResponses, 0, &f.runConfig)
+	cleanup, err := setupFakeProxy(ctx, f.fakeResponses, 0, &f.runConfig)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 	}()
 
 	// Start recording proxy if --record is specified
-	_, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig)
+	_, recordCleanup, err := setupRecordingProxy(ctx, f.recordPath, &f.runConfig)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) (commandErr 
 		return err
 	}
 
-	sessionStore, err := session.NewSQLiteSessionStore(sessionDB)
+	sessionStore, err := session.NewSQLiteSessionStore(ctx, sessionDB)
 	if err != nil {
 		return fmt.Errorf("creating session store: %w", err)
 	}

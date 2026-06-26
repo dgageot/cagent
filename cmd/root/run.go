@@ -339,7 +339,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	// Start fake proxy if --fake is specified
-	fakeCleanup, err := setupFakeProxy(f.fakeResponses, f.fakeStreamDelay, &f.runConfig)
+	fakeCleanup, err := setupFakeProxy(ctx, f.fakeResponses, f.fakeStreamDelay, &f.runConfig)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}()
 
 	// Record AI API interactions to a cassette file if --record flag is specified.
-	cassettePath, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig)
+	cassettePath, recordCleanup, err := setupRecordingProxy(ctx, f.recordPath, &f.runConfig)
 	if err != nil {
 		return err
 	}

@@ -131,7 +131,7 @@ func TestACPSessionPersistence(t *testing.T) {
 
 	// Create a temp SQLite session DB
 	dbPath := filepath.Join(t.TempDir(), "session.db")
-	sessStore, err := session.NewSQLiteSessionStore(dbPath)
+	sessStore, err := session.NewSQLiteSessionStore(t.Context(), dbPath)
 	require.NoError(t, err)
 
 	// Close the store at the end

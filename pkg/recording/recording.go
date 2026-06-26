@@ -2,6 +2,7 @@
 package recording
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,7 +14,7 @@ import (
 // SetupFakeProxy starts a fake proxy if fakeResponses is non-empty.
 // streamDelayMs controls simulated streaming: 0 = disabled, >0 = delay in milliseconds between chunks.
 // It returns the proxy URL and a cleanup function that must be called when done (typically via defer).
-func SetupFakeProxy(fakeResponses string, streamDelayMs int) (proxyURL string, cleanup func() error, err error) {
+func SetupFakeProxy(ctx context.Context, fakeResponses string, streamDelayMs int) (proxyURL string, cleanup func() error, err error) {
 	if fakeResponses == "" {
 		return "", noop, nil
 	}
@@ -29,12 +30,12 @@ func SetupFakeProxy(fakeResponses string, streamDelayMs int) (proxyURL string, c
 		)
 	}
 
-	proxyURL, cleanupFn, err := fake.StartProxy(fakeResponses, opts...)
+	proxyURL, cleanupFn, err := fake.StartProxy(ctx, fakeResponses, opts...)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start fake proxy: %w", err)
 	}
 
-	slog.Info("Fake mode enabled", "cassette", fakeResponses, "proxy", proxyURL)
+	slog.InfoContext(ctx, "Fake mode enabled", "cassette", fakeResponses, "proxy", proxyURL)
 
 	return proxyURL, cleanupFn, nil
 }
@@ -44,7 +45,7 @@ func SetupFakeProxy(fakeResponses string, streamDelayMs int) (proxyURL string, c
 // and normalizes the path by stripping any .yaml suffix.
 // Returns the cassette path (with .yaml extension), the proxy URL, and a cleanup function.
 // The cleanup function must be called when done (typically via defer).
-func SetupRecordingProxy(recordPath string) (cassettePath, proxyURL string, cleanup func() error, err error) {
+func SetupRecordingProxy(ctx context.Context, recordPath string) (cassettePath, proxyURL string, cleanup func() error, err error) {
 	if recordPath == "" {
 		return "", "", noop, nil
 	}
@@ -56,14 +57,14 @@ func SetupRecordingProxy(recordPath string) (cassettePath, proxyURL string, clea
 		recordPath = strings.TrimSuffix(recordPath, ".yaml")
 	}
 
-	proxyURL, cleanupFn, err := fake.StartRecordingProxy(recordPath)
+	proxyURL, cleanupFn, err := fake.StartRecordingProxy(ctx, recordPath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to start recording proxy: %w", err)
 	}
 
 	cassettePath = recordPath + ".yaml"
 
-	slog.Info("Recording mode enabled", "cassette", cassettePath, "proxy", proxyURL)
+	slog.InfoContext(ctx, "Recording mode enabled", "cassette", cassettePath, "proxy", proxyURL)
 
 	return cassettePath, proxyURL, cleanupFn, nil
 }

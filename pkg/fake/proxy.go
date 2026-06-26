@@ -51,14 +51,14 @@ func WithStreamChunkDelay(d time.Duration) ProxyOption {
 
 // StartProxy starts an internal HTTP proxy that replays cassette responses.
 // It returns the proxy URL and a cleanup function that should be called when done.
-func StartProxy(cassettePath string, opts ...ProxyOption) (string, func() error, error) {
+func StartProxy(ctx context.Context, cassettePath string, opts ...ProxyOption) (string, func() error, error) {
 	options := &ProxyOptions{
 		StreamChunkDelay: 15 * time.Millisecond,
 	}
 	for _, opt := range opts {
 		opt(options)
 	}
-	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil, options)
+	return StartProxyWithOptions(ctx, cassettePath, recorder.ModeReplayOnly, nil, nil, options)
 }
 
 // StartRecordingProxy starts a proxy that records AI API interactions to a cassette file.
@@ -66,14 +66,15 @@ func StartProxy(cassettePath string, opts ...ProxyOption) (string, func() error,
 // The recorded cassette can later be replayed using StartProxy.
 // This uses a streaming-aware recorder that allows responses to stream through
 // in real-time while being recorded, unlike the standard VCR recorder.
-func StartRecordingProxy(cassettePath string) (string, func() error, error) {
-	return StartStreamingRecordingProxy(cassettePath, APIKeyHeaderUpdater)
+func StartRecordingProxy(ctx context.Context, cassettePath string) (string, func() error, error) {
+	return StartStreamingRecordingProxy(ctx, cassettePath, APIKeyHeaderUpdater)
 }
 
 // StartStreamingRecordingProxy starts a recording proxy with streaming support.
 // Unlike StartProxyWithOptions which buffers entire responses, this allows
 // streaming responses to pass through in real-time while being recorded.
 func StartStreamingRecordingProxy(
+	ctx context.Context,
 	cassettePath string,
 	headerUpdater func(host string, req *http.Request),
 ) (string, func() error, error) {
@@ -100,8 +101,7 @@ func StartStreamingRecordingProxy(
 			stopDone <- streamRec.Stop()
 		}()
 
-		//rubocop:disable Lint/ContextConnectivity
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 		defer cancel()
 
 		select {
@@ -139,6 +139,7 @@ func APIKeyHeaderUpdater(host string, req *http.Request) {
 // - headerUpdater: optional function to update request headers (for recording with real API keys)
 // - options: proxy options for stream simulation, etc.
 func StartProxyWithOptions(
+	ctx context.Context,
 	cassettePath string,
 	mode recorder.Mode,
 	matcher recorder.MatcherFunc,
@@ -186,8 +187,7 @@ func StartProxyWithOptions(
 			stopDone <- transport.Stop()
 		}()
 
-		//rubocop:disable Lint/ContextConnectivity
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 		defer cancel()
 
 		select {

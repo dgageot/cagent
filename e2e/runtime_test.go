@@ -64,7 +64,7 @@ func TestRuntime_MultiAgent_SessionReload(t *testing.T) {
 
 	// Use a SQLite store so we test real persistence and reload.
 	dbPath := filepath.Join(t.TempDir(), "session.db")
-	store, err := session.NewSQLiteSessionStore(dbPath)
+	store, err := session.NewSQLiteSessionStore(t.Context(), dbPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 

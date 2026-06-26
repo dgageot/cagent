@@ -24,7 +24,7 @@ func startRecordingAIProxy(t *testing.T) (*httptest.Server, *config.RuntimeConfi
 		require.NoError(t, err)
 	})
 
-	proxyURL, cleanup, err := fake.StartProxyWithOptions(
+	proxyURL, cleanup, err := fake.StartProxyWithOptions(t.Context(),
 		cassettePath,
 		recorder.ModeRecordOnce,
 		matcher,

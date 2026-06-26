@@ -89,14 +89,14 @@ func (b *localBackend) CreateSessionRequest(workingDir string) runtime.CreateSes
 // sessionStore returns the backend-owned session store, opening it on
 // first use. The store is shared by the initial runtime and by every
 // runtime spawned by [localBackend.Spawner].
-func (b *localBackend) sessionStore(req runtime.CreateSessionRequest) (session.Store, error) {
+func (b *localBackend) sessionStore(ctx context.Context, req runtime.CreateSessionRequest) (session.Store, error) {
 	b.storeOnce.Do(func() {
 		sessionDB, err := pathx.ExpandHomeDir(req.SessionDB)
 		if err != nil {
 			b.storeErr = err
 			return
 		}
-		store, err := session.NewSQLiteSessionStore(sessionDB)
+		store, err := session.NewSQLiteSessionStore(context.WithoutCancel(ctx), sessionDB)
 		if err != nil {
 			b.storeErr = fmt.Errorf("creating session store: %w", err)
 			return
@@ -107,7 +107,7 @@ func (b *localBackend) sessionStore(req runtime.CreateSessionRequest) (session.S
 }
 
 func (b *localBackend) CreateSession(ctx context.Context, loaded *teamloader.LoadResult, req runtime.CreateSessionRequest) (runtime.Runtime, *session.Session, func(), error) {
-	store, err := b.sessionStore(req)
+	store, err := b.sessionStore(ctx, req)
 	if err != nil {
 		stopToolSets(ctx, loaded.Team)
 		return nil, nil, nil, err
@@ -148,7 +148,7 @@ func (b *localBackend) ResumeWorkingDir(ctx context.Context) (string, bool) {
 		return "", false
 	}
 
-	store, err := b.sessionStore(b.flags.createSessionRequest(""))
+	store, err := b.sessionStore(ctx, b.flags.createSessionRequest(""))
 	if err != nil {
 		return "", false
 	}

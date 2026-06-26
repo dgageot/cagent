@@ -85,7 +85,7 @@ func startCagentAPI(t *testing.T, db string) string {
 		_ = ln.Close()
 	})
 
-	sessionStore, err := session.NewSQLiteSessionStore(dbCopy)
+	sessionStore, err := session.NewSQLiteSessionStore(t.Context(), dbCopy)
 	require.NoError(t, err)
 
 	srv, err := server.New(t.Context(), sessionStore, &config.RuntimeConfig{}, 0, nil, "")

@@ -68,7 +68,10 @@ func CreateToolSet(toolset latest.Toolset, parentDir string, runConfig *config.R
 		return nil, fmt.Errorf("failed to create memory database directory: %w", err)
 	}
 
-	db, err := sqlite.NewMemoryDatabase(validatedMemoryPath)
+	// Toolset constructors do not receive a request context; DB bootstrap is a
+	// one-time setup step for this toolset.
+	//rubocop:disable Lint/ContextConnectivity
+	db, err := sqlite.NewMemoryDatabase(context.Background(), validatedMemoryPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create memory database: %w", err)
 	}

@@ -44,24 +44,22 @@ type MemoryDatabase struct {
 	db *sql.DB
 }
 
-func NewMemoryDatabase(path string) (database.Database, error) {
-	db, err := sqliteutil.OpenDB(path)
+func NewMemoryDatabase(ctx context.Context, path string) (database.Database, error) {
+	db, err := sqliteutil.OpenDB(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 	// Ensure we close the connection if table creation fails
 	// Note: We don't defer close here because we return the db on success
 
-	//rubocop:disable Lint/ContextConnectivity
-	_, err = db.ExecContext(context.Background(), "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)")
+	_, err = db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)")
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 
 	// Add category column if it doesn't exist (transparent migration)
-	//rubocop:disable Lint/ContextConnectivity
-	if _, err := db.ExecContext(context.Background(), "ALTER TABLE memories ADD COLUMN category TEXT DEFAULT ''"); err != nil {
+	if _, err := db.ExecContext(ctx, "ALTER TABLE memories ADD COLUMN category TEXT DEFAULT ''"); err != nil {
 		if !strings.Contains(err.Error(), "duplicate column name") {
 			db.Close()
 			return nil, fmt.Errorf("memory database migration failed: %w", err)

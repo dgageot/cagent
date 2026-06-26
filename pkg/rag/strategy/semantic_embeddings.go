@@ -129,7 +129,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 	}
 
 	// Create semantic vector database (includes embedding_input column for debugging)
-	db, err := newSemanticVectorDB(dbPath, vectorDimensions, strategyName)
+	db, err := newSemanticVectorDB(ctx, dbPath, vectorDimensions, strategyName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database: %w", err)
 	}

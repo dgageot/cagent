@@ -15,7 +15,7 @@ import (
 
 // OpenDB opens a SQLite database with recommended pragmas for concurrency and foreign key support.
 // It configures the connection pool for serialized writes (MaxOpenConns=1).
-func OpenDB(path string) (*sql.DB, error) {
+func OpenDB(ctx context.Context, path string) (*sql.DB, error) {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("cannot create database directory %q: %w", dir, err)
@@ -42,8 +42,7 @@ func OpenDB(path string) (*sql.DB, error) {
 	db.SetConnMaxLifetime(0)
 
 	// Verify connection works (this will trigger file creation/open)
-	//rubocop:disable Lint/ContextConnectivity
-	if err := db.PingContext(context.Background()); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		if IsCantOpenError(err) {
 			return nil, DiagnoseDBOpenError(path, err)
@@ -86,10 +85,10 @@ func DiagnoseDBOpenError(path string, originalErr error) error {
 // The TRUNCATE checkpoint folds the -wal file back into the main database
 // so it isn't left behind on disk after shutdown. A checkpoint failure is
 // logged but does not prevent the close.
-func CheckpointAndClose(db *sql.DB) error {
-	//rubocop:disable Lint/ContextConnectivity
-	if _, err := db.ExecContext(context.Background(), "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		slog.Warn("Failed to checkpoint WAL before close", "error", err)
+func CheckpointAndClose(ctx context.Context, db *sql.DB) error {
+	ctx = context.WithoutCancel(ctx)
+	if _, err := db.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		slog.WarnContext(ctx, "Failed to checkpoint WAL before close", "error", err)
 	}
 	return db.Close()
 }

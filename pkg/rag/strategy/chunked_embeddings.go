@@ -58,7 +58,7 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 	}
 
 	// Create vector database (internal to this strategy)
-	db, err := newChunkedVectorDB(dbPath, vectorDimensions, strategyName)
+	db, err := newChunkedVectorDB(ctx, dbPath, vectorDimensions, strategyName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database: %w", err)
 	}

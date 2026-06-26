@@ -18,18 +18,19 @@ import (
 // Uses the base Document type without embeddings.
 type bm25DB struct {
 	db            *sql.DB
+	ctx           func() context.Context
 	tablePrefix   string
 	docsTable     string
 	metadataTable string
 }
 
 // newBM25DB creates a new SQLite database for BM25 strategy.
-func newBM25DB(dbPath, strategyName string) (*bm25DB, error) {
+func newBM25DB(ctx context.Context, dbPath, strategyName string) (*bm25DB, error) {
 	if err := ensureDir(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sqliteutil.OpenDB(dbPath)
+	db, err := sqliteutil.OpenDB(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -38,22 +39,23 @@ func newBM25DB(dbPath, strategyName string) (*bm25DB, error) {
 
 	bdb := &bm25DB{
 		db:            db,
+		ctx:           func() context.Context { return context.WithoutCancel(ctx) },
 		tablePrefix:   tablePrefix,
 		docsTable:     tablePrefix + "_documents",
 		metadataTable: tablePrefix + "_file_metadata",
 	}
 
-	if err := bdb.createSchema(); err != nil {
+	if err := bdb.createSchema(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	slog.Info("BM25 database initialized", "path", dbPath, "table_prefix", tablePrefix)
+	slog.InfoContext(ctx, "BM25 database initialized", "path", dbPath, "table_prefix", tablePrefix)
 
 	return bdb, nil
 }
 
-func (d *bm25DB) createSchema() error {
+func (d *bm25DB) createSchema(ctx context.Context) error {
 	schema := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
 		id TEXT PRIMARY KEY,
@@ -82,8 +84,7 @@ func (d *bm25DB) createSchema() error {
 		d.metadataTable,
 		d.tablePrefix, d.metadataTable)
 
-	//rubocop:disable Lint/ContextConnectivity
-	_, err := d.db.ExecContext(context.Background(), schema)
+	_, err := d.db.ExecContext(ctx, schema)
 	return err
 }
 
@@ -212,7 +213,7 @@ func (d *bm25DB) DeleteFileMetadata(ctx context.Context, sourcePath string) erro
 }
 
 func (d *bm25DB) Close() error {
-	return sqliteutil.CheckpointAndClose(d.db)
+	return sqliteutil.CheckpointAndClose(d.ctx(), d.db)
 }
 
 // ensureDir creates the parent directory for a file path if it doesn't exist

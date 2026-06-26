@@ -19,7 +19,7 @@ type Store struct {
 // New creates a new TUI state store, initializing the database if needed.
 func New(ctx context.Context) (*Store, error) {
 	dbPath := filepath.Join(paths.GetDataDir(), "tui_state.db")
-	db, err := sqliteutil.OpenDB(dbPath)
+	db, err := sqliteutil.OpenDB(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening TUI state store: %w", err)
 	}

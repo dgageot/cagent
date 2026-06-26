@@ -65,6 +65,7 @@ func askpassSupported() bool {
 // from the `__askpass` helper that sudo spawns, and answers them by asking the
 // user through the toolset's elicitation handler.
 type askpassServer struct {
+	ctx      func() context.Context
 	listener net.Listener
 	dir      string // 0700 temp dir holding the socket + wrapper script
 	socket   string
@@ -171,6 +172,7 @@ func startAskpassServer(ctx context.Context, handler func() tools.ElicitationHan
 	}
 
 	s := &askpassServer{
+		ctx:       func() context.Context { return context.WithoutCancel(ctx) },
 		listener:  listener,
 		dir:       dir,
 		socket:    socket,
@@ -211,8 +213,7 @@ func (s *askpassServer) handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	// Bound the whole exchange; the prompt (askUser) is the only slow part.
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), askpassPromptTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx(), askpassPromptTimeout)
 	defer cancel()
 
 	// The request is sent immediately, so a short read deadline is enough.
