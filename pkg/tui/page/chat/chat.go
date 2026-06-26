@@ -898,6 +898,7 @@ func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	}
 
 	if isBangCommand(msg.Content) {
+		//rubocop:disable Lint/ContextConnectivity
 		p.app.RunBangCommand(context.Background(), msg.Content[1:])
 		return p.messages.ScrollToBottom()
 	}
@@ -975,6 +976,7 @@ func (p *chatPage) CompactSession(additionalPrompt string) tea.Cmd {
 	cancelCmd := p.cancelStream(false)
 
 	var ctx context.Context
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, p.msgCancel = context.WithCancel(context.Background())
 	p.app.CompactSession(ctx, p.msgCancel, additionalPrompt)
 

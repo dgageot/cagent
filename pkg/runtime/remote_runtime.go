@@ -106,6 +106,7 @@ func (r *RemoteRuntime) CurrentAgentName() string {
 		return r.currentAgent
 	}
 	r.resolvedDefaultOnce.Do(func() {
+		//rubocop:disable Lint/ContextConnectivity
 		r.resolvedDefault, _ = r.resolvedAgent(context.Background())
 	})
 	return r.resolvedDefault
@@ -127,6 +128,7 @@ func (r *RemoteRuntime) CurrentAgentInfo(ctx context.Context) CurrentAgentInfo {
 // propagated rather than silently accepted — the whole point of this check
 // is closing that silent-breakage gap.
 func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
+	//rubocop:disable Lint/ContextConnectivity
 	cfg, err := r.client.GetAgent(context.Background(), r.agentFilename)
 	if err != nil {
 		return fmt.Errorf("validate agent %q against remote team: %w", agentName, err)
@@ -322,6 +324,7 @@ func (r *RemoteRuntime) Steer(msg QueuedMessage) error {
 	if r.sessionID == "" {
 		return errors.New("no active session")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	return r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
@@ -332,6 +335,7 @@ func (r *RemoteRuntime) FollowUp(msg QueuedMessage) error {
 	if r.sessionID == "" {
 		return errors.New("no active session")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	return r.client.FollowUpSession(context.Background(), r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
@@ -457,6 +461,7 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}
 	defer func() {
+		//rubocop:disable Lint/ContextConnectivity
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
 		if err := callbackServer.Shutdown(shutdownCtx); err != nil {

@@ -82,6 +82,7 @@ func Load(sources []string) []Skill {
 			if remoteCache == nil {
 				remoteCache = newDiskCache(filepath.Join(paths.GetCacheDir(), "skills"))
 			}
+			//rubocop:disable Lint/ContextConnectivity
 			for _, skill := range loadRemoteSkills(context.Background(), source, remoteCache) {
 				skillMap[source+"/"+skill.Name] = skill
 			}

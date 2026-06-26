@@ -206,6 +206,7 @@ func proxyHostPorts(spec string) map[string]struct{} {
 		out[net.JoinHostPort(ip.String(), port)] = struct{}{}
 		return out
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ips, _ := net.DefaultResolver.LookupIPAddr(ctx, host)

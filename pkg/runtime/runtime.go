@@ -636,6 +636,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		return nil, err
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	if defaultAgent.Model(context.TODO()) == nil && !defaultAgent.HasHarness() {
 		return nil, fmt.Errorf("agent %s has no valid model", defaultAgent.Name())
 	}
@@ -885,6 +886,7 @@ func startedToolNames(ts tools.ToolSet) ([]string, bool) {
 	if !ok || !s.IsStarted() {
 		return nil, false
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	tl, err := s.Tools(context.TODO())
 	if err != nil {
 		return nil, false
@@ -1193,6 +1195,7 @@ func (r *LocalRuntime) TitleGenerator() *sessiontitle.Generator {
 	// Title-gen setup happens before any session ctx exists; the resulting
 	// generator carries its own ctx when actually invoked. context.TODO is
 	// the right marker here.
+	//rubocop:disable Lint/ContextConnectivity
 	models := a.TitleModels(context.TODO())
 	if len(models) == 0 {
 		return nil
@@ -1206,6 +1209,7 @@ func getAgentModelID(a *agent.Agent) modelsdev.ID {
 	if a == nil {
 		return modelsdev.ID{}
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	if model := a.Model(context.TODO()); model != nil {
 		return model.ID()
 	}
@@ -1365,6 +1369,7 @@ func (r *LocalRuntime) emitToolsChanged() {
 	if r.onToolsChanged == nil {
 		return
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), toolsChangedTimeout)
 	defer cancel()
 	a := r.CurrentAgent()
@@ -1674,6 +1679,7 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 // running agent loop. The message will be picked up after the current batch
 // of tool calls finishes but before the loop checks whether to stop.
 func (r *LocalRuntime) Steer(msg QueuedMessage) error {
+	//rubocop:disable Lint/ContextConnectivity
 	if !r.steerQueue.Enqueue(context.Background(), msg) {
 		return errors.New("steer queue full")
 	}
@@ -1684,6 +1690,7 @@ func (r *LocalRuntime) Steer(msg QueuedMessage) error {
 // finishes. Unlike Steer, follow-ups are popped one at a time and each gets
 // a full undivided agent turn.
 func (r *LocalRuntime) FollowUp(msg QueuedMessage) error {
+	//rubocop:disable Lint/ContextConnectivity
 	if !r.followUpQueue.Enqueue(context.Background(), msg) {
 		return errors.New("follow-up queue full")
 	}

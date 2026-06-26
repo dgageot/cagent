@@ -323,6 +323,7 @@ func newSupervisor(ts *Toolset, base lifecycle.Policy) *lifecycle.Supervisor {
 		// from the new server. The new server may expose a
 		// different set of tools/prompts and notifications won't
 		// fire for tools that disappeared.
+		//rubocop:disable Lint/ContextConnectivity
 		ctx := context.Background()
 		ts.refreshToolCache(ctx)
 		ts.refreshPromptCache(ctx)

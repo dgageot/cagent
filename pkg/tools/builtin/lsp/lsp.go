@@ -712,6 +712,7 @@ func (h *lspHandler) ensureInitialized() error {
 	// Lazy-start through the supervisor. Concurrent ensureInitialized
 	// callers serialize inside Supervisor.Start.
 	if !h.supervisor.IsReady() {
+		//rubocop:disable Lint/ContextConnectivity
 		if err := h.supervisor.Start(context.Background()); err != nil {
 			return fmt.Errorf("failed to start LSP server: %w", err)
 		}

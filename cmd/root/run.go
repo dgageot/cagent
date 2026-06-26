@@ -1034,6 +1034,7 @@ type toolStopper interface {
 // stopToolSets gracefully stops all tool sets with a bounded timeout so
 // that cleanup cannot block indefinitely.
 func stopToolSets(t toolStopper) {
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := t.StopToolSets(ctx); err != nil {

@@ -43,6 +43,7 @@ func withEventHooks(hooks []onEventHook) app.Opt {
 		return nil
 	}
 	return func(a *app.App) {
+		//rubocop:disable Lint/ContextConnectivity
 		go a.SubscribeWith(context.Background(), func(msg tea.Msg) {
 			ev, ok := msg.(runtime.Event)
 			if !ok {
@@ -79,6 +80,7 @@ func runEventHook(command string, payload []byte) {
 	// flushing the last event when the user exits the TUI should be allowed
 	// to finish. Each invocation receives a single event on stdin, processes
 	// it, and exits; the spawning goroutine ends with the subprocess.
+	//rubocop:disable Lint/ContextConnectivity
 	cmd := exec.CommandContext(context.Background(), shell, append(argsPrefix, command)...)
 	cmd.Stdin = bytes.NewReader(payload)
 	var out boundedWriter

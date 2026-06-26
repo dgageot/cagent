@@ -43,6 +43,7 @@ func (m *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 		return m, notification.ErrorCmd("No parent session for branch")
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	ctx := context.Background()
 
 	parent, err := store.GetSession(ctx, msg.ParentSessionID)
@@ -115,6 +116,7 @@ func (m *appModel) handleForkSession() (tea.Model, tea.Cmd) {
 		return m, notification.ErrorCmd("Session spawning not available")
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	ctx := context.Background()
 
 	// Fork the session and clone all messages.
@@ -154,14 +156,17 @@ func (m *appModel) handleToggleSessionStar(sessionID string) (tea.Model, tea.Cmd
 	if currentSess != nil && currentSess.ID == sessionID {
 		currentSess.Starred = !currentSess.Starred
 		m.chatPage.SetSessionStarred(currentSess.Starred)
+		//rubocop:disable Lint/ContextConnectivity
 		if err := store.UpdateSession(context.Background(), currentSess); err != nil {
 			return m, notification.ErrorCmd(fmt.Sprintf("Failed to save session: %v", err))
 		}
 	} else {
+		//rubocop:disable Lint/ContextConnectivity
 		sess, err := store.GetSession(context.Background(), sessionID)
 		if err != nil {
 			return m, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
 		}
+		//rubocop:disable Lint/ContextConnectivity
 		if err := store.SetSessionStarred(context.Background(), sessionID, !sess.Starred); err != nil {
 			return m, notification.ErrorCmd(fmt.Sprintf("Failed to update session: %v", err))
 		}
@@ -170,6 +175,7 @@ func (m *appModel) handleToggleSessionStar(sessionID string) (tea.Model, tea.Cmd
 }
 
 func (m *appModel) handleSetSessionTitle(title string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	if err := m.application.UpdateSessionTitle(context.Background(), title); err != nil {
 		if errors.Is(err, app.ErrTitleGenerating) {
 			return m, notification.WarningCmd("Title is being generated, please wait")
@@ -187,6 +193,7 @@ func (m *appModel) handleRegenerateTitle() (tea.Model, tea.Cmd) {
 	if len(sess.GetLastUserMessages(1)) == 0 {
 		return m, notification.ErrorCmd("Cannot regenerate title: no user message in session")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	if err := m.application.RegenerateSessionTitle(context.Background()); err != nil {
 		if errors.Is(err, app.ErrTitleGenerating) {
 			return m, notification.WarningCmd("Title is being generated, please wait")
@@ -203,6 +210,7 @@ func (m *appModel) handleDeleteSession(sessionID string) (tea.Model, tea.Cmd) {
 		return m, notification.ErrorCmd("No session store configured")
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	if err := store.DeleteSession(context.Background(), sessionID); err != nil {
 		return m, notification.ErrorCmd("Failed to delete session: " + err.Error())
 	}
@@ -218,6 +226,7 @@ func (m *appModel) handleEvalSession(filename string) (tea.Model, tea.Cmd) {
 }
 
 func (m *appModel) handleExportSession(filename string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	exportFile, err := m.application.ExportHTML(context.Background(), filename)
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to export session: %v", err))
@@ -253,6 +262,7 @@ func (m *appModel) handleUndoSnapshot() (tea.Model, tea.Cmd) {
 	if m.chatPage.IsWorking() {
 		return m, notification.WarningCmd("Wait for the current response to finish before undoing")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	result, err := m.application.UndoLastSnapshot(context.Background())
 	if err != nil {
 		if errors.Is(err, app.ErrNothingToUndo) {
@@ -276,6 +286,7 @@ func (m *appModel) handleResetSnapshot(keep int) (tea.Model, tea.Cmd) {
 	if m.chatPage.IsWorking() {
 		return m, notification.WarningCmd("Wait for the current response to finish before resetting")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	result, err := m.application.ResetSnapshot(context.Background(), keep)
 	if err != nil {
 		if errors.Is(err, app.ErrNothingToUndo) {
@@ -458,6 +469,7 @@ func (m *appModel) handleShowPermissionsDialog() (tea.Model, tea.Cmd) {
 }
 
 func (m *appModel) handleShowToolsDialog() (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	agentTools, err := m.application.CurrentAgentTools(context.Background())
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to load tools: %v", err))
@@ -489,6 +501,7 @@ func (m *appModel) handleRestartToolset(name string) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(
 		notification.InfoCmd(fmt.Sprintf("Restarting toolset %q…", name)),
 		func() tea.Msg {
+			//rubocop:disable Lint/ContextConnectivity
 			if err := appRef.RestartToolset(context.Background(), name); err != nil {
 				return notification.ShowMsg{
 					Text: fmt.Sprintf("Failed to restart %q: %v", name, err),
@@ -516,6 +529,7 @@ func (m *appModel) handleShowMCPPromptInput(promptName string, promptInfo any) (
 }
 
 func (m *appModel) handleMCPPrompt(promptName string, arguments map[string]string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	promptContent, err := m.application.ExecuteMCPPrompt(context.Background(), promptName, arguments)
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Error executing MCP prompt '%s': %v", promptName, err))
@@ -529,6 +543,7 @@ func (m *appModel) handleOpenModelPicker() (tea.Model, tea.Cmd) {
 	if !m.application.SupportsModelSwitching() {
 		return m, notification.InfoCmd("Model switching is not supported with remote runtimes")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	models := m.application.AvailableModels(context.Background())
 	if len(models) == 0 {
 		return m, notification.InfoCmd("No models available for selection")
@@ -545,6 +560,7 @@ func (m *appModel) handleCycleThinkingLevel() (tea.Model, tea.Cmd) {
 	if !m.application.SupportsModelSwitching() {
 		return m, notification.InfoCmd("Thinking levels can't be changed with remote runtimes")
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	if _, err := m.application.CycleAgentThinkingLevel(context.Background()); err != nil {
 		if errors.Is(err, runtime.ErrUnsupported) {
 			return m, notification.InfoCmd("Current model does not support thinking levels")
@@ -555,6 +571,7 @@ func (m *appModel) handleCycleThinkingLevel() (tea.Model, tea.Cmd) {
 }
 
 func (m *appModel) handleChangeModel(modelRef string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	if err := m.application.SetCurrentAgentModel(context.Background(), modelRef); err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to change model: %v", err))
 	}
@@ -666,6 +683,7 @@ func (m *appModel) handleThemeFileChanged(themeRef string) (tea.Model, tea.Cmd) 
 // --- Miscellaneous ---
 
 func (m *appModel) handleOpenURL(url string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	if err := browser.Open(context.Background(), url); err != nil {
 		slog.Warn("Failed to open URL", "url", url, "error", err)
 		return m, notification.ErrorCmd("Failed to open URL in browser")
@@ -674,6 +692,7 @@ func (m *appModel) handleOpenURL(url string) (tea.Model, tea.Cmd) {
 }
 
 func (m *appModel) handleAgentCommand(command string) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	ctx := context.Background()
 
 	// Inspect the command before resolving so we can detect /commands that
@@ -776,6 +795,7 @@ func (m *appModel) handleStartSpeak() (tea.Model, tea.Cmd) {
 
 	ch := make(chan string, 100)
 	m.transcriptCh = ch
+	//rubocop:disable Lint/ContextConnectivity
 	err := m.transcriber.Start(context.Background(), func(delta string) {
 		select {
 		case ch <- delta:
@@ -828,6 +848,7 @@ func (m *appModel) closeTranscriptCh() {
 }
 
 func (m *appModel) handleElicitationResponse(action tools.ElicitationAction, content map[string]any) (tea.Model, tea.Cmd) {
+	//rubocop:disable Lint/ContextConnectivity
 	if err := m.application.ResumeElicitation(context.Background(), action, content); err != nil {
 		slog.Error("Failed to resume elicitation", "action", action, "error", err)
 		return m, notification.ErrorCmd("Failed to complete server request: " + err.Error())

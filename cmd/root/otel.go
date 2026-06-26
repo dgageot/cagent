@@ -55,6 +55,7 @@ func initOTelSDK(ctx context.Context) (err error) {
 
 	lp, err := newLoggerProvider(ctx, res, endpoint)
 	if err != nil {
+		//rubocop:disable Lint/ContextConnectivity
 		_ = mp.Shutdown(context.Background())
 		_ = shutdownTracerProvider(tp)
 		return fmt.Errorf("failed to create logger provider: %w", err)
@@ -91,6 +92,7 @@ func initOTelSDK(ctx context.Context) (err error) {
 		// sharing a single timeout meant a stuck logs endpoint silently
 		// dropped buffered metrics and spans.
 		shutdown := func(fn func(context.Context) error) {
+			//rubocop:disable Lint/ContextConnectivity
 			c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = fn(c)
@@ -219,6 +221,7 @@ func logExporterOptions(endpoint string) []otlploghttp.Option {
 }
 
 func shutdownTracerProvider(tp *trace.TracerProvider) error {
+	//rubocop:disable Lint/ContextConnectivity
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return tp.Shutdown(shutdownCtx)

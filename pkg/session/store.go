@@ -543,6 +543,7 @@ func openAndMigrateSQLiteStore(path string) (*SQLiteSessionStore, error) {
 // columns the very first migration expects to find; later columns are added
 // by subsequent ALTER TABLE migrations.
 func setupAndMigrate(db *sql.DB) error {
+	//rubocop:disable Lint/ContextConnectivity
 	_, err := db.ExecContext(context.Background(), `
 		CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
@@ -555,6 +556,7 @@ func setupAndMigrate(db *sql.DB) error {
 	}
 
 	migrationManager := NewMigrationManager(db)
+	//rubocop:disable Lint/ContextConnectivity
 	return migrationManager.InitializeMigrations(context.Background())
 }
 

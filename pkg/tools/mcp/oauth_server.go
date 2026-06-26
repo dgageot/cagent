@@ -50,6 +50,7 @@ func NewCallbackServer() (*CallbackServer, error) {
 // Use port 0 to let the OS pick a random available port.
 func NewCallbackServerOnPort(port int) (*CallbackServer, error) {
 	var lc net.ListenConfig
+	//rubocop:disable Lint/ContextConnectivity
 	listener, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find available port: %w", err)

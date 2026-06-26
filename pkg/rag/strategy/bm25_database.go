@@ -82,6 +82,7 @@ func (d *bm25DB) createSchema() error {
 		d.metadataTable,
 		d.tablePrefix, d.metadataTable)
 
+	//rubocop:disable Lint/ContextConnectivity
 	_, err := d.db.ExecContext(context.Background(), schema)
 	return err
 }

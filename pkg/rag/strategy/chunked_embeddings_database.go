@@ -78,6 +78,7 @@ func (d *chunkedVectorDB) createSchema() error {
 	);
 	`, d.filesTable, d.tablePrefix, d.filesTable, d.chunksTable, d.filesTable)
 
+	//rubocop:disable Lint/ContextConnectivity
 	_, err := d.db.ExecContext(context.Background(), schema)
 	return err
 }

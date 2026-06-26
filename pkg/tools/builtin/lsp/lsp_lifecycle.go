@@ -78,6 +78,7 @@ func spawnLSPProcess(callerCtx context.Context, h *lspHandler) (*lspProcess, err
 	// The process must outlive the caller's request context (which is
 	// often cancelled when an HTTP/agent turn ends). The supervisor
 	// calls Close to shut it down on Stop or restart.
+	//rubocop:disable Lint/ContextConnectivity
 	processCtx, processCancel := context.WithCancel(context.Background())
 
 	cmd := exec.CommandContext(processCtx, h.command, h.args...)

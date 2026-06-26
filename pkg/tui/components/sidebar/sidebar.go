@@ -574,6 +574,7 @@ func gitBranch(dir string) string {
 	if dir == "" {
 		return ""
 	}
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD").Output()

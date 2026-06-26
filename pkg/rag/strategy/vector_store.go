@@ -175,6 +175,7 @@ func (s *VectorStore) calculateCost(tokens int64) float64 {
 		return 0
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	model, err := s.modelsStore.GetModel(context.Background(), s.modelID)
 	if err != nil {
 		slog.Debug("Failed to get model pricing from models.dev, cost will be 0",

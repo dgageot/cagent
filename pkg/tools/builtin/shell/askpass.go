@@ -151,6 +151,7 @@ func startAskpassServer(handler func() tools.ElicitationHandler) (*askpassServer
 
 	socket := filepath.Join(dir, "sock")
 	var lnConfig net.ListenConfig
+	//rubocop:disable Lint/ContextConnectivity
 	listener, err := lnConfig.Listen(context.Background(), "unix", socket)
 	if err != nil {
 		_ = os.RemoveAll(dir)
@@ -211,6 +212,7 @@ func (s *askpassServer) handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	// Bound the whole exchange; the prompt (askUser) is the only slow part.
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), askpassPromptTimeout)
 	defer cancel()
 

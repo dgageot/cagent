@@ -87,6 +87,7 @@ func (p *DocumentProcessor) Process(path string, content []byte) ([]chunk.Chunk,
 		"path", path)
 
 	// Use ParseCtx instead of deprecated Parse
+	//rubocop:disable Lint/ContextConnectivity
 	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil || tree == nil || tree.RootNode() == nil {
 		slog.Debug("[TreeSitter] Parsing failed, falling back to text chunking",

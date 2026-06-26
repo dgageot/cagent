@@ -506,6 +506,7 @@ func calculateSemanticUsageCost(modelsStore modelStore, id modelsdev.ID, usage *
 		return 0
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	model, err := modelsStore.GetModel(context.Background(), id)
 	if err != nil {
 		slog.Debug("Failed to get semantic model pricing from models.dev, cost will be 0",

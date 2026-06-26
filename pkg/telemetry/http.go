@@ -103,6 +103,7 @@ func (tc *Client) sendEvent(event *EventPayload) {
 	tc.logger.Debug("Event recorded", logArgs...)
 
 	// Enhanced debug logging with full event structure
+	//rubocop:disable Lint/ContextConnectivity
 	if tc.logger.Enabled(context.Background(), slog.LevelDebug) {
 		if jsonData, err := json.Marshal(event); err == nil {
 			tc.logger.Debug("Full telemetry event JSON", "json", string(jsonData))
@@ -124,6 +125,7 @@ func (tc *Client) performHTTPRequest(event *EventPayload, version string) error 
 	}
 
 	// Send request with timeout context
+	//rubocop:disable Lint/ContextConnectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

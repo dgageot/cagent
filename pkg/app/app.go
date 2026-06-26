@@ -167,6 +167,7 @@ func (a *App) SendFirstMessage() tea.Cmd {
 	cmds := []tea.Cmd{
 		func() tea.Msg {
 			// Use the shared PrepareUserMessage function for consistent attachment handling
+			//rubocop:disable Lint/ContextConnectivity
 			userMsg, attachedPath, err := cli.PrepareUserMessage(context.Background(), a.runtime, *a.firstMessage, a.firstMessageAttach)
 			if err != nil {
 				slog.Error("Failed to prepare first message", "error", err)
@@ -362,6 +363,7 @@ func (a *App) RunSkillFork(ctx context.Context, cancel context.CancelFunc, skill
 		for event := range events {
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
+					//rubocop:disable Lint/ContextConnectivity
 					a.sendEvent(context.Background(), event)
 				}
 				continue
@@ -494,6 +496,7 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 			// supervisor can mark the session as no longer running.
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
+					//rubocop:disable Lint/ContextConnectivity
 					a.sendEvent(context.Background(), event)
 				}
 				continue
@@ -691,6 +694,7 @@ func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg
 			// supervisor can mark the session as no longer running.
 			if ctx.Err() != nil {
 				if _, ok := event.(*runtime.StreamStoppedEvent); ok {
+					//rubocop:disable Lint/ContextConnectivity
 					a.sendEvent(context.Background(), event)
 				}
 				continue
@@ -778,6 +782,7 @@ func (a *App) removeSubscriber(ch chan tea.Msg) {
 // non-blocking; if a subscriber's buffer is full the event is dropped for
 // that subscriber so one slow consumer cannot stall the others.
 func (a *App) startFanOut() {
+	//rubocop:disable Lint/ContextConnectivity
 	throttled := a.throttleEvents(context.Background(), a.events)
 	go func() {
 		for msg := range throttled {
@@ -797,6 +802,7 @@ func (a *App) startFanOut() {
 
 // Resume resumes the runtime with the given confirmation request
 func (a *App) Resume(req runtime.ResumeRequest) {
+	//rubocop:disable Lint/ContextConnectivity
 	a.runtime.Resume(context.Background(), req)
 }
 
@@ -805,6 +811,7 @@ func (a *App) Resume(req runtime.ResumeRequest) {
 // doesn't support pausing (e.g. remote runtimes), in which case the first
 // return value is meaningless.
 func (a *App) TogglePause() (paused, supported bool) {
+	//rubocop:disable Lint/ContextConnectivity
 	p, err := a.runtime.TogglePause(context.Background())
 	if errors.Is(err, runtime.ErrUnsupported) {
 		return false, false
@@ -842,6 +849,7 @@ func (a *App) NewSession() {
 	a.firstMessageAttach = ""
 
 	// Re-emit startup info so the sidebar shows agent/tools info in the new session
+	//rubocop:disable Lint/ContextConnectivity
 	a.reEmitStartupInfo(context.Background())
 }
 

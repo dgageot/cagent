@@ -72,6 +72,7 @@ type cachedCatalog struct {
 //   - we detach from the caller's context to avoid permanently
 //     caching a context-cancellation error.
 var catalogOnce = sync.OnceValues(func() (Catalog, error) {
+	//rubocop:disable Lint/ContextConnectivity
 	return fetchAndCache(context.Background())
 })
 

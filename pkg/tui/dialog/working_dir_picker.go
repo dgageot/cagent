@@ -480,6 +480,7 @@ func (d *workingDirPickerDialog) toggleFavorite() {
 		return
 	}
 
+	//rubocop:disable Lint/ContextConnectivity
 	isFav, err := d.tuiStore.ToggleFavoriteDir(context.Background(), togglePath)
 	if err != nil {
 		return

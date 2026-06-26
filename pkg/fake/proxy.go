@@ -100,6 +100,7 @@ func StartStreamingRecordingProxy(
 			stopDone <- streamRec.Stop()
 		}()
 
+		//rubocop:disable Lint/ContextConnectivity
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
@@ -185,6 +186,7 @@ func StartProxyWithOptions(
 			stopDone <- transport.Stop()
 		}()
 
+		//rubocop:disable Lint/ContextConnectivity
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 

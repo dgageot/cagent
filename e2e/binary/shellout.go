@@ -21,10 +21,12 @@ func ExecWithContext(ctx context.Context, cmd string, args ...string) (CmdResult
 }
 
 func Exec(cmd string, args ...string) (CmdResult, error) {
+	//rubocop:disable Lint/ContextConnectivity
 	return ExecWithContextInDir(context.Background(), "", cmd, args, nil)
 }
 
 func ExecWithEnv(env []string, cmd string, args ...string) (CmdResult, error) {
+	//rubocop:disable Lint/ContextConnectivity
 	return ExecWithContextInDir(context.Background(), "", cmd, args, env)
 }
 

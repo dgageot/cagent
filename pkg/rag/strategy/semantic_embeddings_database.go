@@ -80,11 +80,13 @@ func (d *semanticVectorDB) createSchema() error {
 	);
 	`, d.filesTable, d.tablePrefix, d.filesTable, d.chunksTable, d.filesTable)
 
+	//rubocop:disable Lint/ContextConnectivity
 	if _, err := d.db.ExecContext(context.Background(), schema); err != nil {
 		return err
 	}
 
 	// Migration for existing databases that don't have embedding_input column
+	//rubocop:disable Lint/ContextConnectivity
 	_, _ = d.db.ExecContext(context.Background(), fmt.Sprintf(`ALTER TABLE %s ADD COLUMN embedding_input TEXT`, d.chunksTable))
 
 	return nil

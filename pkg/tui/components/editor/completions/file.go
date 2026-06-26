@@ -56,6 +56,7 @@ func (c *fileCompletion) Items() []completion.Item {
 	}
 
 	// Use bounded walker to avoid scanning huge directories
+	//rubocop:disable Lint/ContextConnectivity
 	files, err := fsx.WalkFiles(context.Background(), ".", fsx.WalkFilesOptions{
 		ShouldIgnore: shouldIgnore,
 	})

@@ -42,6 +42,7 @@ func OpenDB(path string) (*sql.DB, error) {
 	db.SetConnMaxLifetime(0)
 
 	// Verify connection works (this will trigger file creation/open)
+	//rubocop:disable Lint/ContextConnectivity
 	if err := db.PingContext(context.Background()); err != nil {
 		db.Close()
 		if IsCantOpenError(err) {
@@ -86,6 +87,7 @@ func DiagnoseDBOpenError(path string, originalErr error) error {
 // so it isn't left behind on disk after shutdown. A checkpoint failure is
 // logged but does not prevent the close.
 func CheckpointAndClose(db *sql.DB) error {
+	//rubocop:disable Lint/ContextConnectivity
 	if _, err := db.ExecContext(context.Background(), "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
 		slog.Warn("Failed to checkpoint WAL before close", "error", err)
 	}

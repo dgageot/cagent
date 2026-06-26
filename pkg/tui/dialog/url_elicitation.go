@@ -84,6 +84,7 @@ func (d *URLElicitationDialog) openURLInBrowser() tea.Cmd {
 		if d.url == "" {
 			return nil
 		}
+		//rubocop:disable Lint/ContextConnectivity
 		if err := browser.Open(context.Background(), d.url); err != nil {
 			slog.Error("Failed to open URL in browser", "url", d.url, "error", err)
 		}

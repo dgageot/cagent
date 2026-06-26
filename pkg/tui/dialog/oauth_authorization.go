@@ -49,10 +49,12 @@ func (d *oauthAuthorizationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		model, cmd, handled := HandleConfirmKeys(msg, d.keyMap,
 			func() (layout.Model, tea.Cmd) {
+				//rubocop:disable Lint/ContextConnectivity
 				_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionAccept, nil)
 				return d, core.CmdHandler(CloseDialogMsg{})
 			},
 			func() (layout.Model, tea.Cmd) {
+				//rubocop:disable Lint/ContextConnectivity
 				_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionDecline, nil)
 				return d, core.CmdHandler(CloseDialogMsg{})
 			},

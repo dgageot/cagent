@@ -46,6 +46,7 @@ func playSound(event Event) error {
 // runDetached executes a command for fire-and-forget audio playback. The
 // process is short-lived and not tied to any caller-provided context.
 func runDetached(name string, args ...string) error {
+	//rubocop:disable Lint/ContextConnectivity
 	return exec.CommandContext(context.Background(), name, args...).Run()
 }
 

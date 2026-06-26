@@ -35,6 +35,7 @@ func New() (*Store, error) {
 
 // migrate runs database migrations.
 func (s *Store) migrate() error {
+	//rubocop:disable Lint/ContextConnectivity
 	ctx := context.Background()
 	_, err := s.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS tabs (

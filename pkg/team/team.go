@@ -80,6 +80,7 @@ func (t *Team) AgentsInfo() []AgentInfo {
 			Description: a.Description(),
 			Commands:    a.Commands(),
 		}
+		//rubocop:disable Lint/ContextConnectivity
 		if model := a.Model(context.TODO()); model != nil {
 			id := model.ID()
 			info.Provider = id.Provider

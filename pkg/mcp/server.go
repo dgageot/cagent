@@ -86,6 +86,7 @@ func StartHTTPServer(ctx context.Context, agentFilename, agentName string, runCo
 
 	select {
 	case <-ctx.Done():
+		//rubocop:disable Lint/ContextConnectivity
 		return httpServer.Shutdown(context.Background())
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {

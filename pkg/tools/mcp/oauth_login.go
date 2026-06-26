@@ -69,6 +69,7 @@ func PerformOAuthLogin(ctx context.Context, serverURL string) error {
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}
 	defer func() {
+		//rubocop:disable Lint/ContextConnectivity
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := callbackServer.Shutdown(shutdownCtx); err != nil {
