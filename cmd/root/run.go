@@ -381,7 +381,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 		if loadResult != nil {
-			stopToolSets(loadResult.Team)
+			stopToolSets(ctx, loadResult.Team)
 		}
 		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
 		return nil
@@ -421,7 +421,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		// the nil-guard used for cleanup throughout this function.
 		if loadResult != nil {
 			if err := f.dispatchWorktreeCreate(ctx, out, loadResult.Team, createdWorktree); err != nil {
-				stopToolSets(loadResult.Team)
+				stopToolSets(ctx, loadResult.Team)
 				return err
 			}
 		}
@@ -1008,7 +1008,7 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 
 		// Create cleanup function
 		cleanup := func() {
-			stopToolSets(t)
+			stopToolSets(spawnCtx, t)
 		}
 
 		// Create the app
@@ -1032,10 +1032,11 @@ type toolStopper interface {
 }
 
 // stopToolSets gracefully stops all tool sets with a bounded timeout so
-// that cleanup cannot block indefinitely.
-func stopToolSets(t toolStopper) {
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+// that cleanup cannot block indefinitely. It detaches from ctx's
+// cancellation (cleanup often runs after the caller's ctx is already done,
+// e.g. on shutdown or tab close) while keeping ctx's trace context.
+func stopToolSets(ctx context.Context, t toolStopper) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
 	if err := t.StopToolSets(ctx); err != nil {
 		slog.ErrorContext(ctx, "Failed to stop tool sets", "error", err)

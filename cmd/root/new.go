@@ -63,7 +63,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) (commandErr 
 		return err
 	}
 	t := loadResult.Team
-	defer stopToolSets(t)
+	defer stopToolSets(ctx, t)
 
 	rt, err := runtime.New(t,
 		runtime.WithProviderRegistry(loadResult.ProviderRegistry),

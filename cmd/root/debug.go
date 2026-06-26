@@ -70,7 +70,7 @@ func newDebugCmd() *cobra.Command {
 }
 
 // loadTeam loads an agent team from the given agent file.
-// Callers should defer stopToolSets(t) to clean up.
+// Callers should defer stopToolSets(ctx, t) to clean up.
 func (f *debugFlags) loadTeam(ctx context.Context, agentFilename string, opts ...teamloader.Opt) (*team.Team, error) {
 	agentSource, err := config.Resolve(agentFilename, f.runConfig.EnvProvider())
 	if err != nil {
@@ -117,7 +117,7 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	if err != nil {
 		return err
 	}
-	defer stopToolSets(t)
+	defer stopToolSets(ctx, t)
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
@@ -160,7 +160,7 @@ func (f *debugFlags) runDebugSkillsCommand(cmd *cobra.Command, args []string) (c
 	if err != nil {
 		return err
 	}
-	defer stopToolSets(t)
+	defer stopToolSets(ctx, t)
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
@@ -210,7 +210,7 @@ func (f *debugFlags) runDebugTitleCommand(cmd *cobra.Command, args []string) (co
 	if err != nil {
 		return err
 	}
-	defer stopToolSets(t)
+	defer stopToolSets(ctx, t)
 
 	agent, err := t.DefaultAgent()
 	if err != nil {

@@ -109,20 +109,20 @@ func (b *localBackend) sessionStore(req runtime.CreateSessionRequest) (session.S
 func (b *localBackend) CreateSession(ctx context.Context, loaded *teamloader.LoadResult, req runtime.CreateSessionRequest) (runtime.Runtime, *session.Session, func(), error) {
 	store, err := b.sessionStore(req)
 	if err != nil {
-		stopToolSets(loaded.Team)
+		stopToolSets(ctx, loaded.Team)
 		return nil, nil, nil, err
 	}
 
 	rt, sess, err := b.flags.createLocalRuntimeAndSession(ctx, loaded, req, store)
 	if err != nil {
-		stopToolSets(loaded.Team)
+		stopToolSets(ctx, loaded.Team)
 		return nil, nil, nil, err
 	}
 
 	var once sync.Once
 	cleanup := func() {
 		once.Do(func() {
-			stopToolSets(loaded.Team)
+			stopToolSets(ctx, loaded.Team)
 			if err := rt.Close(); err != nil {
 				slog.ErrorContext(ctx, "Failed to close runtime", "error", err)
 			}
