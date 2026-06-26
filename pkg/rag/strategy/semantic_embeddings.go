@@ -145,7 +145,6 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 
 	// Create vector store
 	store := NewVectorStore(VectorStoreConfig{
-		Context:              func() context.Context { return context.WithoutCancel(ctx) },
 		Name:                 strategyName,
 		Database:             db,
 		Embedder:             embedder,

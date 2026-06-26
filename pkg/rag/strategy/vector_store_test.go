@@ -142,7 +142,6 @@ func newTestVectorStore(t *testing.T, embedErr error) (*VectorStore, *fakeEmbedd
 
 	fake := &fakeEmbeddingProvider{err: embedErr}
 	store := NewVectorStore(VectorStoreConfig{
-		Context:              t.Context,
 		Name:                 "test",
 		Database:             newFakeVectorDB(),
 		Embedder:             embed.New(fake),

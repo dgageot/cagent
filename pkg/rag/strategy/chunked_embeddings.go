@@ -74,7 +74,6 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 
 	// Create vector store
 	store := NewVectorStore(VectorStoreConfig{
-		Context:              func() context.Context { return context.WithoutCancel(ctx) },
 		Name:                 strategyName,
 		Database:             db,
 		Embedder:             embedder,

@@ -109,7 +109,6 @@ func (d DefaultEmbeddingInputBuilder) BuildEmbeddingInput(_ context.Context, _ s
 
 // VectorStoreConfig holds configuration for creating a VectorStore.
 type VectorStoreConfig struct {
-	Context              func() context.Context
 	Name                 string
 	Database             vectorStoreDB
 	Embedder             *embed.Embedder
@@ -151,15 +150,8 @@ func NewVectorStore(cfg VectorStoreConfig) *VectorStore {
 
 	// Set usage handler to calculate cost from models.dev and emit events with CUMULATIVE totals
 	// This matches how chat completions calculate cost in runtime.go
-	costCtx := cfg.Context
-	if costCtx == nil {
-		// Backward-compatible fallback for callers that construct VectorStoreConfig
-		// without a context provider.
-		//rubocop:disable Lint/ContextConnectivity
-		costCtx = context.Background
-	}
-	cfg.Embedder.SetUsageHandler(func(tokens int64, _ float64) {
-		cost := s.calculateCost(costCtx(), tokens)
+	cfg.Embedder.SetUsageHandler(func(ctx context.Context, tokens int64, _ float64) {
+		cost := s.calculateCost(ctx, tokens)
 		s.recordUsage(tokens, cost)
 	})
 
