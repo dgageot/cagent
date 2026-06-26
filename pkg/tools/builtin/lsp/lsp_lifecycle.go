@@ -76,10 +76,11 @@ type lspProcess struct {
 // apply the right policy.
 func spawnLSPProcess(callerCtx context.Context, h *lspHandler) (*lspProcess, error) {
 	// The process must outlive the caller's request context (which is
-	// often cancelled when an HTTP/agent turn ends). The supervisor
-	// calls Close to shut it down on Stop or restart.
-	//rubocop:disable Lint/ContextConnectivity
-	processCtx, processCancel := context.WithCancel(context.Background())
+	// often cancelled when an HTTP/agent turn ends). WithoutCancel keeps
+	// the caller's trace context (so spans/the env injection below chain
+	// onto the agent trace) while detaching from its cancellation. The
+	// supervisor calls Close to shut it down on Stop or restart.
+	processCtx, processCancel := context.WithCancel(context.WithoutCancel(callerCtx))
 
 	cmd := exec.CommandContext(processCtx, h.command, h.args...)
 	// Inherit the caller's W3C trace context (the Connect call's

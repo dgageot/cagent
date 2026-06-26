@@ -461,8 +461,9 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}
 	defer func() {
-		//rubocop:disable Lint/ContextConnectivity
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Detach from ctx's cancellation (the request may be done) but
+		// keep its trace context for the shutdown.
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer shutdownCancel()
 		if err := callbackServer.Shutdown(shutdownCtx); err != nil {
 			slog.ErrorContext(ctx, "Failed to shutdown callback server", "error", err)

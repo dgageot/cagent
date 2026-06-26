@@ -178,8 +178,9 @@ func serve(ctx context.Context, httpServer *http.Server, ln net.Listener) error 
 
 	select {
 	case <-ctx.Done():
-		//rubocop:disable Lint/ContextConnectivity
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// ctx is done; detach from its cancellation but keep its trace
+		// context so the graceful shutdown can still run.
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		return httpServer.Shutdown(shutdownCtx)
 	case err := <-errCh:
