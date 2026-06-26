@@ -470,7 +470,7 @@ func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
 	// Get the current agent's default model reference
 	currentAgentDefault := ""
 	if r.modelSwitcherCfg.AgentDefaultModels != nil {
-		currentAgentDefault = r.modelSwitcherCfg.AgentDefaultModels[r.CurrentAgentName()]
+		currentAgentDefault = r.modelSwitcherCfg.AgentDefaultModels[r.currentAgentName()]
 	}
 
 	var choices []ModelChoice

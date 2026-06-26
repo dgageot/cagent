@@ -101,13 +101,14 @@ func (r *RemoteRuntime) resolvedAgent(ctx context.Context) (string, latest.Agent
 // When no specific agent has been selected, it falls back to the first agent
 // declared by the remote team config. The remote lookup happens at most once;
 // the result is cached so subsequent calls are O(1).
-func (r *RemoteRuntime) CurrentAgentName() string {
+func (r *RemoteRuntime) CurrentAgentName(ctx context.Context) string {
 	if r.currentAgent != "" {
 		return r.currentAgent
 	}
 	r.resolvedDefaultOnce.Do(func() {
-		//rubocop:disable Lint/ContextConnectivity
-		r.resolvedDefault, _ = r.resolvedAgent(context.Background())
+		// First call performs the remote lookup; detach cancellation so a
+		// cancelled caller cannot poison the cached default for everyone.
+		r.resolvedDefault, _ = r.resolvedAgent(context.WithoutCancel(ctx))
 	})
 	return r.resolvedDefault
 }
@@ -127,9 +128,8 @@ func (r *RemoteRuntime) CurrentAgentInfo(ctx context.Context) CurrentAgentInfo {
 // fetch the team config (network error, auth failure, missing remote) is
 // propagated rather than silently accepted — the whole point of this check
 // is closing that silent-breakage gap.
-func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
-	//rubocop:disable Lint/ContextConnectivity
-	cfg, err := r.client.GetAgent(context.Background(), r.agentFilename)
+func (r *RemoteRuntime) SetCurrentAgent(ctx context.Context, agentName string) error {
+	cfg, err := r.client.GetAgent(ctx, r.agentFilename)
 	if err != nil {
 		return fmt.Errorf("validate agent %q against remote team: %w", agentName, err)
 	}
@@ -144,7 +144,7 @@ func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
 		return fmt.Errorf("agent %q not found in remote team", agentName)
 	}
 	r.currentAgent = agentName
-	slog.Debug("Switched current agent (remote)", "agent", agentName)
+	slog.DebugContext(ctx, "Switched current agent (remote)", "agent", agentName)
 	return nil
 }
 
@@ -320,23 +320,21 @@ func (r *RemoteRuntime) Run(ctx context.Context, sess *session.Session) ([]sessi
 
 // Steer enqueues a user message for mid-turn injection into the running
 // agent loop on the remote server.
-func (r *RemoteRuntime) Steer(msg QueuedMessage) error {
+func (r *RemoteRuntime) Steer(ctx context.Context, msg QueuedMessage) error {
 	if r.sessionID == "" {
 		return errors.New("no active session")
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	return r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
+	return r.client.SteerSession(ctx, r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
 }
 
 // FollowUp enqueues a message for end-of-turn processing on the remote server.
-func (r *RemoteRuntime) FollowUp(msg QueuedMessage) error {
+func (r *RemoteRuntime) FollowUp(ctx context.Context, msg QueuedMessage) error {
 	if r.sessionID == "" {
 		return errors.New("no active session")
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	return r.client.FollowUpSession(context.Background(), r.sessionID, []api.Message{
+	return r.client.FollowUpSession(ctx, r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
 }

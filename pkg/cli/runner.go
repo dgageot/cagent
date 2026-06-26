@@ -146,7 +146,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		}
 
 		firstLoop := true
-		lastAgent := rt.CurrentAgentName()
+		lastAgent := rt.CurrentAgentName(ctx)
 		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
 			agentName := event.GetAgentName()
@@ -346,7 +346,7 @@ func PrepareUserMessage(ctx context.Context, rt runtime.Runtime, userInput, glob
 	// This must happen before the message is added to the session so the
 	// next runtime turn runs on the right agent.
 	if cmd, _, ok := runtime.LookupCommand(ctx, rt, userInput); ok && cmd.Agent != "" {
-		if err := rt.SetCurrentAgent(cmd.Agent); err != nil {
+		if err := rt.SetCurrentAgent(ctx, cmd.Agent); err != nil {
 			slog.WarnContext(ctx, "Failed to switch agent for /command", "agent", cmd.Agent, "error", err)
 			return nil, "", fmt.Errorf("switch agent %q: %w", cmd.Agent, err)
 		}

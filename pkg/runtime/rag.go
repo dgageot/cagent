@@ -10,7 +10,7 @@ import (
 // ragEventForwarder returns a callback that converts RAG manager events to runtime events.
 func ragEventForwarder(ragName string, r *LocalRuntime, sendEvent func(Event)) ragtypes.EventCallback {
 	return func(ragEvent ragtypes.Event) {
-		agentName := r.CurrentAgentName()
+		agentName := r.currentAgentName()
 		slog.Debug("Forwarding RAG event", "type", ragEvent.Type, "rag", ragName, "agent", agentName)
 
 		switch ragEvent.Type {

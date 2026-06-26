@@ -255,7 +255,7 @@ func (sm *SessionManager) WaitSessionAttached(ctx context.Context, sessionID str
 // GetSessionStatus returns a lightweight snapshot of the session's current
 // runtime state. Designed for late-joining SSE consumers that need to know
 // the session's state without waiting for the next event transition.
-func (sm *SessionManager) GetSessionStatus(_ context.Context, id string) (*api.SessionStatusResponse, error) {
+func (sm *SessionManager) GetSessionStatus(ctx context.Context, id string) (*api.SessionStatusResponse, error) {
 	rs, ok := sm.runtimeSessions.Load(id)
 	if !ok {
 		return nil, fmt.Errorf("session %s not found", id)
@@ -274,7 +274,7 @@ func (sm *SessionManager) GetSessionStatus(_ context.Context, id string) (*api.S
 		ID:           sess.ID,
 		Title:        sess.Title,
 		Streaming:    streaming,
-		Agent:        rs.runtime.CurrentAgentName(),
+		Agent:        rs.runtime.CurrentAgentName(ctx),
 		InputTokens:  sess.InputTokens,
 		OutputTokens: sess.OutputTokens,
 		NumMessages:  len(sess.GetAllMessages()),
@@ -295,7 +295,7 @@ func (sm *SessionManager) GetSessionSnapshot(ctx context.Context, id string) (*a
 	agent := ""
 	if rs, ok := sm.runtimeSessions.Load(id); ok {
 		sess = rs.session
-		agent = rs.runtime.CurrentAgentName()
+		agent = rs.runtime.CurrentAgentName(ctx)
 		// Probe streaming state without interfering: TryLock succeeds only
 		// when no RunStream is in progress.
 		if rs.streaming.TryLock() {
@@ -718,14 +718,14 @@ func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 // session. The messages are picked up by the agent loop after the current tool
 // calls finish but before the next LLM call. Returns an error if the session
 // is not actively running or if the steer buffer is full.
-func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, messages []api.Message) error {
+func (sm *SessionManager) SteerSession(ctx context.Context, sessionID string, messages []api.Message) error {
 	rt, exists := sm.runtimeSessions.Load(sessionID)
 	if !exists {
 		return ErrSessionNotRunning
 	}
 
 	for _, msg := range messages {
-		if err := rt.runtime.Steer(runtime.QueuedMessage{
+		if err := rt.runtime.Steer(ctx, runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
 		}); err != nil {
@@ -786,7 +786,7 @@ func (sm *SessionManager) FollowUpSession(ctx context.Context, sessionID string,
 	}
 
 	for _, msg := range messages {
-		if err := rt.runtime.FollowUp(runtime.QueuedMessage{
+		if err := rt.runtime.FollowUp(ctx, runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
 		}); err != nil {
@@ -1026,7 +1026,7 @@ func (sm *SessionManager) applyRunModelOverride(ctx context.Context, rs *activeR
 		return "", false, noop, ErrModelSwitchingNotSupported
 	}
 
-	agentName := rs.runtime.CurrentAgentName()
+	agentName := rs.runtime.CurrentAgentName(ctx)
 	sess := rs.session
 
 	if sess != nil && sess.AgentModelOverrides != nil {
@@ -1206,7 +1206,7 @@ func (sm *SessionManager) AvailableSessionModels(ctx context.Context, sessionID 
 		return "", "", nil, ErrModelSwitchingNotSupported
 	}
 
-	agentName := rs.runtime.CurrentAgentName()
+	agentName := rs.runtime.CurrentAgentName(ctx)
 
 	// Snapshot the override and custom-model history under sm.mux so the
 	// read is atomic with respect to SetSessionAgentModel writes. The
@@ -1251,7 +1251,7 @@ func (sm *SessionManager) SetSessionAgentModel(ctx context.Context, sessionID, m
 		return "", "", ErrModelSwitchingNotSupported
 	}
 
-	agentName := rs.runtime.CurrentAgentName()
+	agentName := rs.runtime.CurrentAgentName(ctx)
 	sess := rs.session
 
 	// Snapshot current state so we can roll back if persistence fails

@@ -265,7 +265,7 @@ func (r *LocalRuntime) swapCurrentAgent(ctx context.Context, sessionID string, f
 func (r *LocalRuntime) runForwarding(ctx context.Context, parent *session.Session, evts EventSink, req delegationRequest) (*tools.ToolCallResult, error) {
 	span := trace.SpanFromContext(ctx)
 
-	callerAgent, err := r.team.Agent(r.CurrentAgentName())
+	callerAgent, err := r.team.Agent(r.currentAgentName())
 	if err != nil {
 		return nil, fmt.Errorf("current agent not found: %w", err)
 	}
@@ -558,7 +558,7 @@ func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session,
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	ca := r.CurrentAgentName()
+	ca := r.currentAgentName()
 	currentAgent, err := r.team.Agent(ca)
 	if err != nil {
 		return nil, fmt.Errorf("current agent not found: %w", err)

@@ -38,11 +38,11 @@ type mockRuntimeWithOverrides struct {
 	currentAgentInfoFn func(context.Context) runtime.CurrentAgentInfo
 }
 
-func (m *mockRuntimeWithOverrides) SetCurrentAgent(name string) error {
+func (m *mockRuntimeWithOverrides) SetCurrentAgent(ctx context.Context, name string) error {
 	if m.setCurrentAgentFn != nil {
 		return m.setCurrentAgentFn(name)
 	}
-	return m.mockRuntime.SetCurrentAgent(name)
+	return m.mockRuntime.SetCurrentAgent(ctx, name)
 }
 
 func (m *mockRuntimeWithOverrides) CurrentAgentInfo(ctx context.Context) runtime.CurrentAgentInfo {
@@ -52,11 +52,11 @@ func (m *mockRuntimeWithOverrides) CurrentAgentInfo(ctx context.Context) runtime
 	return m.mockRuntime.CurrentAgentInfo(ctx)
 }
 
-func (m *mockRuntime) CurrentAgentName() string { return "test" }
+func (m *mockRuntime) CurrentAgentName(context.Context) string { return "test" }
 func (m *mockRuntime) CurrentAgentInfo(context.Context) runtime.CurrentAgentInfo {
 	return runtime.CurrentAgentInfo{Name: "test"}
 }
-func (m *mockRuntime) SetCurrentAgent(string) error                                         { return nil }
+func (m *mockRuntime) SetCurrentAgent(context.Context, string) error                        { return nil }
 func (m *mockRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error)              { return nil, nil }
 func (m *mockRuntime) CurrentAgentToolsetStatuses() []tools.ToolsetStatus                   { return nil }
 func (m *mockRuntime) RestartToolset(context.Context, string) error                         { return nil }
@@ -92,8 +92,8 @@ func (m *mockRuntime) ExecuteMCPPrompt(context.Context, string, map[string]strin
 func (m *mockRuntime) UpdateSessionTitle(context.Context, *session.Session, string) error { return nil }
 func (m *mockRuntime) TitleGenerator() *sessiontitle.Generator                            { return nil }
 func (m *mockRuntime) Close() error                                                       { return nil }
-func (m *mockRuntime) Steer(runtime.QueuedMessage) error                                  { return nil }
-func (m *mockRuntime) FollowUp(runtime.QueuedMessage) error                               { return nil }
+func (m *mockRuntime) Steer(context.Context, runtime.QueuedMessage) error                 { return nil }
+func (m *mockRuntime) FollowUp(context.Context, runtime.QueuedMessage) error              { return nil }
 func (m *mockRuntime) QueueStatus() runtime.QueueStatus                                   { return runtime.QueueStatus{} }
 func (m *mockRuntime) TogglePause(context.Context) (bool, error)                          { return false, nil }
 func (m *mockRuntime) SetAgentModel(context.Context, string, string) error                { return nil }

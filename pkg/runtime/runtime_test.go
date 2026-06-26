@@ -2054,7 +2054,7 @@ func TestTransferTaskRejectsNonSubAgent(t *testing.T) {
 	assert.True(t, result.IsError, "transfer to non-sub-agent should return an error result")
 	assert.Contains(t, result.Output, "cannot transfer task to planner")
 	assert.Contains(t, result.Output, "librarian")
-	assert.Equal(t, "root", rt.CurrentAgentName(), "current agent should remain root")
+	assert.Equal(t, "root", rt.CurrentAgentName(t.Context()), "current agent should remain root")
 }
 
 func TestTransferTaskAllowsSubAgent(t *testing.T) {
@@ -2522,7 +2522,7 @@ func TestResolveSessionAgent_PinnedAgent(t *testing.T) {
 
 	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
-	assert.Equal(t, "root", rt.CurrentAgentName(), "default agent should be root")
+	assert.Equal(t, "root", rt.CurrentAgentName(t.Context()), "default agent should be root")
 
 	// Session pinned to worker (as run_background_agent does).
 	sess := session.New(session.WithAgentName("worker"))
@@ -2587,7 +2587,7 @@ func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
 	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.registerDefaultTools()
-	assert.Equal(t, "root", rt.CurrentAgentName())
+	assert.Equal(t, "root", rt.CurrentAgentName(t.Context()))
 
 	// Simulate a background session pinned to "worker".
 	sess := session.New(
@@ -3130,7 +3130,7 @@ func TestSteer_IdleWindowIsConsumedOnNextTurn(t *testing.T) {
 	// Enqueue a steer message BEFORE calling RunStream — simulating the
 	// idle-window race where a Steer call lands between two RunStream
 	// invocations.
-	err = rt.Steer(QueuedMessage{Content: "urgent: change direction"})
+	err = rt.Steer(t.Context(), QueuedMessage{Content: "urgent: change direction"})
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Do the task"))
@@ -3224,7 +3224,7 @@ func TestSteer_EmptySessionBootstrap(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enqueue before RunStream — zero messages in the session.
-	err = rt.Steer(QueuedMessage{Content: "bootstrap message"})
+	err = rt.Steer(t.Context(), QueuedMessage{Content: "bootstrap message"})
 	require.NoError(t, err)
 
 	// Fresh session with NO messages (SendUserMessage defaults to true but
@@ -3379,7 +3379,7 @@ func TestSteer_EndOfIterationRaceIsConsumedInCurrentRunStream(t *testing.T) {
 	turn1 := &hookStream{
 		mockStream: turn1Base,
 		onStop: func() {
-			_ = rt.Steer(QueuedMessage{Content: "end-of-iter steer"})
+			_ = rt.Steer(t.Context(), QueuedMessage{Content: "end-of-iter steer"})
 		},
 	}
 	// Turn 2: the loop re-entered after the steer was consumed; model acks.
@@ -3538,9 +3538,9 @@ func TestDrainAndEmitSteered_MultipleMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enqueue three plain-text steer messages before draining.
-	require.NoError(t, rt.Steer(QueuedMessage{Content: "first"}))
-	require.NoError(t, rt.Steer(QueuedMessage{Content: "second"}))
-	require.NoError(t, rt.Steer(QueuedMessage{Content: "third"}))
+	require.NoError(t, rt.Steer(t.Context(), QueuedMessage{Content: "first"}))
+	require.NoError(t, rt.Steer(t.Context(), QueuedMessage{Content: "second"}))
+	require.NoError(t, rt.Steer(t.Context(), QueuedMessage{Content: "third"}))
 
 	sess := session.New()
 	events := make(chan Event, 16)
@@ -3591,7 +3591,7 @@ func TestDrainAndEmitSteered_MultiContent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Two multi-content messages.
-	require.NoError(t, rt.Steer(QueuedMessage{
+	require.NoError(t, rt.Steer(t.Context(), QueuedMessage{
 		Content: "first",
 		MultiContent: []chat.MessagePart{
 			{Type: chat.MessagePartTypeText, Text: "first"},
@@ -3599,7 +3599,7 @@ func TestDrainAndEmitSteered_MultiContent(t *testing.T) {
 			{Type: chat.MessagePartTypeText, Text: "first-text-after-img"},
 		},
 	}))
-	require.NoError(t, rt.Steer(QueuedMessage{
+	require.NoError(t, rt.Steer(t.Context(), QueuedMessage{
 		Content: "second",
 		MultiContent: []chat.MessagePart{
 			{Type: chat.MessagePartTypeText, Text: "second"},

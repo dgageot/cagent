@@ -55,7 +55,7 @@ func newModelSwitchingRuntime(models []runtime.ModelChoice) *modelSwitchingRunti
 	}
 }
 
-func (m *modelSwitchingRuntime) CurrentAgentName() string { return m.currentAgent }
+func (m *modelSwitchingRuntime) CurrentAgentName(context.Context) string { return m.currentAgent }
 
 func (m *modelSwitchingRuntime) SupportsModelSwitching() bool { return true }
 

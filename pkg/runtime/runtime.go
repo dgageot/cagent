@@ -46,9 +46,9 @@ type Runtime interface {
 	// CurrentAgentInfo returns information about the currently active agent
 	CurrentAgentInfo(ctx context.Context) CurrentAgentInfo
 	// CurrentAgentName returns the name of the currently active agent
-	CurrentAgentName() string
+	CurrentAgentName(ctx context.Context) string
 	// SetCurrentAgent sets the currently active agent for subsequent user messages
-	SetCurrentAgent(agentName string) error
+	SetCurrentAgent(ctx context.Context, agentName string) error
 	// CurrentAgentTools returns the tools for the active agent
 	CurrentAgentTools(ctx context.Context) ([]tools.Tool, error)
 	// CurrentAgentToolsetStatuses returns lifecycle status for each toolset of
@@ -121,10 +121,10 @@ type Runtime interface {
 	// Steer enqueues a user message for urgent mid-turn injection into the
 	// running agent loop. Returns an error if the queue is full or steering
 	// is not available.
-	Steer(msg QueuedMessage) error
+	Steer(ctx context.Context, msg QueuedMessage) error
 	// FollowUp enqueues a message for end-of-turn processing. Each follow-up
 	// gets a full undivided agent turn. Returns an error if the queue is full.
-	FollowUp(msg QueuedMessage) error
+	FollowUp(ctx context.Context, msg QueuedMessage) error
 
 	// SetAgentModel sets a model override for the named agent.
 	// modelRef can be:
@@ -663,7 +663,16 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	return r, nil
 }
 
-func (r *LocalRuntime) CurrentAgentName() string {
+func (r *LocalRuntime) CurrentAgentName(context.Context) string {
+	return r.currentAgentName()
+}
+
+// currentAgentName is the context-free internal accessor. LocalRuntime
+// resolves the active agent purely from in-memory state, so its internal
+// callers (event callbacks, logging) use this directly; the exported
+// context-taking method exists to satisfy the Runtime interface, whose
+// remote implementation needs a context for its one-time lookup.
+func (r *LocalRuntime) currentAgentName() string {
 	return r.agents.Name()
 }
 
@@ -681,7 +690,7 @@ func (r *LocalRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
 	}
 }
 
-func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
+func (r *LocalRuntime) SetCurrentAgent(_ context.Context, agentName string) error {
 	return r.agents.SetValidated(agentName)
 }
 
@@ -886,6 +895,8 @@ func startedToolNames(ts tools.ToolSet) ([]string, bool) {
 	if !ok || !s.IsStarted() {
 		return nil, false
 	}
+	// startedToolNames is a leaf helper below the ctx boundary; Tools' ctx is
+	// only used for log correlation. context.TODO marks the intentional gap.
 	//rubocop:disable Lint/ContextConnectivity
 	tl, err := s.Tools(context.TODO())
 	if err != nil {
@@ -1209,6 +1220,8 @@ func getAgentModelID(a *agent.Agent) modelsdev.ID {
 	if a == nil {
 		return modelsdev.ID{}
 	}
+	// getAgentModelID is reached from several ctx-less callbacks; Model's ctx
+	// is only used for log correlation. context.TODO marks the intentional gap.
 	//rubocop:disable Lint/ContextConnectivity
 	if model := a.Model(context.TODO()); model != nil {
 		return model.ID()
@@ -1377,7 +1390,7 @@ func (r *LocalRuntime) emitToolsChanged() {
 	if err != nil {
 		return
 	}
-	r.onToolsChanged(ToolsetInfo(len(agentTools), false, r.CurrentAgentName()))
+	r.onToolsChanged(ToolsetInfo(len(agentTools), false, r.currentAgentName()))
 }
 
 // emitAgentAndTeamInfo sends the AgentInfo and TeamInfo events that drive the
@@ -1392,7 +1405,7 @@ func (r *LocalRuntime) emitAgentAndTeamInfo(ctx context.Context, a *agent.Agent,
 	if !send(AgentInfo(a.Name(), modelLabel, a.Description(), a.WelcomeMessage())) {
 		return false
 	}
-	return send(TeamInfo(r.agentDetailsFromTeam(ctx), r.CurrentAgentName()))
+	return send(TeamInfo(r.agentDetailsFromTeam(ctx), r.currentAgentName()))
 }
 
 // EmitAgentInfo implements [Runtime.EmitAgentInfo]: it refreshes the agent and
@@ -1477,7 +1490,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 			break
 		}
 
-		send(NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), usage))
+		send(NewTokenUsageEvent(sess.ID, r.currentAgentName(), usage))
 	}
 
 	// Tool loading can be slow (MCP servers need to start). Mark the
@@ -1508,12 +1521,12 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 
 	// If no toolsets, emit final state immediately
 	if totalToolsets == 0 {
-		send(ToolsetInfo(0, false, r.CurrentAgentName()))
+		send(ToolsetInfo(0, false, r.currentAgentName()))
 		return
 	}
 
 	// Emit initial loading state
-	if !send(ToolsetInfo(0, true, r.CurrentAgentName())) {
+	if !send(ToolsetInfo(0, true, r.currentAgentName())) {
 		return
 	}
 
@@ -1595,13 +1608,13 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 		totalTools += len(ts)
 
 		// Emit progress update - still loading unless this is the last toolset
-		if !send(ToolsetInfo(totalTools, !isLast, r.CurrentAgentName())) {
+		if !send(ToolsetInfo(totalTools, !isLast, r.currentAgentName())) {
 			return
 		}
 	}
 
 	// Emit final state (not loading)
-	send(ToolsetInfo(totalTools, false, r.CurrentAgentName()))
+	send(ToolsetInfo(totalTools, false, r.currentAgentName()))
 }
 
 // listToolsWithTimeout enumerates a toolset's tools under a bounded deadline.
@@ -1640,7 +1653,7 @@ func listToolsWithTimeout(ctx context.Context, toolset tools.ToolSet, timeout ti
 }
 
 func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
-	slog.Debug("Resuming runtime", "agent", r.CurrentAgentName(), "type", req.Type, "reason", req.Reason)
+	slog.Debug("Resuming runtime", "agent", r.currentAgentName(), "type", req.Type, "reason", req.Reason)
 
 	// Defensive validation:
 	//
@@ -1651,7 +1664,7 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 	if !IsValidResumeType(req.Type) {
 		slog.Warn(
 			"Invalid resume type received; ignoring resume request",
-			"agent", r.CurrentAgentName(),
+			"agent", r.currentAgentName(),
 			"confirmation_type", req.Type,
 			"valid_types", ValidResumeTypes(),
 		)
@@ -1665,11 +1678,11 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 	// canceled, or shutting down).
 	select {
 	case r.resumeChan <- req:
-		slog.Debug("Resume signal sent", "agent", r.CurrentAgentName())
+		slog.Debug("Resume signal sent", "agent", r.currentAgentName())
 	default:
 		slog.Debug(
 			"Resume channel not ready; resume signal dropped",
-			"agent", r.CurrentAgentName(),
+			"agent", r.currentAgentName(),
 			"confirmation_type", req.Type,
 		)
 	}
@@ -1678,9 +1691,8 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 // Steer enqueues a user message for urgent mid-turn injection into the
 // running agent loop. The message will be picked up after the current batch
 // of tool calls finishes but before the loop checks whether to stop.
-func (r *LocalRuntime) Steer(msg QueuedMessage) error {
-	//rubocop:disable Lint/ContextConnectivity
-	if !r.steerQueue.Enqueue(context.Background(), msg) {
+func (r *LocalRuntime) Steer(ctx context.Context, msg QueuedMessage) error {
+	if !r.steerQueue.Enqueue(ctx, msg) {
 		return errors.New("steer queue full")
 	}
 	return nil
@@ -1689,9 +1701,8 @@ func (r *LocalRuntime) Steer(msg QueuedMessage) error {
 // FollowUp enqueues a message to be processed after the current agent turn
 // finishes. Unlike Steer, follow-ups are popped one at a time and each gets
 // a full undivided agent turn.
-func (r *LocalRuntime) FollowUp(msg QueuedMessage) error {
-	//rubocop:disable Lint/ContextConnectivity
-	if !r.followUpQueue.Enqueue(context.Background(), msg) {
+func (r *LocalRuntime) FollowUp(ctx context.Context, msg QueuedMessage) error {
+	if !r.followUpQueue.Enqueue(ctx, msg) {
 		return errors.New("follow-up queue full")
 	}
 	return nil

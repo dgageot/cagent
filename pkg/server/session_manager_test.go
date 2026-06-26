@@ -49,15 +49,15 @@ func (f *fakeRuntime) RunStream(_ context.Context, _ *session.Session) <-chan ru
 
 func (f *fakeRuntime) Resume(_ context.Context, _ runtime.ResumeRequest) {}
 
-func (f *fakeRuntime) Steer(_ runtime.QueuedMessage) error { return nil }
+func (f *fakeRuntime) Steer(_ context.Context, _ runtime.QueuedMessage) error { return nil }
 
-func (f *fakeRuntime) FollowUp(_ runtime.QueuedMessage) error { return nil }
+func (f *fakeRuntime) FollowUp(_ context.Context, _ runtime.QueuedMessage) error { return nil }
 
 func (f *fakeRuntime) ResumeElicitation(_ context.Context, _ tools.ElicitationAction, _ map[string]any) error {
 	return nil
 }
 
-func (f *fakeRuntime) CurrentAgentName() string { return "root" }
+func (f *fakeRuntime) CurrentAgentName(context.Context) string { return "root" }
 
 // SupportsModelSwitching reports false by default. Tests that exercise
 // the /models endpoints embed fakeRuntime and override this.
@@ -269,7 +269,7 @@ type recordingFollowUpRuntime struct {
 	followUps []string
 }
 
-func (r *recordingFollowUpRuntime) FollowUp(msg runtime.QueuedMessage) error {
+func (r *recordingFollowUpRuntime) FollowUp(_ context.Context, msg runtime.QueuedMessage) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.followUps = append(r.followUps, msg.Content)

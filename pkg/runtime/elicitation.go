@@ -114,7 +114,7 @@ func (b *elicitationBridge) restoreAndClose(current, previous chan Event) {
 // elicitation request. Returns an error if no elicitation is in progress
 // or if the context is cancelled before the response can be delivered.
 func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
-	slog.DebugContext(ctx, "Resuming runtime with elicitation response", "agent", r.CurrentAgentName(), "action", action)
+	slog.DebugContext(ctx, "Resuming runtime with elicitation response", "agent", r.currentAgentName(), "action", action)
 
 	result := ElicitationResult{
 		Action:  action,
@@ -160,7 +160,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 	slog.DebugContext(ctx, "Elicitation request meta", "meta", req.Meta)
 
 	if err := r.elicitation.send(
-		ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.CurrentAgentName()),
+		ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.currentAgentName()),
 	); err != nil {
 		return tools.ElicitationResult{}, err
 	}

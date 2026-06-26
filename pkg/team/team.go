@@ -80,6 +80,8 @@ func (t *Team) AgentsInfo() []AgentInfo {
 			Description: a.Description(),
 			Commands:    a.Commands(),
 		}
+		// AgentsInfo has no caller context; Model's ctx is only used for log
+		// correlation. context.TODO marks the intentional gap.
 		//rubocop:disable Lint/ContextConnectivity
 		if model := a.Model(context.TODO()); model != nil {
 			id := model.ID()

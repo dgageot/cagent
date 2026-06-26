@@ -392,13 +392,13 @@ func (a *App) ResolveInput(ctx context.Context, input string) string {
 // CurrentAgentModel returns the model ID for the current agent.
 // Returns the tracked model from AgentInfoEvent, or falls back to session overrides.
 // Returns empty string if no model information is available (fail-open scenario).
-func (a *App) CurrentAgentModel() string {
+func (a *App) CurrentAgentModel(ctx context.Context) string {
 	if a.currentAgentModel != "" {
 		return a.currentAgentModel
 	}
 	// Fallback to session overrides
 	if a.session != nil && a.session.AgentModelOverrides != nil {
-		agentName := a.runtime.CurrentAgentName()
+		agentName := a.runtime.CurrentAgentName(ctx)
 		if modelRef, ok := a.session.AgentModelOverrides[agentName]; ok {
 			return modelRef
 		}
@@ -933,7 +933,10 @@ func (a *App) HasPermissions() bool {
 
 // SwitchAgent switches the currently active agent for subsequent user messages
 func (a *App) SwitchAgent(agentName string) error {
-	return a.runtime.SetCurrentAgent(agentName)
+	// Called from the Bubble Tea event loop, which has no context; this is
+	// a TUI-root boundary.
+	//rubocop:disable Lint/ContextConnectivity
+	return a.runtime.SetCurrentAgent(context.Background(), agentName)
 }
 
 // SetCurrentAgentModel sets the model for the current agent and persists
@@ -941,7 +944,7 @@ func (a *App) SwitchAgent(agentName string) error {
 // supported by the runtime (e.g., remote runtimes).
 // Pass an empty modelRef to clear the override and use the agent's default model.
 func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
-	agentName := a.runtime.CurrentAgentName()
+	agentName := a.runtime.CurrentAgentName(ctx)
 
 	// Set the model override on the runtime (empty modelRef clears the override)
 	if err := a.runtime.SetAgentModel(ctx, agentName, modelRef); err != nil {
@@ -990,7 +993,7 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 // as a model override). Returns an error wrapping [runtime.ErrUnsupported]
 // when the runtime or model cannot cycle thinking levels.
 func (a *App) CycleAgentThinkingLevel(ctx context.Context) (effort.Level, error) {
-	agentName := a.runtime.CurrentAgentName()
+	agentName := a.runtime.CurrentAgentName(ctx)
 	level, err := a.runtime.CycleAgentThinkingLevel(ctx, agentName)
 	if err != nil {
 		return "", err
@@ -1017,7 +1020,7 @@ func (a *App) AvailableModels(ctx context.Context) []runtime.ModelChoice {
 		return nil
 	}
 
-	agentName := a.runtime.CurrentAgentName()
+	agentName := a.runtime.CurrentAgentName(ctx)
 	currentRef := ""
 	var customRefs []string
 	if a.session != nil {
@@ -1071,7 +1074,7 @@ func (a *App) CompactSession(ctx context.Context, cancel context.CancelFunc, add
 	go func() {
 		defer cancel()
 
-		agentName := a.runtime.CurrentAgentName()
+		agentName := a.runtime.CurrentAgentName(ctx)
 		completed := false
 		events := make(chan runtime.Event, 100)
 		go func() {

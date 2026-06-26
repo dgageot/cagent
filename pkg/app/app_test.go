@@ -33,8 +33,8 @@ type mockRuntime struct {
 func (m *mockRuntime) CurrentAgentInfo(ctx context.Context) runtime.CurrentAgentInfo {
 	return runtime.CurrentAgentInfo{}
 }
-func (m *mockRuntime) CurrentAgentName() string          { return "mock" }
-func (m *mockRuntime) SetCurrentAgent(name string) error { return nil }
+func (m *mockRuntime) CurrentAgentName(context.Context) string              { return "mock" }
+func (m *mockRuntime) SetCurrentAgent(_ context.Context, name string) error { return nil }
 func (m *mockRuntime) CurrentAgentTools(ctx context.Context) ([]tools.Tool, error) {
 	return nil, nil
 }
@@ -83,13 +83,13 @@ func (m *mockRuntime) UpdateSessionTitle(_ context.Context, sess *session.Sessio
 	sess.Title = title
 	return nil
 }
-func (m *mockRuntime) TitleGenerator() *sessiontitle.Generator   { return nil }
-func (m *mockRuntime) Close() error                              { return nil }
-func (m *mockRuntime) Stop()                                     {}
-func (m *mockRuntime) Steer(_ runtime.QueuedMessage) error       { return nil }
-func (m *mockRuntime) FollowUp(_ runtime.QueuedMessage) error    { return nil }
-func (m *mockRuntime) QueueStatus() runtime.QueueStatus          { return runtime.QueueStatus{} }
-func (m *mockRuntime) TogglePause(context.Context) (bool, error) { return false, nil }
+func (m *mockRuntime) TitleGenerator() *sessiontitle.Generator                   { return nil }
+func (m *mockRuntime) Close() error                                              { return nil }
+func (m *mockRuntime) Stop()                                                     {}
+func (m *mockRuntime) Steer(_ context.Context, _ runtime.QueuedMessage) error    { return nil }
+func (m *mockRuntime) FollowUp(_ context.Context, _ runtime.QueuedMessage) error { return nil }
+func (m *mockRuntime) QueueStatus() runtime.QueueStatus                          { return runtime.QueueStatus{} }
+func (m *mockRuntime) TogglePause(context.Context) (bool, error)                 { return false, nil }
 func (m *mockRuntime) SetAgentModel(context.Context, string, string) error {
 	return nil
 }

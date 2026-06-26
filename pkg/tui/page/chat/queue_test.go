@@ -48,8 +48,8 @@ type queueTestRuntime struct{}
 func (queueTestRuntime) CurrentAgentInfo(context.Context) runtime.CurrentAgentInfo {
 	return runtime.CurrentAgentInfo{}
 }
-func (queueTestRuntime) CurrentAgentName() string                                { return "root" }
-func (queueTestRuntime) SetCurrentAgent(string) error                            { return nil }
+func (queueTestRuntime) CurrentAgentName(context.Context) string                 { return "root" }
+func (queueTestRuntime) SetCurrentAgent(context.Context, string) error           { return nil }
 func (queueTestRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error) { return nil, nil }
 func (queueTestRuntime) CurrentAgentToolsetStatuses() []tools.ToolsetStatus      { return nil }
 func (queueTestRuntime) RestartToolset(context.Context, string) error            { return nil }
@@ -93,10 +93,10 @@ func (queueTestRuntime) ExecuteMCPPrompt(context.Context, string, map[string]str
 func (queueTestRuntime) UpdateSessionTitle(context.Context, *session.Session, string) error {
 	return nil
 }
-func (queueTestRuntime) TitleGenerator() *sessiontitle.Generator             { return nil }
-func (queueTestRuntime) Steer(runtime.QueuedMessage) error                   { return nil }
-func (queueTestRuntime) FollowUp(runtime.QueuedMessage) error                { return nil }
-func (queueTestRuntime) SetAgentModel(context.Context, string, string) error { return nil }
+func (queueTestRuntime) TitleGenerator() *sessiontitle.Generator               { return nil }
+func (queueTestRuntime) Steer(context.Context, runtime.QueuedMessage) error    { return nil }
+func (queueTestRuntime) FollowUp(context.Context, runtime.QueuedMessage) error { return nil }
+func (queueTestRuntime) SetAgentModel(context.Context, string, string) error   { return nil }
 func (queueTestRuntime) CycleAgentThinkingLevel(context.Context, string) (effort.Level, error) {
 	return "", runtime.ErrUnsupported
 }

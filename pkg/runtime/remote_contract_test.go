@@ -190,7 +190,7 @@ func TestRemoteRuntime_SetCurrentAgent_PropagatesClientError(t *testing.T) {
 	rt, err := NewRemoteRuntime(client)
 	require.NoError(t, err)
 
-	err = rt.SetCurrentAgent("anything")
+	err = rt.SetCurrentAgent(t.Context(), "anything")
 	require.Error(t, err)
 	require.ErrorIs(t, err, want)
 	assert.Empty(t, rt.currentAgent, "currentAgent must not be mutated when validation fails")

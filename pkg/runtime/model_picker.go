@@ -16,7 +16,7 @@ import (
 // findModelPickerTool returns the Tool from the current agent's
 // toolsets, or nil if the agent has no model_picker configured.
 func (r *LocalRuntime) findModelPickerTool() *modelpicker.ToolSet {
-	currentName := r.CurrentAgentName()
+	currentName := r.currentAgentName()
 	a, err := r.team.Agent(currentName)
 	if err != nil {
 		return nil
@@ -65,7 +65,7 @@ func (r *LocalRuntime) handleRevertModel(ctx context.Context, _ *session.Session
 // AgentInfo event so the UI reflects the change. An empty modelRef reverts to
 // the agent's default model.
 func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string, events EventSink) (*tools.ToolCallResult, error) {
-	currentName := r.CurrentAgentName()
+	currentName := r.currentAgentName()
 	if err := r.SetAgentModel(ctx, currentName, modelRef); err != nil {
 		return tools.ResultError(fmt.Sprintf("failed to set model: %v", err)), nil
 	}
