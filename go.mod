@@ -142,7 +142,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgageot/rubocop-go v0.0.0-20260625173251-68f54fee9a17
+	github.com/dgageot/rubocop-go v0.0.0-20260626082406-7d0e8755b2c8
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
