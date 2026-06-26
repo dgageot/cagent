@@ -316,7 +316,7 @@ func TestProxyHostPorts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := proxyHostPorts(tt.spec)
+			got := proxyHostPorts(t.Context(), tt.spec)
 			if tt.want == nil {
 				assert.Empty(t, got)
 				return
@@ -428,26 +428,37 @@ func TestNewSSRFSafeTransport_WrappedDefaultTransport(t *testing.T) {
 	assert.Contains(t, reqErr.Error(), "non-public address")
 }
 
-// TestNewSSRFSafeTransport_AllowlistFrozenAtConstruction documents that
-// the allowlist is captured when the transport is built, not on every
-// dial. Changing the env after construction has no effect — acceptable
-// because proxy env vars are set at process start.
-func TestNewSSRFSafeTransport_AllowlistFrozenAtConstruction(t *testing.T) {
+// TestNewSSRFSafeTransport_AllowlistResolvedAtDial documents that proxy
+// allowlist DNS resolution happens during DialContext, not construction. This
+// keeps NewSSRFSafeTransport side-effect-free while still allowing a proxy
+// configured before the request is dialed.
+func TestNewSSRFSafeTransport_AllowlistResolvedAtDial(t *testing.T) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := ln.Addr().String()
+	require.NoError(t, ln.Close())
+
 	t.Setenv("HTTP_PROXY", "")
 	t.Setenv("HTTPS_PROXY", "")
 	t.Setenv("http_proxy", "")
 	t.Setenv("https_proxy", "")
 
-	client := &http.Client{Transport: NewSSRFSafeTransport()}
+	transport := NewSSRFSafeTransport()
 
-	t.Setenv("HTTP_PROXY", "http://10.0.0.1:3128")
+	t.Setenv("HTTP_PROXY", "http://"+addr)
+	proxyURL, err := url.Parse("http://" + addr)
+	require.NoError(t, err)
+	transport.Proxy = http.ProxyURL(proxyURL)
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://10.0.0.1:3128/", http.NoBody)
+	client := &http.Client{Transport: transport}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com/", http.NoBody)
 	require.NoError(t, err)
 	resp, reqErr := client.Do(req)
 	if resp != nil {
 		_ = resp.Body.Close()
 	}
 	require.Error(t, reqErr)
-	assert.Contains(t, reqErr.Error(), "non-public address")
+	assert.NotContains(t, reqErr.Error(), "non-public address")
+	assert.NotContains(t, reqErr.Error(), "not a valid IP")
 }

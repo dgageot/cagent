@@ -118,17 +118,20 @@ func NewSSRFSafeTransport() *http.Transport {
 			"type", fmt.Sprintf("%T", http.DefaultTransport))
 		t = &http.Transport{Proxy: http.ProxyFromEnvironment}
 	}
-	proxies := proxyDialAllowlist()
-	t.DialContext = (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		Control: func(network, address string, c syscall.RawConn) error {
-			if _, ok := proxies[canonicalHostPort(address)]; ok {
-				return nil
-			}
-			return SSRFDialControl(network, address, c)
-		},
-	}).DialContext
+	t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		proxies := proxyDialAllowlist(ctx)
+		dialer := &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			Control: func(network, address string, c syscall.RawConn) error {
+				if _, ok := proxies[canonicalHostPort(address)]; ok {
+					return nil
+				}
+				return SSRFDialControl(network, address, c)
+			},
+		}
+		return dialer.DialContext(ctx, network, address)
+	}
 	return t
 }
 
@@ -157,9 +160,7 @@ func canonicalHostPort(address string) string {
 // HTTP_PROXY / HTTPS_PROXY / ALL_PROXY environment variables resolve to.
 // Hostname-based proxies are resolved to all of their A/AAAA records so
 // the comparison can be done against the post-resolution dial address.
-// The result is a snapshot taken at call time — safe to capture in a
-// dialer's Control closure.
-func proxyDialAllowlist() map[string]struct{} {
+func proxyDialAllowlist(ctx context.Context) map[string]struct{} {
 	out := map[string]struct{}{}
 	raw := []string{
 		os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
@@ -167,7 +168,7 @@ func proxyDialAllowlist() map[string]struct{} {
 		os.Getenv("ALL_PROXY"), os.Getenv("all_proxy"),
 	}
 	for _, s := range raw {
-		for addr := range proxyHostPorts(s) {
+		for addr := range proxyHostPorts(ctx, s) {
 			out[addr] = struct{}{}
 		}
 	}
@@ -178,7 +179,7 @@ func proxyDialAllowlist() map[string]struct{} {
 // accepted by net/http.ProxyFromEnvironment: a full URL or a bare host[:port]
 // in which case http:// is implied) and returns each "ip:port" it can be
 // reached at. A nil/empty input yields an empty set.
-func proxyHostPorts(spec string) map[string]struct{} {
+func proxyHostPorts(ctx context.Context, spec string) map[string]struct{} {
 	if spec == "" {
 		return nil
 	}
@@ -206,8 +207,7 @@ func proxyHostPorts(spec string) map[string]struct{} {
 		out[net.JoinHostPort(ip.String(), port)] = struct{}{}
 		return out
 	}
-	//rubocop:disable Lint/ContextConnectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	ips, _ := net.DefaultResolver.LookupIPAddr(ctx, host)
 	for _, ip := range ips {
