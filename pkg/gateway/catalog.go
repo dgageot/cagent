@@ -41,8 +41,8 @@ func RequiredEnvVars(ctx context.Context, serverName string) ([]Secret, error) {
 	return server.Secrets, nil
 }
 
-func ServerSpec(_ context.Context, serverName string) (Server, error) {
-	catalog, err := catalogOnce()
+func ServerSpec(ctx context.Context, serverName string) (Server, error) {
+	catalog, err := loadCatalog(ctx)
 	if err != nil {
 		return Server{}, err
 	}
@@ -66,15 +66,35 @@ type cachedCatalog struct {
 	ETag    string  `json:"etag,omitempty"`
 }
 
-// catalogOnce guards one-shot catalog loading.
-// We use sync.OnceValues so that:
-//   - the catalog is fetched at most once per process, and
-//   - we detach from the caller's context to avoid permanently
-//     caching a context-cancellation error.
-var catalogOnce = sync.OnceValues(func() (Catalog, error) {
-	//rubocop:disable Lint/ContextConnectivity
-	return fetchAndCache(context.Background())
-})
+// catalogOnce guards one-shot catalog loading: the catalog is fetched at
+// most once per process and the result is memoized for every later caller.
+var (
+	catalogOnce   sync.Once
+	catalogCached struct {
+		catalog Catalog
+		err     error
+	}
+
+	// catalogOverride, when set, replaces the real loader entirely. It is
+	// only assigned from test setup via OverrideCatalogForTesting.
+	catalogOverride func(context.Context) (Catalog, error)
+)
+
+// loadCatalog fetches and caches the catalog on the first call, reusing the
+// memoized result afterwards. The first caller's context is honoured for
+// tracing (and threads the fetch onto the program's context), but its
+// cancellation is detached via WithoutCancel so a cancelled first caller
+// cannot permanently cache a context-cancellation error for everyone else.
+// On every subsequent call ctx is unused — the work has already run.
+func loadCatalog(ctx context.Context) (Catalog, error) {
+	if catalogOverride != nil {
+		return catalogOverride(ctx)
+	}
+	catalogOnce.Do(func() {
+		catalogCached.catalog, catalogCached.err = fetchAndCache(context.WithoutCancel(ctx))
+	})
+	return catalogCached.catalog, catalogCached.err
+}
 
 // fetchAndCache tries to fetch the catalog from the network (using ETag for
 // conditional requests) and falls back to the disk cache on any failure.

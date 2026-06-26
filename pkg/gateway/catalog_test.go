@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -33,8 +34,8 @@ var testCatalog = Catalog{
 }
 
 func TestMain(m *testing.M) {
-	// Override the production catalogOnce so that tests never hit the network.
-	catalogOnce = func() (Catalog, error) {
+	// Override the production loader so that tests never hit the network.
+	catalogOverride = func(context.Context) (Catalog, error) {
 		return testCatalog, nil
 	}
 	os.Exit(m.Run())
