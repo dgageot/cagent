@@ -214,7 +214,7 @@ func runSession(t *testing.T, sess *session.Session, stream *mockStream) []Event
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess.Title = "Unit Test"
@@ -538,7 +538,7 @@ func TestErrorEvent(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Hi"))
@@ -575,7 +575,7 @@ func TestContextCancellation(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Hi"))
@@ -707,7 +707,7 @@ func TestCompaction(t *testing.T) {
 	tm := team.New(team.WithAgents(root))
 
 	// Enable compaction and provide a model store with context limit = 100
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Start"))
@@ -760,7 +760,7 @@ func TestCompactionOverflowDoesNotLoop(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Hello"))
@@ -854,7 +854,7 @@ func TestGetTools_WarningHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			root := agent.New("root", "test", agent.WithToolSets(tt.toolsets...), agent.WithModel(&mockProvider{}))
 			tm := team.New(team.WithAgents(root))
-			rt, err := NewLocalRuntime(tm, WithModelStore(mockModelStore{}))
+			rt, err := NewLocalRuntime(t.Context(), tm, WithModelStore(mockModelStore{}))
 			require.NoError(t, err)
 
 			events := make(chan Event, 10)
@@ -875,7 +875,7 @@ func TestGetTools_WarningHandling(t *testing.T) {
 func TestNewRuntime_NoAgentsError(t *testing.T) {
 	tm := team.New()
 
-	_, err := New(tm, WithModelStore(mockModelStore{}))
+	_, err := New(t.Context(), tm, WithModelStore(mockModelStore{}))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no agents loaded")
 }
@@ -885,7 +885,7 @@ func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
 	tm := team.New(team.WithAgents(root))
 
 	// Ask for a non-existent current agent
-	_, err := New(tm, WithCurrentAgent("other"), WithModelStore(mockModelStore{}))
+	_, err := New(t.Context(), tm, WithCurrentAgent("other"), WithModelStore(mockModelStore{}))
 	require.Contains(t, err.Error(), "agent not found: other (available agents: root)")
 }
 
@@ -893,7 +893,7 @@ func TestProcessToolCalls_UnknownTool_ReturnsErrorResponse(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(&mockProvider{}))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.registerDefaultTools()
 
@@ -1008,7 +1008,7 @@ func TestEmitStartupInfo_DoesNotBlockOnInteractiveOAuth(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	events := make(chan Event, 20)
@@ -1069,7 +1069,7 @@ func TestEmitStartupInfo_SurfacesToolsetStartFailureAsWarning(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	events := make(chan Event, 32)
@@ -1111,7 +1111,7 @@ func TestEmitStartupInfo_SkipsToolsetWhoseListingHangs(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm,
+	rt, err := NewLocalRuntime(t.Context(), tm,
 		WithCurrentAgent("root"),
 		WithModelStore(mockModelStore{}),
 		WithToolListTimeout(50*time.Millisecond),
@@ -1166,7 +1166,7 @@ func TestEmitStartupInfo_AuthRequiredIsSilent(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	events := make(chan Event, 32)
@@ -1206,7 +1206,7 @@ func TestEmitStartupInfo_DeferredAuthDoesNotConsumeFailureGate(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	events := make(chan Event, 32)
@@ -1266,7 +1266,7 @@ func TestEmitStartupInfo_RecoveryAuthNoticeEmittedOnce(t *testing.T) {
 		agent.WithToolSets(inner),
 	)
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	var wrapped *tools.StartableToolSet
@@ -1339,7 +1339,7 @@ func TestEmitAgentWarnings_OnlyEmitsFailures(t *testing.T) {
 	prov := &mockProvider{id: "test/m", stream: &mockStream{}}
 	root := agent.New("root", "agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	root.AddToolWarning("toolset_a start failed: connection refused")
@@ -1367,7 +1367,7 @@ func TestEmitAgentWarnings_NoEventsWhenQueueEmpty(t *testing.T) {
 	prov := &mockProvider{id: "test/m", stream: &mockStream{}}
 	root := agent.New("root", "agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	var emitted int
@@ -1389,7 +1389,7 @@ func TestEmitStartupInfo(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root, other))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("startup-test-agent"), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("startup-test-agent"), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Create a channel to collect events
@@ -1442,7 +1442,7 @@ func TestEmitStartupInfo_WithSessionTokenData(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("startup-test-agent"),
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("startup-test-agent"),
 		WithModelStore(mockModelStoreWithLimit{limit: 200_000}))
 	require.NoError(t, err)
 
@@ -1483,7 +1483,7 @@ func TestEmitStartupInfo_CostIncludesSubSessions(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"),
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"),
 		WithModelStore(mockModelStoreWithLimit{limit: 128_000}))
 	require.NoError(t, err)
 
@@ -1548,7 +1548,7 @@ func TestEmitStartupInfo_LastMessageFinishReason(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"),
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("root"),
 		WithModelStore(mockModelStoreWithLimit{limit: 128_000}))
 	require.NoError(t, err)
 
@@ -1599,7 +1599,7 @@ func TestEmitStartupInfo_NilSessionNoTokenEvent(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithCurrentAgent("startup-test-agent"),
+	rt, err := NewLocalRuntime(t.Context(), tm, WithCurrentAgent("startup-test-agent"),
 		WithModelStore(mockModelStoreWithLimit{limit: 200_000}))
 	require.NoError(t, err)
 
@@ -1626,7 +1626,7 @@ func TestPermissions_DenyBlocksToolExecution(t *testing.T) {
 		team.WithPermissions(permChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -1690,7 +1690,7 @@ func TestPermissions_AllowAutoApprovesTool(t *testing.T) {
 		team.WithPermissions(permChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -1725,7 +1725,7 @@ func TestPermissions_DenyTakesPriorityOverAllow(t *testing.T) {
 		team.WithPermissions(permChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -1767,7 +1767,7 @@ func TestSessionPermissions_DenyBlocksToolExecution(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Create session with permissions that deny the tool
@@ -1827,7 +1827,7 @@ func TestSessionPermissions_AllowAutoApprovesTool(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Create session with permissions that allow the tool
@@ -1866,7 +1866,7 @@ func TestSessionPermissions_TakePriorityOverTeamPermissions(t *testing.T) {
 		team.WithPermissions(teamPermChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Session denies the tool (should override team allow)
@@ -1926,7 +1926,7 @@ func TestToolRejectionWithReason(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -1982,7 +1982,7 @@ func TestToolRejectionWithoutReason(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -2033,7 +2033,7 @@ func TestTransferTaskRejectsNonSubAgent(t *testing.T) {
 
 	tm := team.New(team.WithAgents(root, planner, librarian))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"))
@@ -2071,7 +2071,7 @@ func TestTransferTaskAllowsSubAgent(t *testing.T) {
 
 	tm := team.New(team.WithAgents(root, librarian))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
@@ -2116,7 +2116,7 @@ func TestTransferTaskPersistsSubSessionOnError(t *testing.T) {
 	agent.WithSubAgents(librarian)(root)
 
 	tm := team.New(team.WithAgents(root, librarian))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
@@ -2200,7 +2200,7 @@ func TestYoloMode_OverridesPermissionsDeny(t *testing.T) {
 		team.WithPermissions(permChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
@@ -2246,7 +2246,7 @@ func TestYoloMode_OverridesForceAsk(t *testing.T) {
 		team.WithPermissions(permChecker),
 	)
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
@@ -2285,7 +2285,7 @@ func TestYoloMode_OverridesSessionDeny(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(
@@ -2520,7 +2520,7 @@ func TestResolveSessionAgent_PinnedAgent(t *testing.T) {
 	root := agent.New("root", "Root agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root, worker))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	assert.Equal(t, "root", rt.CurrentAgentName(t.Context()), "default agent should be root")
 
@@ -2539,7 +2539,7 @@ func TestResolveSessionAgent_FallsBackToCurrentAgent(t *testing.T) {
 	root := agent.New("root", "Root agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New() // no AgentName
@@ -2555,7 +2555,7 @@ func TestResolveSessionAgent_InvalidNameFallsBack(t *testing.T) {
 	root := agent.New("root", "Root agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithAgentName("nonexistent"))
@@ -2584,7 +2584,7 @@ func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
 	root := agent.New("root", "Root agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root, worker))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.registerDefaultTools()
 	assert.Equal(t, "root", rt.CurrentAgentName(t.Context()))
@@ -2774,7 +2774,7 @@ func TestRunStream_EmptyMessages_SendUserMessage(t *testing.T) {
 	root := agent.New("root", "", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New() // SendUserMessage=true, no messages
@@ -2811,7 +2811,7 @@ func TestRunStream_AddEnvironmentInfo_DoesNotPolluteSession(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(
+	rt, err := NewLocalRuntime(t.Context(),
 		tm,
 		WithSessionCompaction(false),
 		WithModelStore(mockModelStore{}),
@@ -2962,7 +2962,7 @@ func TestReprobe_NewToolsAvailableAfterToolCall(t *testing.T) {
 	)
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.registerDefaultTools()
 
@@ -3029,7 +3029,7 @@ func TestReprobe_NoChangeMeansNoExtraEvents(t *testing.T) {
 	root := agent.New("root", "test", agent.WithModel(prov), agent.WithToolSets(ts))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.registerDefaultTools()
 
@@ -3124,7 +3124,7 @@ func TestSteer_IdleWindowIsConsumedOnNextTurn(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Enqueue a steer message BEFORE calling RunStream — simulating the
@@ -3220,7 +3220,7 @@ func TestSteer_EmptySessionBootstrap(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Enqueue before RunStream — zero messages in the session.
@@ -3397,7 +3397,7 @@ func TestSteer_EndOfIterationRaceIsConsumedInCurrentRunStream(t *testing.T) {
 	tm := team.New(team.WithAgents(root))
 
 	var err error
-	rt, err = NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err = NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Do the task"))
@@ -3534,7 +3534,7 @@ func TestDrainAndEmitSteered_MultipleMessages(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Enqueue three plain-text steer messages before draining.
@@ -3587,7 +3587,7 @@ func TestDrainAndEmitSteered_MultiContent(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	// Two multi-content messages.
@@ -3666,7 +3666,7 @@ func TestPostToolHookReceivesToolResult(t *testing.T) {
 		}),
 	)
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.hooksRegistry = registry
 	rt.buildHooksExecutors()
@@ -3718,7 +3718,7 @@ func TestPostToolHookEmitsLifecycleEvents(t *testing.T) {
 		}),
 	)
 	tm := team.New(team.WithAgents(root))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 	rt.hooksRegistry = registry
 	rt.buildHooksExecutors()
@@ -3763,7 +3763,7 @@ func TestElicitationHandler_NonInteractive(t *testing.T) {
 	root := agent.New("root", "test", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
-	rt, err := NewLocalRuntime(tm, WithNonInteractive(true))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithNonInteractive(true))
 	require.NoError(t, err)
 
 	params := &mcp.ElicitParams{
@@ -3784,7 +3784,7 @@ func TestElicitationHandler_Interactive_NoChannel(t *testing.T) {
 	tm := team.New(team.WithAgents(root))
 
 	// Default runtime (interactive mode) with no events channel set
-	rt, err := NewLocalRuntime(tm)
+	rt, err := NewLocalRuntime(t.Context(), tm)
 	require.NoError(t, err)
 
 	params := &mcp.ElicitParams{
@@ -3819,7 +3819,7 @@ func TestRunAgentPersistsSubSessionToStore(t *testing.T) {
 	tm := team.New(team.WithAgents(root, worker))
 
 	store := session.NewInMemorySessionStore()
-	rt, err := NewLocalRuntime(tm,
+	rt, err := NewLocalRuntime(t.Context(), tm,
 		WithSessionCompaction(false),
 		WithModelStore(mockModelStore{}),
 		WithSessionStore(store),
@@ -3877,7 +3877,7 @@ func TestRunAgentPersistsSubSessionOnError(t *testing.T) {
 	agent.WithSubAgents(worker)(root)
 
 	tm := team.New(team.WithAgents(root, worker))
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	rt, err := NewLocalRuntime(t.Context(), tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
