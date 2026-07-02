@@ -1,7 +1,7 @@
 ---
 title: "Go SDK"
 description: "Use docker-agent as a Go library to embed AI agents in your applications."
-permalink: /guides/go-sdk/
+keywords: docker agent, ai agents, guides, go sdk
 ---
 
 # Go SDK
@@ -12,11 +12,12 @@ _Use docker-agent as a Go library to embed AI agents in your applications._
 
 docker-agent can be used as a Go library, allowing you to build AI agents directly into your Go applications. This gives you full programmatic control over agent creation, tool integration, and execution.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Import Path
-</div>
-<pre><code class="language-go">import "github.com/docker/docker-agent/pkg/..."</code></pre>
-</div>
+> [!NOTE]
+> **Import Path**:
+>
+> ```go
+> import "github.com/docker/docker-agent/pkg/..."
+> ```
 
 ## Core Packages
 
@@ -149,10 +150,8 @@ go build -tags 'docker_agent_no_bedrock docker_agent_no_openai' ./...
 
 Requesting a model whose provider was compiled out fails at construction time with a clear `"not compiled into this build"` error. The `dmr` (Docker Model Runner) provider and the rule-based router are always compiled in.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Anthropic + Google dependency</div>
-  <p>The Google provider's Vertex Model Garden support also imports the Anthropic SDK, so the Anthropic dependency is only fully removed when <em>both</em> <code>docker_agent_no_anthropic</code> and <code>docker_agent_no_google</code> are set.</p>
-</div>
+> [!WARNING]
+> **Anthropic + Google dependency**: The Google provider's Vertex Model Garden support also imports the Anthropic SDK, so the Anthropic dependency is only fully removed when _both_ `docker_agent_no_anthropic` and `docker_agent_no_google` are set.
 
 ## RAG Toolset (opt-out)
 
@@ -234,10 +233,8 @@ func main() {
 }
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Call order matters</div>
-  <p>If <code>keyringstore.Register()</code> is called after the default token store has already been lazily initialised, docker-agent panics. The store is initialised when any remote MCP toolset is constructed — which happens inside <code>teamloader.Load()</code>. Always call <code>keyringstore.Register()</code> before calling <code>teamloader.Load()</code> on a config that includes remote MCP toolsets.</p>
-</div>
+> [!WARNING]
+> **Call order matters**: If `keyringstore.Register()` is called after the default token store has already been lazily initialised, docker-agent panics. The store is initialised when any remote MCP toolset is constructed — which happens inside `teamloader.Load()`. Always call `keyringstore.Register()` before calling `teamloader.Load()` on a config that includes remote MCP toolsets.
 
 If you do not need persistent OAuth tokens (for example, in short-lived batch jobs or tests), omit the call and tokens will be kept in-memory for the process lifetime.
 
@@ -523,12 +520,8 @@ The wrapper receives the already-instrumented transport (OpenTelemetry, SSE deco
 
 **Supported providers:** Anthropic, OpenAI, Gemini (GeminiAPI backend), Bedrock. Works in both direct and gateway/proxy mode.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Vertex AI not supported
-</div>
-  <p>Vertex AI uses an ADC-managed HTTP client that docker-agent cannot intercept. When a transport wrapper is set, docker-agent falls back to the GeminiAPI backend instead of Vertex AI — a debug message is logged.</p>
-
-</div>
+> [!WARNING]
+> **Vertex AI not supported**: Vertex AI uses an ADC-managed HTTP client that docker-agent cannot intercept. When a transport wrapper is set, docker-agent falls back to the GeminiAPI backend instead of Vertex AI — a debug message is logged.
 
 In **gateway mode** the wrapper is called on every LLM request because gateway clients are rebuilt each call for short-lived auth tokens. In **direct mode** it is called once at client construction. Rate-limit responses (HTTP 429) are classified as non-retryable by the runtime and cause the model chain to skip to the next fallback, so wrappers that track per-request outcomes will observe these as failures rather than retried calls.
 

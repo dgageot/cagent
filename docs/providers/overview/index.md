@@ -1,7 +1,7 @@
 ---
 title: "Model Providers"
 description: "docker-agent supports multiple AI model providers. Choose the right one for your use case, or use multiple providers in the same configuration."
-permalink: /providers/overview/
+keywords: docker agent, ai agents, model providers
 ---
 
 # Model Providers
@@ -10,38 +10,12 @@ _docker-agent supports multiple AI model providers. Choose the right one for you
 
 ## Supported Providers
 
-<div class="cards">
-  <a class="card" href="{{ '/providers/openai/' | relative_url }}">
-    <div class="card-icon">🟢</div>
-    <h3>OpenAI</h3>
-    <p>GPT-5, GPT-5-mini, GPT-4o. The most widely used AI models.</p>
-  </a>
-  <a class="card" href="{{ '/providers/anthropic/' | relative_url }}">
-    <div class="card-icon">🟠</div>
-    <h3>Anthropic</h3>
-    <p>Claude Sonnet 4.5, Claude Opus 4.7. Excellent for coding and analysis.</p>
-  </a>
-  <a class="card" href="{{ '/providers/google/' | relative_url }}">
-    <div class="card-icon">🔵</div>
-    <h3>Google Gemini</h3>
-    <p>Gemini 2.5 Flash, Gemini 3 Pro. Fast and cost-effective.</p>
-  </a>
-  <a class="card" href="{{ '/providers/bedrock/' | relative_url }}">
-    <div class="card-icon">🟡</div>
-    <h3>AWS Bedrock</h3>
-    <p>Access Claude, Nova, Llama, and more through AWS infrastructure.</p>
-  </a>
-  <a class="card" href="{{ '/providers/dmr/' | relative_url }}">
-    <div class="card-icon">🐳</div>
-    <h3>Docker Model Runner</h3>
-    <p>Run models locally with Docker. No API keys, no costs.</p>
-  </a>
-  <a class="card" href="{{ '/providers/custom/' | relative_url }}">
-    <div class="card-icon">🔧</div>
-    <h3>Provider Definitions</h3>
-    <p>Define reusable provider configurations with shared defaults for any provider type.</p>
-  </a>
-</div>
+- **[OpenAI](../openai/index.md)** — GPT-5, GPT-5-mini, GPT-4o. The most widely used AI models.
+- **[Anthropic](../anthropic/index.md)** — Claude Sonnet 4.5, Claude Opus 4.7. Excellent for coding and analysis.
+- **[Google Gemini](../google/index.md)** — Gemini 2.5 Flash, Gemini 3 Pro. Fast and cost-effective.
+- **[AWS Bedrock](../bedrock/index.md)** — Access Claude, Nova, Llama, and more through AWS infrastructure.
+- **[Docker Model Runner](../dmr/index.md)** — Run models locally with Docker. No API keys, no costs.
+- **[Provider Definitions](../custom/index.md)** — Define reusable provider configurations with shared defaults for any provider type.
 
 ## Quick Comparison
 
@@ -90,12 +64,8 @@ agents:
     model: mistral/mistral-large-latest
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Multi-provider teams
-</div>
-  <p>Use expensive models for complex reasoning and cheaper/local models for routine tasks. See the example below.</p>
-
-</div>
+> [!TIP]
+> **Multi-provider teams**: Use expensive models for complex reasoning and cheaper/local models for routine tasks. See the example below.
 
 ## Using Multiple Providers
 

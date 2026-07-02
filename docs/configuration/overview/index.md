@@ -1,7 +1,7 @@
 ---
 title: "Configuration Overview"
 description: "docker-agent uses YAML or HCL configuration files to define agents, models, tools, and their relationships."
-permalink: /configuration/overview/
+keywords: docker agent, ai agents, configuration, configuration overview
 ---
 
 # Configuration Overview
@@ -10,7 +10,7 @@ _docker-agent uses YAML or HCL configuration files to define agents, models, too
 
 ## File Structure
 
-A docker-agent config can be written in YAML or HCL. The examples on this page use YAML; see [HCL Configuration]({{ '/configuration/hcl/' | relative_url }}) for the block-based HCL syntax.
+A docker-agent config can be written in YAML or HCL. The examples on this page use YAML; see [HCL Configuration](../hcl/index.md) for the block-based HCL syntax.
 
 A docker-agent config has these main sections:
 
@@ -107,72 +107,26 @@ agent "root" {
 
 Models can be referenced inline or defined in the `models` section:
 
-<div class="cards">
-  <div class="card" style="cursor:default;">
-    <h3>Inline</h3>
-    <p>Quick and simple. Use <code>provider/model</code> syntax directly.</p>
-    <pre style="margin-top:12px"><code class="language-yaml">model: openai/gpt-5</code></pre>
-  </div>
-  <div class="card" style="cursor:default;">
-    <h3>Named</h3>
-    <p>Full control over parameters. Reusable across agents.</p>
-    <pre style="margin-top:12px"><code class="language-yaml">model: my_claude</code></pre>
-  </div>
-</div>
+- **Inline** — quick and simple. Use `provider/model` syntax directly: `model: openai/gpt-5`
+- **Named** — full control over parameters, reusable across agents: `model: my_claude`
 
 ## Config Sections
 
-<div class="cards">
-  <a class="card" href="{{ '/configuration/hcl/' | relative_url }}">
-    <div class="card-icon">🧱</div>
-    <h3>HCL Configuration</h3>
-    <p>Write the same agent schema in HCL using labeled blocks, heredocs, and block-based tool definitions.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/agents/' | relative_url }}">
-    <div class="card-icon">🤖</div>
-    <h3>Agent Config</h3>
-    <p>All agent properties: model, instruction, tools, sub-agents, hooks, and more.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/models/' | relative_url }}">
-    <div class="card-icon">🧠</div>
-    <h3>Model Config</h3>
-    <p>Provider setup, parameters, thinking budget, and provider-specific options.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/tools/' | relative_url }}">
-    <div class="card-icon">🔧</div>
-    <h3>Tool Config</h3>
-    <p>Built-in tools, MCP tools, Docker MCP, LSP, API tools, and tool filtering.</p>
-  </a>
-</div>
+- **[HCL Configuration](../hcl/index.md)** — Write the same agent schema in HCL using labeled blocks, heredocs, and block-based tool definitions.
+- **[Agent Config](../agents/index.md)** — All agent properties: model, instruction, tools, sub-agents, hooks, and more.
+- **[Model Config](../models/index.md)** — Provider setup, parameters, thinking budget, and provider-specific options.
+- **[Tool Config](../tools/index.md)** — Built-in tools, MCP tools, Docker MCP, LSP, API tools, and tool filtering.
 
 ## Advanced Configuration
 
-<div class="cards">
-  <a class="card" href="{{ '/configuration/hooks/' | relative_url }}">
-    <div class="card-icon">⚡</div>
-    <h3>Hooks</h3>
-    <p>Run shell commands at lifecycle events like tool calls and session start/end.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/permissions/' | relative_url }}">
-    <div class="card-icon">🔐</div>
-    <h3>Permissions</h3>
-    <p>Control which tools auto-approve, require confirmation, or are blocked.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/sandbox/' | relative_url }}">
-    <div class="card-icon">📦</div>
-    <h3>Sandbox Mode</h3>
-    <p>Run agents in an isolated Docker container for security.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/structured-output/' | relative_url }}">
-    <div class="card-icon">📋</div>
-    <h3>Structured Output</h3>
-    <p>Constrain agent responses to match a specific JSON schema.</p>
-  </a>
-</div>
+- **[Hooks](../hooks/index.md)** — Run shell commands at lifecycle events like tool calls and session start/end.
+- **[Permissions](../permissions/index.md)** — Control which tools auto-approve, require confirmation, or are blocked.
+- **[Sandbox Mode](../sandbox/index.md)** — Run agents in an isolated Docker container for security.
+- **[Structured Output](../structured-output/index.md)** — Constrain agent responses to match a specific JSON schema.
 
 ## Environment Variables
 
-API keys and secrets are read from environment variables — never stored in config files. See [Managing Secrets]({{ '/guides/secrets/' | relative_url }}) for all the ways to provide credentials (env files, Docker Compose secrets, macOS Keychain, `pass`):
+API keys and secrets are read from environment variables — never stored in config files. See [Managing Secrets](../../guides/secrets/index.md) for all the ways to provide credentials (env files, Docker Compose secrets, macOS Keychain, `pass`):
 
 | Variable                   | Provider                                            |
 | -------------------------- | --------------------------------------------------- |
@@ -203,21 +157,13 @@ API keys and secrets are read from environment variables — never stored in con
 | `DOCKER_AGENT_DEFAULT_MODEL`        | Default model used when none is specified, in `provider/model` form (e.g. `openai/gpt-5`).      |
 | `DOCKER_AGENT_MODELS_GATEWAY`       | Route model traffic through a gateway. Equivalent to the `--models-gateway` flag.                    |
 | `DOCKER_AGENT_HIDE_TELEMETRY_BANNER`| Set to `1` to suppress the first-run telemetry notice.                                               |
-| `DOCKER_AGENT_AUTO_UPDATE`          | Set to a truthy value (`1`, `true`, `yes`, `on`) to let standalone release binaries self-update before running. See [Optional Self-Updates]({{ '/getting-started/installation/#optional-self-updates' | relative_url }}). |
+| `DOCKER_AGENT_AUTO_UPDATE`          | Set to a truthy value (`1`, `true`, `yes`, `on`) to let standalone release binaries self-update before running. See [Optional Self-Updates](../../getting-started/installation/index.md#optional-self-updates). |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Legacy <code>CAGENT_*</code> aliases
-</div>
-  <p>The same variables are also accepted with the legacy <code>CAGENT_</code> prefix (e.g. <code>CAGENT_DEFAULT_MODEL</code>, <code>CAGENT_MODELS_GATEWAY</code>, <code>CAGENT_HIDE_TELEMETRY_BANNER</code>) for backward compatibility. Prefer the <code>DOCKER_AGENT_*</code> form in new setups.</p>
+> [!NOTE]
+> **Legacy `CAGENT_*` aliases**: The same variables are also accepted with the legacy `CAGENT_` prefix (e.g. `CAGENT_DEFAULT_MODEL`, `CAGENT_MODELS_GATEWAY`, `CAGENT_HIDE_TELEMETRY_BANNER`) for backward compatibility. Prefer the `DOCKER_AGENT_*` form in new setups.
 
-</div>
-
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Important
-</div>
-  <p>Model references are case-sensitive: <code>openai/gpt-5</code> is not the same as <code>openai/GPT-5</code>.</p>
-
-</div>
+> [!WARNING]
+> **Important**: Model references are case-sensitive: `openai/gpt-5` is not the same as `openai/GPT-5`.
 
 ## Variable Expansion in Config Fields
 
@@ -362,7 +308,7 @@ metadata:
 | `version`     | Semantic version string                    |
 | `tags`        | Tags for categorization and discovery      |
 
-See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for publishing agents to registries.
+See [Agent Distribution](../../concepts/distribution/index.md) for publishing agents to registries.
 
 ## Reusable MCP Servers (`mcps:`)
 
@@ -388,7 +334,7 @@ agents:
         ref: playwright
 ```
 
-An `mcps` entry accepts every field a regular `type: mcp` toolset accepts (command/args/env, `remote` with `url`/`transport_type`/`headers`/`oauth`, `tools` filter, `instruction`, `defer`, …) — the `type: mcp` is implicit. See the [Tool Config]({{ '/configuration/tools/' | relative_url }}) page for all options and the [Remote MCP Servers]({{ '/features/remote-mcp/' | relative_url }}) guide for remote setups.
+An `mcps` entry accepts every field a regular `type: mcp` toolset accepts (command/args/env, `remote` with `url`/`transport_type`/`headers`/`oauth`, `tools` filter, `instruction`, `defer`, …) — the `type: mcp` is implicit. See the [Tool Config](../tools/index.md) page for all options and the [Remote MCP Servers](../../features/remote-mcp/index.md) guide for remote setups.
 
 ## Reusable Toolsets (`toolsets:`)
 
@@ -502,7 +448,7 @@ agents:
 | `track_usage`         | Track token usage by default.                                                             |
 | `provider_opts`       | Provider-specific options.                                                                |
 
-See [Provider Definitions]({{ '/providers/custom/' | relative_url }}) for more details.
+See [Provider Definitions](../../providers/custom/index.md) for more details.
 
 ## Reusable YAML (anchors & aliases)
 
@@ -542,15 +488,11 @@ agents:
     description: Writes documentation. # then override one field
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Where anchors can live</div>
-  <p>An anchor has to sit on a real value inside a known section (for example a real agent, model, or MCP entry, as above). Parking anchors in a separate top-level block such as <code>defaults:</code> or <code>prompts:</code> fails, because the parser rejects unknown top-level keys.</p>
-</div>
+> [!WARNING]
+> **Where anchors can live**: An anchor has to sit on a real value inside a known section (for example a real agent, model, or MCP entry, as above). Parking anchors in a separate top-level block such as `defaults:` or `prompts:` fails, because the parser rejects unknown top-level keys.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Overriding merged keys</div>
-  <p>Overriding a key that a <code>&lt;&lt;</code> merge already set works only in the <code>agents:</code> section, as shown above. Every other section (<code>models:</code>, <code>mcps:</code>, <code>providers:</code>, <code>rag:</code>) is parsed strictly and reports the override as a duplicate key. There, use <code>&lt;&lt;</code> only to add new fields, or use the named-reuse sections above when you need per-entry overrides.</p>
-</div>
+> [!WARNING]
+> **Overriding merged keys**: Overriding a key that a `<<` merge already set works only in the `agents:` section, as shown above. Every other section (`models:`, `mcps:`, `providers:`, `rag:`) is parsed strictly and reports the override as a duplicate key. There, use `<<` only to add new fields, or use the named-reuse sections above when you need per-entry overrides.
 
 Anchors are for static reuse within a single file, not dynamic values or cross-file composition. For environment-specific settings, see [Variable Expansion in Config Fields](#variable-expansion-in-config-fields), which substitutes `${env.VAR}` at load time. Templating tags such as `!include` are not acted on: the tag is ignored and its argument is kept as a plain string, so no other file is loaded. Circular aliases are not detected, so keep references acyclic.
 

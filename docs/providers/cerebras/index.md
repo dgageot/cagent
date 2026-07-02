@@ -1,7 +1,7 @@
 ---
 title: "Cerebras"
 description: "Use Cerebras models with docker-agent."
-permalink: /providers/cerebras/
+keywords: docker agent, ai agents, model providers, cerebras
 ---
 
 # Cerebras

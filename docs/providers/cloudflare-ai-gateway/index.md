@@ -1,7 +1,7 @@
 ---
 title: "Cloudflare AI Gateway"
 description: "Use Cloudflare AI Gateway models with docker-agent."
-permalink: /providers/cloudflare-ai-gateway/
+keywords: docker agent, ai agents, model providers, cloudflare ai gateway
 ---
 
 # Cloudflare AI Gateway
@@ -111,5 +111,5 @@ instead expects the token in Cloudflare's `cf-aig-authorization` header. The
 alias does not send that header, and custom `provider_opts.http_headers` values
 are not environment-expanded, so an authenticated gateway is **not supported out
 of the box** today. For that setup, use an unauthenticated gateway, or configure
-a [custom provider]({{ '/providers/custom/' | relative_url }}) against the
+a [custom provider](../custom/index.md) against the
 Cloudflare AI Gateway REST API.

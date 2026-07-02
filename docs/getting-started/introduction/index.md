@@ -1,7 +1,7 @@
 ---
 title: "Introduction"
 description: "Docker Agent is a multi-agent runtime that lets you build, run, and share AI agents with a YAML or HCL config — no glue code required."
-permalink: /getting-started/introduction/
+keywords: docker agent, ai agents, getting started, introduction
 ---
 
 # Introduction
@@ -16,44 +16,12 @@ code to wire up LLMs, tools, and workflows, you **declare** your
 agents in YAML or HCL — their model, personality, tools, and how they
 collaborate — and Docker Agent handles the rest.
 
-<div class="features-grid">
-  <div class="feature">
-    <div class="feature-icon">🏗️</div>
-    <h3>Multi-Agent Architecture</h3>
-    <p>Build hierarchical teams of agents that specialize in different tasks and delegate work to each other.</p>
-
-  </div>
-  <div class="feature">
-    <div class="feature-icon">🔧</div>
-    <h3>Rich Tool Ecosystem</h3>
-    <p>Built-in tools for files, shell, memory, and todos. Extend with any MCP server from <a href="https://hub.docker.com/u/mcp" target="_blank" rel="noopener">Docker's MCP catalog</a>.</p>
-
-  </div>
-  <div class="feature">
-    <div class="feature-icon">🧠</div>
-    <h3>Multi-Model Support</h3>
-    <p>OpenAI, Anthropic, Google Gemini, AWS Bedrock, Docker Model Runner, and reusable provider definitions with shared defaults.</p>
-
-  </div>
-  <div class="feature">
-    <div class="feature-icon">📦</div>
-    <h3>Package &amp; Share</h3>
-    <p>Push agents to OCI registries and pull them anywhere — just like Docker images.</p>
-
-  </div>
-  <div class="feature">
-    <div class="feature-icon">🖥️</div>
-    <h3>Multiple Interfaces</h3>
-    <p>Interactive TUI, headless CLI, HTTP API server, MCP mode, and A2A protocol support.</p>
-
-  </div>
-  <div class="feature">
-    <div class="feature-icon">🔒</div>
-    <h3>Security-First Design</h3>
-    <p>Tool confirmation prompts, containerized MCP tools via Docker, client isolation, and resource scoping.</p>
-
-  </div>
-</div>
+- **Multi-Agent Architecture** — Build hierarchical teams of agents that specialize in different tasks and delegate work to each other.
+- **Rich Tool Ecosystem** — Built-in tools for files, shell, memory, and todos. Extend with any MCP server from [Docker's MCP catalog](https://hub.docker.com/u/mcp).
+- **Multi-Model Support** — OpenAI, Anthropic, Google Gemini, AWS Bedrock, Docker Model Runner, and reusable provider definitions with shared defaults.
+- **Package & Share** — Push agents to OCI registries and pull them anywhere — just like Docker images.
+- **Multiple Interfaces** — Interactive TUI, headless CLI, HTTP API server, MCP mode, and A2A protocol support.
+- **Security-First Design** — Tool confirmation prompts, containerized MCP tools via Docker, client isolation, and resource scoping.
 
 ## Why Docker Agent?
 
@@ -97,23 +65,10 @@ agents:
 $ docker agent run agent.yaml
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip</div>
-  <p>Jump straight to the <a href="{{ '/getting-started/quickstart/' | relative_url }}">Quick Start</a> if you want to build your first agent right away.</p>
-
-</div>
+> [!TIP]
+> Jump straight to the [Quick Start](../quickstart/index.md) if you want to build your first agent right away.
 
 ## What's next?
 
-<div class="cards">
-  <a class="card" href="{{ '/getting-started/installation/' | relative_url }}">
-    <div class="card-icon">📥</div>
-    <h3>Installation</h3>
-    <p>Install Docker Agent on macOS, Linux, or Windows.</p>
-  </a>
-  <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
-    <div class="card-icon">⚡</div>
-    <h3>Quick Start</h3>
-    <p>Build your first agent in under 5 minutes.</p>
-  </a>
-</div>
+- **[Installation](../installation/index.md)** — Install Docker Agent on macOS, Linux, or Windows.
+- **[Quick Start](../quickstart/index.md)** — Build your first agent in under 5 minutes.

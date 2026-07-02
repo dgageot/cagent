@@ -1,7 +1,7 @@
 ---
 title: "Shell Tool"
 description: "Execute arbitrary shell commands in the user's environment."
-permalink: /tools/shell/
+keywords: docker agent, ai agents, tools, shell tool
 ---
 
 # Shell Tool
@@ -49,7 +49,7 @@ toolsets:
     safer: true
 ```
 
-This auto-registers the [`safer_shell`](../../configuration/hooks/#built-in-hooks) builtin
+This auto-registers the [`safer_shell`](../../configuration/hooks/index.md#built-in-hooks) builtin
 under `pre_tool_use` with `preempt_yolo: true` so the entry fires
 before `Decide()` / `--yolo`. Three behaviors:
 
@@ -117,14 +117,8 @@ Background job output is captured up to 10 MB per job. All background jobs are a
 
 `view_background_job` and `stop_background_job` each take a single required `job_id` string returned by `run_background_job` or `list_background_jobs`.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Safety
-</div>
-  <p>The shell tool gives agents full access to the system shell. Always set <code>max_iterations</code> on agents that use the shell tool to prevent infinite loops. A value of 20–50 is typical for development agents. Use <a href="{{ '/configuration/sandbox/' | relative_url }}">Sandbox Mode</a> for additional isolation.</p>
-</div>
+> [!WARNING]
+> **Safety**: The shell tool gives agents full access to the system shell. Always set `max_iterations` on agents that use the shell tool to prevent infinite loops. A value of 20–50 is typical for development agents. Use [Sandbox Mode](../../configuration/sandbox/index.md) for additional isolation.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Tool Confirmation
-</div>
-  <p>By default, docker-agent asks for user confirmation before executing shell commands. Use <code>--yolo</code> to auto-approve all tool calls.</p>
-</div>
+> [!NOTE]
+> **Tool Confirmation**: By default, docker-agent asks for user confirmation before executing shell commands. Use `--yolo` to auto-approve all tool calls.

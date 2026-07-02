@@ -1,7 +1,7 @@
 ---
 title: "Anthropic"
 description: "Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with docker-agent."
-permalink: /providers/anthropic/
+keywords: docker agent, ai agents, model providers, anthropic
 ---
 
 # Anthropic
@@ -72,7 +72,7 @@ identity federation: failed to refresh identity token from <kind> source
 (federation_rule=fdrl_…): ...` message in the TUI.
 
 A complete walkthrough of all four sources lives in
-[`examples/anthropic_wif.yaml`]({{ site.examples_url }}/anthropic_wif.yaml).
+[`examples/anthropic_wif.yaml`](https://github.com/docker/docker-agent/blob/main/examples/anthropic_wif.yaml).
 
 ## Configuration
 
@@ -132,7 +132,7 @@ models:
     thinking_budget: high # low | medium | high | xhigh | max (same as adaptive/<effort>)
 ```
 
-On models that reject token-based thinking (Opus 4.6, 4.7, 4.8, Sonnet 4.6), an integer budget is automatically coerced to `adaptive` with a logged warning. See the [Thinking / Reasoning guide]({{ '/guides/thinking/' | relative_url }}) for the full cross-provider reference.
+On models that reject token-based thinking (Opus 4.6, 4.7, 4.8, Sonnet 4.6), an integer budget is automatically coerced to `adaptive` with a logged warning. See the [Thinking / Reasoning guide](../../guides/thinking/index.md) for the full cross-provider reference.
 
 ## Interleaved Thinking
 
@@ -184,7 +184,7 @@ Object form (forward-compatible with future budget types):
       total: 128000
 ```
 
-See the full schema on the [Model Configuration]({{ '/configuration/models/#task-budget' | relative_url }}) page.
+See the full schema on the [Model Configuration](../../configuration/models/index.md#task-budget) page.
 
 ## Server-Side Fallbacks
 
@@ -236,9 +236,5 @@ Valid values:
 
 Note: `thinking_display` applies to both `thinking_budget` with token counts and adaptive/effort-based budgets. Full thinking tokens are billed regardless of the `thinking_display` value.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Note
-</div>
-  <p>Anthropic thinking budget values below 1024 or greater than or equal to <code>max_tokens</code> are ignored (a warning is logged).</p>
-
-</div>
+> [!NOTE]
+> Anthropic thinking budget values below 1024 or greater than or equal to `max_tokens` are ignored (a warning is logged).

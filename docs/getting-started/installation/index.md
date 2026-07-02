@@ -1,7 +1,7 @@
 ---
 title: "Installation"
 description: "Get docker-agent running on your system in minutes."
-permalink: /getting-started/installation/
+keywords: docker agent, ai agents, getting started, installation
 ---
 
 # Installation
@@ -21,12 +21,8 @@ Starting with [Docker Desktop 4.63](https://docs.docker.com/desktop/release-note
 $ docker agent version
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Docker Desktop bundles docker-agent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.</p>
-
-</div>
+> [!TIP]
+> Docker Desktop bundles docker-agent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.
 
 ## Homebrew (macOS / Linux)
 
@@ -84,12 +80,8 @@ With self-updates enabled, docker-agent checks the latest GitHub release before 
 
 Self-updates are fail-safe: if checking, downloading, verifying, installing, or restarting fails, docker-agent keeps running the current binary. Version/help/completion commands and Docker CLI plugin metadata handshakes do not trigger self-updates.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Package-manager installs
-</div>
-  <p>Docker Desktop and Homebrew already manage docker-agent updates. Prefer those update mechanisms when you installed docker-agent that way. Self-updates are mainly intended for standalone release binaries.</p>
-
-</div>
+> [!NOTE]
+> **Package-manager installs**: Docker Desktop and Homebrew already manage docker-agent updates. Prefer those update mechanisms when you installed docker-agent that way. Self-updates are mainly intended for standalone release binaries.
 
 ## Build from Source
 
@@ -113,12 +105,8 @@ task build
 ./bin/docker-agent --help
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Building on Windows
-</div>
-  <p>On Windows, use <code>task build-local</code> instead of <code>task build</code>. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the <code>./dist</code> directory.</p>
-
-</div>
+> [!TIP]
+> **Building on Windows**: On Windows, use `task build-local` instead of `task build`. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the `./dist` directory.
 
 ## Set Up API Keys
 
@@ -133,14 +121,10 @@ export MISTRAL_API_KEY="..."             # Mistral
 export OPENROUTER_API_KEY="..."          # OpenRouter
 ```
 
-See [Configuration Overview]({{ '/configuration/overview/#environment-variables' | relative_url }}) for the full list of supported providers and environment variables.
+See [Configuration Overview](../../configuration/overview/index.md#environment-variables) for the full list of supported providers and environment variables.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Note
-</div>
-  <p>You only need the key(s) for the provider(s) you configure in your agent YAML. If you use Docker Model Runner (DMR), no API key is needed — models run locally.</p>
-
-</div>
+> [!NOTE]
+> You only need the key(s) for the provider(s) you configure in your agent YAML. If you use Docker Model Runner (DMR), no API key is needed — models run locally.
 
 ## Verify Installation
 
@@ -157,15 +141,5 @@ $ docker agent run agentcatalog/pirate
 
 ## What's Next?
 
-<div class="cards">
-  <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
-    <div class="card-icon">⚡</div>
-    <h3>Quick Start</h3>
-    <p>Create and run your first agent in under 5 minutes.</p>
-  </a>
-  <a class="card" href="{{ '/community/troubleshooting/' | relative_url }}">
-    <div class="card-icon">🔧</div>
-    <h3>Troubleshooting</h3>
-    <p>Something not working? Debug mode, common issues, and solutions.</p>
-  </a>
-</div>
+- **[Quick Start](../quickstart/index.md)** — Create and run your first agent in under 5 minutes.
+- **[Troubleshooting](../../community/troubleshooting/index.md)** — Something not working? Debug mode, common issues, and solutions.

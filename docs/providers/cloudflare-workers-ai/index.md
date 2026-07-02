@@ -1,7 +1,7 @@
 ---
 title: "Cloudflare Workers AI"
 description: "Use Cloudflare Workers AI models with docker-agent."
-permalink: /providers/cloudflare-workers-ai/
+keywords: docker agent, ai agents, model providers, cloudflare workers ai
 ---
 
 # Cloudflare Workers AI

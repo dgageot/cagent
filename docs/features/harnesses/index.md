@@ -1,7 +1,7 @@
 ---
 title: "Coding Harnesses"
 description: "Delegate coding tasks to external AI coding CLIs (Claude Code, Codex, opencode) as sub-agents."
-permalink: /features/harnesses/
+keywords: docker agent, ai agents, features, coding harnesses
 ---
 
 # Coding Harnesses
@@ -17,11 +17,8 @@ This pattern gives you the best of both worlds:
 - **External CLI strengths** — deep IDE integration, specialized coding workflows, CLI-native tool access
 - **Docker Agent strengths** — multi-agent coordination, hook-based auditing and policy enforcement, permission controls, OCI distribution, and the full agent config schema
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">When to use harnesses
-</div>
-  <p>Use a harness when you want a Claude Code / Codex / opencode session to act as a sub-agent inside a larger Docker Agent workflow — for example, an orchestrator that plans work and delegates coding tasks to specialized harness agents.</p>
-</div>
+> [!NOTE]
+> **When to use harnesses**: Use a harness when you want a Claude Code / Codex / opencode session to act as a sub-agent inside a larger Docker Agent workflow — for example, an orchestrator that plans work and delegates coding tasks to specialized harness agents.
 
 ## Prerequisites
 
@@ -102,11 +99,8 @@ Harness agents bypass the Docker Agent model pipeline entirely. As a result:
 - **`model:` routing is unavailable.** The harness CLI manages model selection; Docker Agent's `models:` configuration and routing rules do not apply to harness agents.
 - **Token usage tracking depends on the external CLI.** Docker Agent records usage when the CLI reports it (Claude Code and Codex both report usage data). If the CLI does not emit usage data, the session will show zero token usage.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">No Docker Agent toolsets inside a harness
-</div>
-  <p>Do not configure <code>toolsets:</code> on a harness agent — they are silently ignored. If you need Docker Agent toolsets alongside external coding capabilities, use a standard sub-agent with <code>transfer_task</code> rather than a harness.</p>
-</div>
+> [!WARNING]
+> **No Docker Agent toolsets inside a harness**: Do not configure `toolsets:` on a harness agent — they are silently ignored. If you need Docker Agent toolsets alongside external coding capabilities, use a standard sub-agent with `transfer_task` rather than a harness.
 
 ## Hook Behavior
 
@@ -114,7 +108,7 @@ Hooks work normally on harness agents, including `before_llm_call` and `after_ll
 
 The `model_id` field in hook payloads is set to the harness label (e.g. `claude-code`) rather than a canonical `provider/model` string. This applies to `before_llm_call`, `after_llm_call`, and any other event that carries `model_id`.
 
-See [Hooks]({{ '/configuration/hooks/' | relative_url }}) for the full hook reference.
+See [Hooks](../../configuration/hooks/index.md) for the full hook reference.
 
 ## Recipe: Orchestrator + Harness Sub-Agents (Sequential)
 
@@ -193,11 +187,11 @@ agents:
 
 The orchestrator calls `run_background_agent` for each task, monitors progress with `list_background_agents`, and collects results with `view_background_agent`. See the [full example on GitHub](https://github.com/docker/docker-agent/blob/main/examples/coding_harness_background_agents.yaml).
 
-For the general background agents reference, see [Background Agents]({{ '/tools/background-agents/' | relative_url }}).
+For the general background agents reference, see [Background Agents](../../tools/background-agents/index.md).
 
 ## See Also
 
-- [Multi-Agent Systems]({{ '/concepts/multi-agent/' | relative_url }}) — orchestration patterns
-- [Background Agents]({{ '/tools/background-agents/' | relative_url }}) — parallel task dispatch
-- [Hooks]({{ '/configuration/hooks/' | relative_url }}) — auditing and policy enforcement
-- [Agent Configuration]({{ '/configuration/agents/' | relative_url }}) — full agent schema reference
+- [Multi-Agent Systems](../../concepts/multi-agent/index.md) — orchestration patterns
+- [Background Agents](../../tools/background-agents/index.md) — parallel task dispatch
+- [Hooks](../../configuration/hooks/index.md) — auditing and policy enforcement
+- [Agent Configuration](../../configuration/agents/index.md) — full agent schema reference

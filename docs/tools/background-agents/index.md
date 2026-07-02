@@ -1,7 +1,7 @@
 ---
 title: "Background Agents Tool"
 description: "Dispatch work to sub-agents concurrently and collect results asynchronously."
-permalink: /tools/background-agents/
+keywords: docker agent, ai agents, tools, background agents tool
 ---
 
 # Background Agents Tool
@@ -10,7 +10,7 @@ _Dispatch work to sub-agents concurrently and collect results asynchronously._
 
 ## Overview
 
-The background agents tool lets an orchestrator dispatch work to sub-agents concurrently and collect results asynchronously. Unlike [transfer_task]({{ '/tools/transfer-task/' | relative_url }}) (which blocks until the sub-agent finishes), background agent tasks run in parallel — the orchestrator can start several tasks, do other work, and check on them later.
+The background agents tool lets an orchestrator dispatch work to sub-agents concurrently and collect results asynchronously. Unlike [transfer_task](../transfer-task/index.md) (which blocks until the sub-agent finishes), background agent tasks run in parallel — the orchestrator can start several tasks, do other work, and check on them later.
 
 ## Available Tools
 
@@ -70,15 +70,12 @@ agents:
         ref: docker:duckduckgo
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">When to Use
-</div>
-  <p>Use <code>background_agents</code> when your orchestrator needs to fan out work to multiple specialists in parallel — for example, researching several topics simultaneously or running independent code analyses side by side.</p>
-</div>
+> [!TIP]
+> **When to Use**: Use `background_agents` when your orchestrator needs to fan out work to multiple specialists in parallel — for example, researching several topics simultaneously or running independent code analyses side by side.
 
 ## Using Harness Sub-Agents
 
-Background agents work equally well with [harness-backed sub-agents]({{ '/features/harnesses/' | relative_url }}) — sub-agents driven by external coding CLIs such as Claude Code or Codex. This lets you dispatch multiple independent coding tasks in parallel:
+Background agents work equally well with [harness-backed sub-agents](../../features/harnesses/index.md) — sub-agents driven by external coding CLIs such as Claude Code or Codex. This lets you dispatch multiple independent coding tasks in parallel:
 
 ```yaml
 agents:
@@ -108,10 +105,7 @@ agents:
 
 The orchestrator calls `run_background_agent` for each coding task, then uses `list_background_agents` and `view_background_agent` to collect results when they finish.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Harness toolsets are ignored
-</div>
-  <p>Harness agents use the external CLI's own tools — any <code>toolsets:</code> configured on the harness agent are silently ignored. See <a href="{{ '/features/harnesses/' | relative_url }}">Coding Harnesses</a> for details and caveats.</p>
-</div>
+> [!NOTE]
+> **Harness toolsets are ignored**: Harness agents use the external CLI's own tools — any `toolsets:` configured on the harness agent are silently ignored. See [Coding Harnesses](../../features/harnesses/index.md) for details and caveats.
 
 See [`examples/coding_harness_background_agents.yaml`](https://github.com/docker/docker-agent/blob/main/examples/coding_harness_background_agents.yaml) for a complete configuration.

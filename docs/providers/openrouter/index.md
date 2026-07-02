@@ -1,7 +1,7 @@
 ---
 title: "OpenRouter"
 description: "Use OpenRouter models with docker-agent."
-permalink: /providers/openrouter/
+keywords: docker agent, ai agents, model providers, openrouter
 ---
 
 # OpenRouter

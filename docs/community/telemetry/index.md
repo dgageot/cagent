@@ -1,7 +1,7 @@
 ---
 title: "Telemetry"
 description: "docker-agent collects anonymous usage data to help improve the tool. Telemetry can be disabled at any time."
-permalink: /community/telemetry/
+keywords: docker agent, ai agents, community, telemetry
 ---
 
 # Telemetry
@@ -20,12 +20,8 @@ $ TELEMETRY_ENABLED=false docker agent run agent.yaml
 $ export TELEMETRY_ENABLED=false
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Default
-</div>
-  <p>Telemetry is **enabled by default**. Set <code>TELEMETRY_ENABLED=false</code> to opt out.</p>
-
-</div>
+> [!NOTE]
+> **Default**: Telemetry is **enabled by default**. Set `TELEMETRY_ENABLED=false` to opt out.
 
 ## What's Collected ✅
 
@@ -43,12 +39,8 @@ $ export TELEMETRY_ENABLED=false
 - API keys or credentials
 - Personally identifying information (PII)
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">See events locally
-</div>
-  <p>Use <code>--debug</code> to see telemetry events printed to the debug log without sending them anywhere additional.</p>
-
-</div>
+> [!TIP]
+> **See events locally**: Use `--debug` to see telemetry events printed to the debug log without sending them anywhere additional.
 
 ```bash
 docker agent run agent.yaml --debug

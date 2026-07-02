@@ -1,7 +1,7 @@
 ---
 title: "Skills"
 description: "Skills provide specialized instructions that agents can load on demand when a task matches a skill's description."
-permalink: /features/skills/
+keywords: docker agent, ai agents, features, skills
 ---
 
 # Skills
@@ -27,12 +27,8 @@ agents:
       - type: filesystem # required for reading skill files
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Skills are perfect for encoding team-specific workflows (PR review, deployment, coding standards) that apply across projects.</p>
-
-</div>
+> [!TIP]
+> Skills are perfect for encoding team-specific workflows (PR review, deployment, coding standards) that apply across projects.
 
 ## Filtering Skills
 
@@ -111,14 +107,10 @@ Inline skills carry their body in the config itself, so they need no `SKILL.md` 
 | `context`       | No       | Set to `fork` to run the skill as an isolated sub-agent                    |
 | `model`         | No       | Override the model used while running a fork-mode skill                    |
 | `allowed_tools` | No       | For a fork-mode skill, restricts the sub-session to the parent tools whose names match an entry (glob or exact). See [Scoping a fork skill's tools](#scoping-a-fork-skills-tools). |
-| `toolsets`      | No       | For a fork-mode skill, names of top-level [`toolsets`]({{ '/configuration/overview/' | relative_url }}#reusable-toolsets) to expose in the sub-session on top of the inherited tools. |
+| `toolsets`      | No       | For a fork-mode skill, names of top-level [`toolsets`](../../configuration/overview/index.md#reusable-toolsets-toolsets) to expose in the sub-session on top of the inherited tools. |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Inline vs. file-based skills
-</div>
-  <p>Inline skills support the subset of the SKILL.md format that fits in YAML. They cannot bundle supporting files (no <code>read_skill_file</code>) or use <code>!`command`</code> expansion. For skills that need bundled resources or executable helpers, use a <code>SKILL.md</code> directory instead.</p>
-
-</div>
+> [!NOTE]
+> **Inline vs. file-based skills**: Inline skills support the subset of the SKILL.md format that fits in YAML. They cannot bundle supporting files (no `read_skill_file`) or use `!`command`` expansion. For skills that need bundled resources or executable helpers, use a `SKILL.md` directory instead.
 
 ## SKILL.md Format
 
@@ -152,7 +144,7 @@ When asked to create a Dockerfile:
 | `context`        | No       | Set to `fork` to run the skill as an isolated sub-agent (see below)         |
 | `model`          | No       | Override the model used while running the skill as a sub-agent (fork only)  |
 | `allowed-tools`  | No       | For a fork-mode skill, restricts the sub-session to the parent tools whose names match an entry (YAML list or comma-separated string). See [Scoping a fork skill's tools](#scoping-a-fork-skills-tools). |
-| `toolsets`       | No       | For a fork-mode skill, names of top-level [`toolsets`]({{ '/configuration/overview/' | relative_url }}#reusable-toolsets) to expose in the sub-session (YAML list or comma-separated string). |
+| `toolsets`       | No       | For a fork-mode skill, names of top-level [`toolsets`](../../configuration/overview/index.md#reusable-toolsets-toolsets) to expose in the sub-session (YAML list or comma-separated string). |
 | `license`        | No       | License identifier (e.g. `Apache-2.0`)                                      |
 | `compatibility`  | No       | Free-text compatibility notes                                               |
 | `metadata`       | No       | Arbitrary key-value pairs (e.g. `author`, `version`)                        |
@@ -185,12 +177,8 @@ When the agent encounters a task that matches a `context: fork` skill, it uses t
 - **Folds the result** — only the sub-agent's final answer is returned to the parent as the tool result
 - **Inherits the parent's model and tools** — the sub-agent can use all tools available to the parent agent (scope this with `allowed_tools` / `toolsets`, see [Scoping a fork skill's tools](#scoping-a-fork-skills-tools))
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">When to use context: fork
-</div>
-  <p>Use <code>context: fork</code> for skills that involve many steps, heavy tool usage, or that should not clutter the main conversation — for example dependency bumping, large refactors, or code generation pipelines.</p>
-
-</div>
+> [!TIP]
+> **When to use context: fork**: Use `context: fork` for skills that involve many steps, heavy tool usage, or that should not clutter the main conversation — for example dependency bumping, large refactors, or code generation pipelines.
 
 ### Overriding the model for a fork skill
 
@@ -245,7 +233,7 @@ patterns (e.g. `read_*`) and otherwise match exactly. This is the
 Claude-Code-compatible `allowed-tools` field, now enforced for fork
 skills rather than merely recorded.
 
-`toolsets` references reusable [top-level toolsets]({{ '/configuration/overview/' | relative_url }}#reusable-toolsets)
+`toolsets` references reusable [top-level toolsets](../../configuration/overview/index.md#reusable-toolsets-toolsets)
 by name. The referenced toolsets are exposed in the sub-session **in
 addition to** the inherited tools, and they bypass the `allowed_tools`
 filter (the skill explicitly asked for them).
@@ -298,12 +286,8 @@ toolsets:
 ---
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Fork only
-</div>
-  <p>Both fields are rejected by config validation when set on a non-fork skill, and a <code>toolsets</code> entry that doesn't resolve to a top-level toolset is a load-time error.</p>
-
-</div>
+> [!NOTE]
+> **Fork only**: Both fields are rejected by config validation when set on a non-fork skill, and a `toolsets` entry that doesn't resolve to a top-level toolset is a load-time error.
 
 ## Search Paths
 
@@ -350,7 +334,7 @@ When multiple skills share the same name:
 
 ## Skills in Sandbox Mode
 
-When you run an agent with [`--sandbox`]({{ '/configuration/sandbox/' | relative_url }}), the sandbox VM has its own filesystem with no access to your host's skill directories. docker-agent handles this transparently via the [auto-kit]({{ '/configuration/sandbox/' | relative_url }}#auto-kit): every discovered local skill is staged into a per-agent kit on the host, run through best-effort secret redaction (see the [auto-kit]({{ '/configuration/sandbox/' | relative_url }}#secret-redaction) docs), and bind-mounted read-only into the sandbox so the agent sees the same skills inside the VM as on the host. No configuration is required — use `--no-kit` only if you explicitly want to run the sandbox without any host skills.
+When you run an agent with [`--sandbox`](../../configuration/sandbox/index.md), the sandbox VM has its own filesystem with no access to your host's skill directories. docker-agent handles this transparently via the [auto-kit](../../configuration/sandbox/index.md#auto-kit): every discovered local skill is staged into a per-agent kit on the host, run through best-effort secret redaction (see the [auto-kit](../../configuration/sandbox/index.md#secret-redaction) docs), and bind-mounted read-only into the sandbox so the agent sees the same skills inside the VM as on the host. No configuration is required — use `--no-kit` only if you explicitly want to run the sandbox without any host skills.
 
 ## Creating a Skill
 
@@ -378,10 +362,7 @@ EOF
 
 The skill will automatically be available to any agent with skills enabled (`skills: true`, or a list that targets its name — see [Filtering Skills](#filtering-skills)).
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>Skills are enabled in the <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a> with the <code>skills</code> property (boolean or list). For tool-based capabilities, see <a href="{{ '/concepts/tools/' | relative_url }}">Tools</a>.</p>
-  <p>Example configs: <a href="https://github.com/docker/docker-agent/blob/main/examples/skills_inline.yaml"><code>examples/skills_inline.yaml</code></a> (inline skill definition), <a href="https://github.com/docker/docker-agent/blob/main/examples/skills_fork_toolsets.yaml"><code>examples/skills_fork_toolsets.yaml</code></a> (scoping a fork skill's tools), <a href="https://github.com/docker/docker-agent/blob/main/examples/skills_filter.yaml"><code>examples/skills_filter.yaml</code></a> (filtering which skills load).</p>
-
-</div>
+> [!NOTE]
+> **See also**: Skills are enabled in the [Agent Config](../../configuration/agents/index.md) with the `skills` property (boolean or list). For tool-based capabilities, see [Tools](../../concepts/tools/index.md).
+>
+> Example configs: [`examples/skills_inline.yaml`](https://github.com/docker/docker-agent/blob/main/examples/skills_inline.yaml) (inline skill definition), [`examples/skills_fork_toolsets.yaml`](https://github.com/docker/docker-agent/blob/main/examples/skills_fork_toolsets.yaml) (scoping a fork skill's tools), [`examples/skills_filter.yaml`](https://github.com/docker/docker-agent/blob/main/examples/skills_filter.yaml) (filtering which skills load).

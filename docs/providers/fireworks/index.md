@@ -1,7 +1,7 @@
 ---
 title: "Fireworks AI"
 description: "Use Fireworks AI models with docker-agent."
-permalink: /providers/fireworks/
+keywords: docker agent, ai agents, model providers, fireworks ai
 ---
 
 # Fireworks AI

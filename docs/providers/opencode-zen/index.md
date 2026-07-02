@@ -1,7 +1,7 @@
 ---
 title: "OpenCode Zen"
 description: "Use OpenCode Zen models with docker-agent."
-permalink: /providers/opencode-zen/
+keywords: docker agent, ai agents, model providers, opencode zen
 ---
 
 # OpenCode Zen
@@ -121,7 +121,7 @@ These models use the `/v1/responses` endpoint and are auto-detected by docker-ag
 
 ### Anthropic-Compatible (Messages API)
 
-These models use the `/v1/messages` endpoint and require a [custom provider definition]({{ '/providers/custom/' | relative_url }}):
+These models use the `/v1/messages` endpoint and require a [custom provider definition](../custom/index.md):
 
 | Model                   | Description                   |
 | ----------------------- | ----------------------------- |
@@ -163,7 +163,7 @@ agents:
 
 ### Google-Compatible
 
-These models require a [custom provider definition]({{ '/providers/custom/' | relative_url }}) with a Google-compatible client:
+These models require a [custom provider definition](../custom/index.md) with a Google-compatible client:
 
 | Model               | Description              |
 | ------------------- | ------------------------ |

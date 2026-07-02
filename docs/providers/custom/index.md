@@ -1,7 +1,7 @@
 ---
 title: "Provider Definitions"
 description: "Define reusable provider configurations with shared defaults for any provider type — OpenAI, Anthropic, Google, Bedrock, and more."
-permalink: /providers/custom/
+keywords: docker agent, ai agents, model providers, provider definitions
 ---
 
 # Provider Definitions
@@ -17,12 +17,8 @@ The `providers` section in your agent YAML lets you define named provider config
 - **Centralizing credentials** — Define token_key once for all models using a provider
 - **Any provider type** — Works with OpenAI, Anthropic, Google, Bedrock, and any OpenAI-compatible API
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Works with any provider
-</div>
-  <p>The <code>providers</code> section supports all provider types: <code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>amazon-bedrock</code>, <code>dmr</code>, and any built-in alias. When the <code>provider</code> field is not set, it defaults to <code>openai</code> for backward compatibility.</p>
-
-</div>
+> [!NOTE]
+> **Works with any provider**: The `providers` section supports all provider types: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, and any built-in alias. When the `provider` field is not set, it defaults to `openai` for backward compatibility.
 
 ## Configuration
 
@@ -100,7 +96,7 @@ agents:
 | `api_type`            | string     | API schema: `openai_chatcompletions` or `openai_responses`. Only for OpenAI-compatible providers. When omitted, the API type is selected automatically based on the model name: newer models (gpt-4.1, o-series, gpt-5, Codex) default to `openai_responses`; all others default to `openai_chatcompletions`. | `auto (model-dependent)` |
 | `base_url`            | string     | Base URL for the API endpoint. Required for OpenAI-compatible providers, optional for native providers. | —                        |
 | `token_key`           | string     | Environment variable name containing the API token.                                   | —                        |
-| `unload_api`          | string     | Optional path (or absolute URL) to the provider's model-unload endpoint. Used by the [`unload`]({{ '/configuration/hooks/#available-built-ins' | relative_url }}) built-in hook to release model resources between agent switches. Relative paths resolve against `base_url`'s scheme + host; absolute URLs are used verbatim. Today only Docker Model Runner ships a provider that calls this endpoint; cloud providers don't implement the underlying interface and the hook silently skips them. | —                        |
+| `unload_api`          | string     | Optional path (or absolute URL) to the provider's model-unload endpoint. Used by the [`unload`](../../configuration/hooks/index.md#available-built-ins) built-in hook to release model resources between agent switches. Relative paths resolve against `base_url`'s scheme + host; absolute URLs are used verbatim. Today only Docker Model Runner ships a provider that calls this endpoint; cloud providers don't implement the underlying interface and the hook silently skips them. | —                        |
 | `temperature`         | float      | Default sampling temperature (0.0–2.0).                                               | —                        |
 | `max_tokens`          | int        | Default maximum response tokens.                                                      | —                        |
 | `top_p`               | float      | Default nucleus sampling threshold (0.0–1.0).                                         | —                        |
@@ -174,11 +170,8 @@ agents:
     model: local_llm/llama-3.1-8b
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Reasoning tokens from OpenAI-compatible providers
-</div>
-  <p>Models that stream reasoning under <code>delta.reasoning</code> (e.g. Qwen3 served via OVHcloud AI Endpoints, OpenRouter, or a self-hosted vLLM / SGLang deployment) are fully supported. Docker Agent reads both the <code>delta.reasoning_content</code> and <code>delta.reasoning</code> fields from the stream, so thinking blocks are captured and shown in the TUI regardless of which field the server uses.</p>
-</div>
+> [!NOTE]
+> **Reasoning tokens from OpenAI-compatible providers**: Models that stream reasoning under `delta.reasoning` (e.g. Qwen3 served via OVHcloud AI Endpoints, OpenRouter, or a self-hosted vLLM / SGLang deployment) are fully supported. Docker Agent reads both the `delta.reasoning_content` and `delta.reasoning` fields from the stream, so thinking blocks are captured and shown in the TUI regardless of which field the server uses.
 
 ### API Router (Requesty, LiteLLM)
 

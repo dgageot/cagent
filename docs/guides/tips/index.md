@@ -1,7 +1,7 @@
 ---
 title: "Tips & Best Practices"
 description: "Expert guidance for building effective, efficient, and secure agents."
-permalink: /guides/tips/
+keywords: docker agent, ai agents, guides, tips & best practices
 ---
 
 # Tips & Best Practices
@@ -178,7 +178,7 @@ toolsets:
   - type: think # Useful for models without native reasoning
 ```
 
-The agent uses it as a scratchpad for planning and decision-making. If your model already supports a [thinking budget]({{ '/configuration/models/#thinking-budget' | relative_url }}) (e.g., Claude with extended thinking, OpenAI o-series, Gemini with thinking enabled), you don't need this tool — the model can reason internally.
+The agent uses it as a scratchpad for planning and decision-making. If your model already supports a [thinking budget](../../configuration/models/index.md#thinking-budget) (e.g., Claude with extended thinking, OpenAI o-series, Gemini with thinking enabled), you don't need this tool — the model can reason internally.
 
 ## Security Tips
 
@@ -205,7 +205,7 @@ $ docker agent run agent.yaml --yolo
 
 ### Combine Permissions with Sandbox
 
-For defense in depth, use both permissions and [sandbox mode]({{ '/configuration/sandbox/' | relative_url }}):
+For defense in depth, use both permissions and [sandbox mode](../../configuration/sandbox/index.md):
 
 ```yaml
 agents:
@@ -234,7 +234,7 @@ docker-agent run --sandbox agent.yaml
 
 ### Set Global Permission Guardrails
 
-Use [global permissions]({{ '/configuration/permissions/' | relative_url }}#global-permissions) in your user config to enforce safety rules across every agent:
+Use [global permissions](../../configuration/permissions/index.md#global-permissions) in your user config to enforce safety rules across every agent:
 
 ```yaml
 # ~/.config/cagent/config.yaml
@@ -276,22 +276,21 @@ agents:
 
 Understand the difference between `sub_agents` and `handoffs`:
 
-<div class="cards">
-  <div class="card" style="cursor:default;">
-    <h3>sub_agents (transfer_task)</h3>
-    <p>Delegates task to a child in a sub-session, waits for result, then continues. Hierarchical — the parent remains in control.</p>
-    <pre style="margin-top:12px"><code class="language-yaml">sub_agents: [researcher, writer]</code></pre>
-  </div>
-  <div class="card" style="cursor:default;">
-    <h3>handoffs (peer-to-peer)</h3>
-    <p>Hands off the entire conversation to another agent in the same session. The active agent switches and sees the full history. Agents can form cycles.</p>
-    <pre style="margin-top:12px"><code class="language-yaml">handoffs:
-  - specialist
-  - summarizer</code></pre>
-  </div>
-</div>
+- **`sub_agents` (transfer_task)** — delegates a task to a child in a sub-session, waits for the result, then continues. Hierarchical — the parent remains in control.
 
-See <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent Systems</a> for a detailed comparison.
+  ```yaml
+  sub_agents: [researcher, writer]
+  ```
+
+- **`handoffs` (peer-to-peer)** — hands off the entire conversation to another agent in the same session. The active agent switches and sees the full history. Agents can form cycles.
+
+  ```yaml
+  handoffs:
+    - specialist
+    - summarizer
+  ```
+
+See [Multi-Agent Systems](../../concepts/multi-agent/index.md) for a detailed comparison.
 
 ### Give Sub-Agents Clear Descriptions
 

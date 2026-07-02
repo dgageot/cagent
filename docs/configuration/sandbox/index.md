@@ -1,7 +1,7 @@
 ---
 title: "Sandbox Mode"
 description: "Run agents in an isolated Docker sandbox VM for enhanced security."
-permalink: /configuration/sandbox/
+keywords: docker agent, ai agents, configuration, sandbox mode
 ---
 
 # Sandbox Mode
@@ -14,12 +14,8 @@ Sandbox mode runs the entire agent inside a disposable sandbox VM instead of dir
 
 The backend is provided by the [`docker sandbox`](https://docs.docker.com/desktop/features/sandbox/) CLI plugin (ships with Docker Desktop) or the standalone [`sbx`](https://github.com/docker/sbx) CLI if it is on `PATH`.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Requirements
-</div>
-  <p>Sandbox mode requires Docker Desktop with sandbox support (or a working <code>sbx</code> CLI). docker-agent shells out to these tools, it does not start raw <code>docker run</code> containers.</p>
-
-</div>
+> [!NOTE]
+> **Requirements**: Sandbox mode requires Docker Desktop with sandbox support (or a working `sbx` CLI). docker-agent shells out to these tools, it does not start raw `docker run` containers.
 
 ## Usage
 
@@ -53,7 +49,7 @@ docker agent run --sandbox --no-kit agent.yaml
 
 ### Always sandbox a given agent
 
-Add `--sandbox` to an [alias]({{ '/features/cli/' | relative_url }}#aliases) so the
+Add `--sandbox` to an [alias](../../features/cli/index.md#docker-agent-alias) so the
 sandbox path is taken automatically whenever that alias is invoked:
 
 ```bash
@@ -164,7 +160,7 @@ docker agent run --sandbox agent.yaml
 2. A new sandbox VM is created from the image passed via `--template`.
 3. The current working directory is mounted into the VM; the agent binary is copied in.
 4. The [auto-kit](#auto-kit) is staged on the host and bind-mounted read-only into the VM, so the agent sees its skills and prompt files inside the sandbox.
-5. The default-deny network proxy is opened for the configured [models gateway]({{ '/features/cli/' | relative_url }}#runtime-configuration-flags) and any package hosts the auto-installer needs for the agent's MCP/LSP toolsets.
+5. The default-deny network proxy is opened for the configured [models gateway](../../features/cli/index.md#runtime-configuration-flags) and any package hosts the auto-installer needs for the agent's MCP/LSP toolsets.
 6. All tools (shell, filesystem, background jobs, etc.) run inside the VM.
 7. When the session ends, docker-agent exits but does not stop or remove the sandbox VM; both the VM and the kit are kept around so subsequent runs from the same workspace can reuse them. A fresh sandbox is created only when the mount set has changed.
 
@@ -178,7 +174,7 @@ The kit is built whenever `--sandbox` is used with an agent reference. It is opt
 
 For the agent referenced on the command line, the kit collects:
 
-- **Local [skills]({{ '/features/skills/' | relative_url }})** — every `SKILL.md` discovered on the host (global `~/.codex/skills/`, `~/.claude/skills/`, `~/.agents/skills/`, plus project `.claude/skills/` and `.agents/skills/`) is copied under `<kit>/skills/<skill-name>/`. The in-sandbox skills loader reads from the kit instead of the (non-existent) host `$HOME`.
+- **Local [skills](../../features/skills/index.md)** — every `SKILL.md` discovered on the host (global `~/.codex/skills/`, `~/.claude/skills/`, `~/.agents/skills/`, plus project `.claude/skills/` and `.agents/skills/`) is copied under `<kit>/skills/<skill-name>/`. The in-sandbox skills loader reads from the kit instead of the (non-existent) host `$HOME`.
 - **Prompt files** — every file referenced via the agent's `add_prompt_files` (`AGENTS.md`, `CLAUDE.md`, …) is collected. Files that already live under the working directory are left alone (the live workspace mount surfaces them); files outside it (e.g. an `AGENTS.md` in `$HOME`) are copied under `<kit>/prompt_files/`.
 - **A manifest** — `<kit>/manifest.json` records what was staged. The on-disk copy is sanitised so it cannot be used to map the host filesystem from inside the sandbox.
 
@@ -190,7 +186,7 @@ Every text file copied into the kit is run through [portcullis](https://github.c
 
 ### Network allowlist
 
-The sandbox templates ship with a default-deny network proxy that allows the major model providers but blocks `*.docker.com` and every package-registry / source host the auto-installer reaches for. When the agent declares MCP or LSP toolsets that have a `command` and an installable `version`, the kit build resolves each toolset's package against the [aqua](https://aquaproj.github.io/) registry and computes the minimal set of hosts the in-sandbox auto-installer will need (Go module proxy + toolchain bootstrap for `go_install` packages, GitHub release hosts for `github_release` packages, …). Those hosts, `models.dev` (needed so the in-sandbox agent can resolve model metadata such as context limits, pricing, and capabilities — without it the first catalog lookup fails with a `403 Blocked by network policy` error), and the configured [`--models-gateway`]({{ '/features/cli/' | relative_url }}#runtime-configuration-flags) — are then allow-listed on the sandbox proxy. If a per-toolset registry lookup fails, a conservative fallback union is used so the run can still succeed; the affected toolsets are surfaced in the printed summary.
+The sandbox templates ship with a default-deny network proxy that allows the major model providers but blocks `*.docker.com` and every package-registry / source host the auto-installer reaches for. When the agent declares MCP or LSP toolsets that have a `command` and an installable `version`, the kit build resolves each toolset's package against the [aqua](https://aquaproj.github.io/) registry and computes the minimal set of hosts the in-sandbox auto-installer will need (Go module proxy + toolchain bootstrap for `go_install` packages, GitHub release hosts for `github_release` packages, …). Those hosts, `models.dev` (needed so the in-sandbox agent can resolve model metadata such as context limits, pricing, and capabilities — without it the first catalog lookup fails with a `403 Blocked by network policy` error), and the configured [`--models-gateway`](../../features/cli/index.md#runtime-configuration-flags) — are then allow-listed on the sandbox proxy. If a per-toolset registry lookup fails, a conservative fallback union is used so the run can still succeed; the affected toolsets are surfaced in the printed summary.
 
 ### Caching
 
@@ -204,12 +200,9 @@ Pass `--no-kit` to skip the kit build entirely. The agent then runs without any 
 docker agent run --sandbox --no-kit agent.yaml
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Limitations
-</div>
-
-- Sandboxes are reused across runs from the same workspace; if the required mount set changes (e.g. a new kit is staged), the previous sandbox is removed and a fresh one is created.
-- Only the working directory, the agent config directory, and (when staged) the kit directory are mounted; other host files are not visible to the agent.
-- Network egress is constrained by the sandbox backend's default-deny policy plus the per-run allowlist described above.
-
-</div>
+> [!WARNING]
+> **Limitations**:
+>
+> - Sandboxes are reused across runs from the same workspace; if the required mount set changes (e.g. a new kit is staged), the previous sandbox is removed and a fresh one is created.
+> - Only the working directory, the agent config directory, and (when staged) the kit directory are mounted; other host files are not visible to the agent.
+> - Network egress is constrained by the sandbox backend's default-deny policy plus the per-run allowlist described above.

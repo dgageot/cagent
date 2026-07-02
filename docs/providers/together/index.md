@@ -1,7 +1,7 @@
 ---
 title: "Together AI"
 description: "Use Together AI models with docker-agent."
-permalink: /providers/together/
+keywords: docker agent, ai agents, model providers, together ai
 ---
 
 # Together AI

@@ -1,7 +1,7 @@
 ---
 title: "Plan Tool"
 description: "Shared persistent scratchpad for multi-agent collaboration."
-permalink: /tools/plan/
+keywords: docker agent, ai agents, tools, plan tool
 ---
 
 # Plan Tool
@@ -126,8 +126,5 @@ See [`examples/shared_plan.yaml`](https://github.com/docker/docker-agent/blob/ma
 - `list_plans` skips corrupt entries but reports them in a `warnings` field so an agent can detect and recover from a bad state (e.g., by calling `delete_plan`).
 - `delete_plan` can remove a corrupt plan to recover from a bad state.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Plan vs. Todo vs. Tasks
-</div>
-  <p>Use <strong>plan</strong> for shared, free-form documents that multiple agents collaborate on (design docs, requirements, work items). Use <a href="{{ '/tools/todo/' | relative_url }}">todo</a> for lightweight in-session task lists. Use <a href="{{ '/tools/tasks/' | relative_url }}">tasks</a> for a structured, persistent task database with priorities and dependencies.</p>
-</div>
+> [!TIP]
+> **Plan vs. Todo vs. Tasks**: Use **plan** for shared, free-form documents that multiple agents collaborate on (design docs, requirements, work items). Use [todo](../todo/index.md) for lightweight in-session task lists. Use [tasks](../tasks/index.md) for a structured, persistent task database with priorities and dependencies.

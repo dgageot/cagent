@@ -1,7 +1,7 @@
 ---
 title: "Model Routing"
 description: "Route requests to different models based on the content of user messages."
-permalink: /configuration/routing/
+keywords: docker agent, ai agents, configuration, model routing
 ---
 
 # Model Routing
@@ -12,12 +12,8 @@ _Route requests to different models based on the content of user messages._
 
 Model routing lets you define a "router" model that automatically selects the best underlying model based on the user's message. This is useful for cost optimization, specialized handling, or load balancing across models.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">How It Works
-</div>
-  <p>docker-agent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.</p>
-
-</div>
+> [!NOTE]
+> **How It Works**: docker-agent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.
 
 ## Configuration
 
@@ -79,16 +75,13 @@ The router:
 4. Selects the route with the highest overall score
 5. Falls back to the base model if no good match is found
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Writing Good Examples
-</div>
-
-- Use diverse phrasing that captures the intent
-- Include keywords users actually use
-- Add 5-10 examples per route for best results
-- Examples don't need to be exact matches — the router uses semantic similarity
-
-</div>
+> [!TIP]
+> **Writing Good Examples**:
+>
+> - Use diverse phrasing that captures the intent
+> - Include keywords users actually use
+> - Add 5-10 examples per route for best results
+> - Examples don't need to be exact matches — the router uses semantic similarity
 
 ## Use Cases
 
@@ -167,12 +160,9 @@ Look for log entries like:
 "Route matched" model=anthropic/claude-sonnet-4-5 score=2.45
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Limitations
-</div>
-
-- Routing only considers the last user message, not full conversation context
-- Very short messages may not match well — consider your fallback carefully
-- Each routed model creates a separate provider connection
-
-</div>
+> [!WARNING]
+> **Limitations**:
+>
+> - Routing only considers the last user message, not full conversation context
+> - Very short messages may not match well — consider your fallback carefully
+> - Each routed model creates a separate provider connection

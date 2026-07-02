@@ -1,7 +1,7 @@
 ---
 title: "OpenCode Go"
 description: "Use OpenCode Go models with docker-agent."
-permalink: /providers/opencode-go/
+keywords: docker agent, ai agents, model providers, opencode go
 ---
 
 # OpenCode Go
@@ -87,7 +87,7 @@ These models use the `/v1/chat/completions` endpoint and work directly with the 
 
 ### Anthropic-Compatible
 
-These models use the `/v1/messages` endpoint and require a [custom provider definition]({{ '/providers/custom/' | relative_url }}):
+These models use the `/v1/messages` endpoint and require a [custom provider definition](../custom/index.md):
 
 | Model             | Description              |
 | ----------------- | ------------------------ |

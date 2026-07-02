@@ -1,7 +1,7 @@
 ---
 title: "MiniMax"
 description: "Use MiniMax AI models with docker-agent."
-permalink: /providers/minimax/
+keywords: docker agent, ai agents, model providers, minimax
 ---
 
 # MiniMax

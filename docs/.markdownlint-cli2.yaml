@@ -1,12 +1,13 @@
-# markdownlint configuration for Jekyll docs
+# markdownlint configuration for the docs
 #
-# These docs mix Markdown with HTML blocks (callouts, cards, feature grids).
-# Rules that conflict with this pattern are disabled.
+# The docs are portable Markdown rendered by both Jekyll (github.io) and
+# Hugo (docs.docker.com via module mount). Rules that conflict with the
+# established docs style are disabled.
 
 config:
   default: true
 
-  # Allow inline HTML — callouts, cards, and feature-grids are HTML
+  # Allow inline HTML — the landing page and a few widgets (<kbd>, images) use it
   MD033: false
 
   # Don't enforce line length — HTML blocks and tables often exceed 80 chars
@@ -14,6 +15,15 @@ config:
 
   # Allow multiple top-level headings — front matter title + # Heading is normal
   MD025: false
+
+  # Shell samples deliberately use "$ " prompts (see STYLE.md § Code samples)
+  MD014: false
+
+  # Adjacent > [!NOTE] alerts are separated by a blank line by design
+  MD028: false
+
+  # Don't enforce table pipe alignment
+  MD060: false
 
   # Allow duplicate headings — different sections may reuse heading text
   MD024:

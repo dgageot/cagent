@@ -1,7 +1,7 @@
 ---
 title: "RAG Tool"
 description: "Give your agents access to document knowledge bases with background indexing, multiple retrieval strategies, and hybrid search."
-permalink: /tools/rag/
+keywords: docker agent, ai agents, tools, rag tool
 ---
 
 # RAG Tool
@@ -79,12 +79,8 @@ strategies:
       code_aware: true # AST-aware chunking
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Trade-offs
-</div>
-  <p>Semantic embeddings provide higher quality retrieval but slower indexing (LLM call per chunk) and additional API costs.</p>
-
-</div>
+> [!NOTE]
+> **Trade-offs**: Semantic embeddings provide higher quality retrieval but slower indexing (LLM call per chunk) and additional API costs.
 
 ### BM25 (Keyword Search)
 
@@ -166,12 +162,8 @@ chunking:
   code_aware: true # Uses tree-sitter for AST-based chunking
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Language Support
-</div>
-  <p>Currently supports Go (<code>.go</code>) files. More languages will be added. Falls back to plain text chunking for unsupported file types.</p>
-
-</div>
+> [!NOTE]
+> **Language Support**: Currently supports Go (`.go`) files. More languages will be added. Falls back to plain text chunking for unsupported file types.
 
 ## Debugging RAG
 
@@ -188,12 +180,8 @@ Look for log tags: `[RAG Manager]`, `[Chunked-Embeddings Strategy]`, `[BM25 Stra
 - **Indexing** — the entire indexing run is aborted after the first permanent failure (including 429). The error is surfaced in the logs so you know immediately if a model name or API key is wrong, rather than silently producing incomplete results.
 - **Reranking** — a permanent error (including 429) permanently disables the reranker for the lifetime of the manager. Subsequent queries fall back to un-reranked results. Only transient errors (5xx, timeouts) fall back and retry on the next query.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Examples
-</div>
-  <p>See the <a href="https://github.com/docker/docker-agent/tree/main/examples/rag">RAG examples</a> in the GitHub repo for complete, runnable configurations.</p>
-
-</div>
+> [!TIP]
+> **Examples**: See the [RAG examples](https://github.com/docker/docker-agent/tree/main/examples/rag) in the GitHub repo for complete, runnable configurations.
 
 ## Configuration Reference
 

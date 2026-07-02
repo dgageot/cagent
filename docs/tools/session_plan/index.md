@@ -1,7 +1,7 @@
 ---
 title: "Session Plan Tool"
 description: "Per-session plan tracker for the draft, review, execute workflow."
-permalink: /tools/session_plan/
+keywords: docker agent, ai agents, tools, session plan tool
 ---
 
 # Session Plan Tool
@@ -12,11 +12,11 @@ _Per-session plan tracker for the "draft, review, execute" workflow._
 
 The `session_plan` toolset gives one agent a place to write a plan for the current session, signal that the plan is ready, and let the host route the next turn to an executing agent.
 
-Different from the [`plan` toolset](/tools/plan/) — `plan` is for shared, named plans multiple agents collaborate on over many sessions. `session_plan` is for one ephemeral plan per session, scoped to that session by ID.
+Different from the [`plan` toolset](../plan/index.md) — `plan` is for shared, named plans multiple agents collaborate on over many sessions. `session_plan` is for one ephemeral plan per session, scoped to that session by ID.
 
 Plans live as Markdown files under:
 
-```
+```text
 ~/.cagent/session_plans/<session-id>.md
 ```
 
@@ -120,8 +120,5 @@ See [`examples/session_plan.yaml`](https://github.com/docker/docker-agent/blob/m
 - `read_session_plan` and `exit_plan_mode` return a "no plan written yet" error when called before `write_session_plan`.
 - `write_session_plan` validates the session ID and refuses to write anything that could escape the plans directory; in practice the runtime generates UUIDs so this only triggers if an embedder supplies a hand-crafted ID.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">session_plan vs. plan vs. todo vs. tasks
-</div>
-  <p>Use <strong>session_plan</strong> when one agent drafts an approach for the user to review before another agent executes it (ephemeral, one per session). Use <a href="{{ '/tools/plan/' | relative_url }}">plan</a> for shared, named plans multiple agents collaborate on over many sessions. Use <a href="{{ '/tools/todo/' | relative_url }}">todo</a> for lightweight in-session task lists. Use <a href="{{ '/tools/tasks/' | relative_url }}">tasks</a> for a structured, persistent task database with priorities and dependencies.</p>
-</div>
+> [!TIP]
+> **session_plan vs. plan vs. todo vs. tasks**: Use **session_plan** when one agent drafts an approach for the user to review before another agent executes it (ephemeral, one per session). Use [plan](../plan/index.md) for shared, named plans multiple agents collaborate on over many sessions. Use [todo](../todo/index.md) for lightweight in-session task lists. Use [tasks](../tasks/index.md) for a structured, persistent task database with priorities and dependencies.

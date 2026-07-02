@@ -1,7 +1,7 @@
 ---
 title: "Structured Output"
 description: "Force the agent to respond with JSON matching a specific schema."
-permalink: /configuration/structured-output/
+keywords: docker agent, ai agents, configuration, structured output
 ---
 
 # Structured Output
@@ -12,15 +12,13 @@ _Force the agent to respond with JSON matching a specific schema._
 
 Structured output constrains the agent's responses to match a predefined JSON schema. This is useful for building agents that need to produce machine-readable output for downstream processing, API responses, or integration with other systems.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">When to Use</div>
-<ul>
-<li>Building API endpoints that need consistent JSON responses</li>
-<li>Data extraction and transformation pipelines</li>
-<li>Agents that feed into other automated systems</li>
-<li>Ensuring predictable output format for parsing</li>
-</ul>
-</div>
+> [!NOTE]
+> **When to Use**:
+>
+> - Building API endpoints that need consistent JSON responses
+> - Data extraction and transformation pipelines
+> - Agents that feed into other automated systems
+> - Ensuring predictable output format for parsing
 
 ## Configuration
 
@@ -123,16 +121,8 @@ schema:
 
 When `strict: true`, the model is constrained to only produce output that exactly matches the schema. This provides stronger guarantees but may limit the model's flexibility.
 
-<div class="cards">
-  <div class="card" style="cursor:default;">
-    <h3>strict: false (default)</h3>
-    <p>Model aims to match schema but may include additional fields or slight variations.</p>
-  </div>
-  <div class="card" style="cursor:default;">
-    <h3>strict: true</h3>
-    <p>Model output is constrained to exactly match the schema. Stronger guarantees.</p>
-  </div>
-</div>
+- **`strict: false` (default)** — model aims to match the schema but may include additional fields or slight variations.
+- **`strict: true`** — model output is constrained to exactly match the schema. Stronger guarantees.
 
 ## Provider Support
 
@@ -221,7 +211,5 @@ agents:
         required: ["category", "priority", "confidence"]
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Tool Limitations</div>
-<p>When using structured output, the agent typically cannot use tools since its response format is constrained to the schema. Design your agent workflow accordingly — structured output agents work best for single-turn analysis or extraction tasks.</p>
-</div>
+> [!WARNING]
+> **Tool Limitations**: When using structured output, the agent typically cannot use tools since its response format is constrained to the schema. Design your agent workflow accordingly — structured output agents work best for single-turn analysis or extraction tasks.

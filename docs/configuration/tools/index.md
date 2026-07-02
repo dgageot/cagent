@@ -1,7 +1,7 @@
 ---
 title: "Tool Configuration"
 description: "Complete reference for configuring built-in tools, MCP tools, and Docker-based tools."
-permalink: /configuration/tools/
+keywords: docker agent, ai agents, configuration, tool configuration
 ---
 
 # Tool Configuration
@@ -14,29 +14,29 @@ Built-in tools are included with docker-agent and require no external dependenci
 
 | Type | Description | Page |
 | --- | --- | --- |
-| `filesystem` | Read, write, list, search, navigate | [Filesystem]({{ '/tools/filesystem/' | relative_url }}) |
-| `shell` | Execute shell commands (sync + background jobs) | [Shell]({{ '/tools/shell/' | relative_url }}) |
-| `think` | Reasoning scratchpad | [Think]({{ '/tools/think/' | relative_url }}) |
-| `plan` | Shared persistent scratchpad for multi-agent collaboration | [Plan]({{ '/tools/plan/' | relative_url }}) |
-| `session_plan` | Per-session markdown plan for the draft-review-execute workflow | [Session Plan]({{ '/tools/session_plan/' | relative_url }}) |
-| `session_context` | Reference a previous session as context (read-only) | [Session Context]({{ '/tools/session_context/' | relative_url }}) |
-| `todo` | Task list management | [Todo]({{ '/tools/todo/' | relative_url }}) |
-| `memory` | Persistent key-value storage (SQLite) | [Memory]({{ '/tools/memory/' | relative_url }}) |
-| `tasks` | Persistent task database shared across sessions | [Tasks]({{ '/tools/tasks/' | relative_url }}) |
-| `fetch` | HTTP `GET` requests with text/markdown/html output | [Fetch]({{ '/tools/fetch/' | relative_url }}) |
-| `script` | Custom shell scripts as tools | [Script]({{ '/tools/script/' | relative_url }}) |
-| `lsp` | Language Server Protocol integration | [LSP]({{ '/tools/lsp/' | relative_url }}) |
-| `api` | Custom HTTP API tools | [API]({{ '/tools/api/' | relative_url }}) |
-| `openapi` | Import every operation of an OpenAPI 3.x document as tools | [OpenAPI]({{ '/tools/openapi/' | relative_url }}) |
-| `rag` | Retrieval-augmented generation over indexed sources | [RAG]({{ '/tools/rag/' | relative_url }}) |
-| `model_picker` | Let the agent pick between several models per turn | [Model Picker]({{ '/tools/model-picker/' | relative_url }}) |
-| `user_prompt` | Interactive user input | [User Prompt]({{ '/tools/user-prompt/' | relative_url }}) |
-| `open_url` | Open a fixed URL in the user's default browser | [Open URL]({{ '/tools/open-url/' | relative_url }}) |
-| `transfer_task` | Delegate to sub-agents (auto-enabled) | [Transfer Task]({{ '/tools/transfer-task/' | relative_url }}) |
-| `background_agents` | Parallel sub-agent dispatch | [Background Agents]({{ '/tools/background-agents/' | relative_url }}) |
-| `handoff` | Local conversation handoff to another agent in the same config (auto-enabled by `handoffs:`) | [Handoff]({{ '/tools/handoff/' | relative_url }}) |
-| `a2a` | A2A remote agent connection | [A2A]({{ '/tools/a2a/' | relative_url }}) |
-| `mcp_catalog` | Discover and activate remote MCP servers from the Docker MCP Catalog on demand | [MCP Catalog]({{ '/tools/mcp-catalog/' | relative_url }}) |
+| `filesystem` | Read, write, list, search, navigate | [Filesystem](../../tools/filesystem/index.md) |
+| `shell` | Execute shell commands (sync + background jobs) | [Shell](../../tools/shell/index.md) |
+| `think` | Reasoning scratchpad | [Think](../../tools/think/index.md) |
+| `plan` | Shared persistent scratchpad for multi-agent collaboration | [Plan](../../tools/plan/index.md) |
+| `session_plan` | Per-session markdown plan for the draft-review-execute workflow | [Session Plan](../../tools/session_plan/index.md) |
+| `session_context` | Reference a previous session as context (read-only) | [Session Context](../../tools/session_context/index.md) |
+| `todo` | Task list management | [Todo](../../tools/todo/index.md) |
+| `memory` | Persistent key-value storage (SQLite) | [Memory](../../tools/memory/index.md) |
+| `tasks` | Persistent task database shared across sessions | [Tasks](../../tools/tasks/index.md) |
+| `fetch` | HTTP `GET` requests with text/markdown/html output | [Fetch](../../tools/fetch/index.md) |
+| `script` | Custom shell scripts as tools | [Script](../../tools/script/index.md) |
+| `lsp` | Language Server Protocol integration | [LSP](../../tools/lsp/index.md) |
+| `api` | Custom HTTP API tools | [API](../../tools/api/index.md) |
+| `openapi` | Import every operation of an OpenAPI 3.x document as tools | [OpenAPI](../../tools/openapi/index.md) |
+| `rag` | Retrieval-augmented generation over indexed sources | [RAG](../../tools/rag/index.md) |
+| `model_picker` | Let the agent pick between several models per turn | [Model Picker](../../tools/model-picker/index.md) |
+| `user_prompt` | Interactive user input | [User Prompt](../../tools/user-prompt/index.md) |
+| `open_url` | Open a fixed URL in the user's default browser | [Open URL](../../tools/open-url/index.md) |
+| `transfer_task` | Delegate to sub-agents (auto-enabled) | [Transfer Task](../../tools/transfer-task/index.md) |
+| `background_agents` | Parallel sub-agent dispatch | [Background Agents](../../tools/background-agents/index.md) |
+| `handoff` | Local conversation handoff to another agent in the same config (auto-enabled by `handoffs:`) | [Handoff](../../tools/handoff/index.md) |
+| `a2a` | A2A remote agent connection | [A2A](../../tools/a2a/index.md) |
+| `mcp_catalog` | Discover and activate remote MCP servers from the Docker MCP Catalog on demand | [MCP Catalog](../../tools/mcp-catalog/index.md) |
 
 **Example:**
 
@@ -52,13 +52,10 @@ toolsets:
 
 ## MCP Tools
 
-Extend agents with external tools via the [Model Context Protocol](https://modelcontextprotocol.io/). For a standalone overview of the `mcp` toolset see the [MCP tool page]({{ '/tools/mcp/' | relative_url }}).
+Extend agents with external tools via the [Model Context Protocol](https://modelcontextprotocol.io/). For a standalone overview of the `mcp` toolset see the [MCP tool page](../../tools/mcp/index.md).
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Reusable MCP definitions
-</div>
-  <p>Repeated MCP server definitions can be hoisted into the top-level <code>mcps:</code> section and referenced by name with <code>{type: mcp, ref: &lt;name&gt;}</code>. See <a href="{{ '/configuration/overview/#reusable-mcp-servers-mcps' | relative_url }}">Reusable MCP Servers</a>.</p>
-</div>
+> [!TIP]
+> **Reusable MCP definitions**: Repeated MCP server definitions can be hoisted into the top-level `mcps:` section and referenced by name with `{type: mcp, ref: <name>}`. See [Reusable MCP Servers](../overview/index.md#reusable-mcp-servers-mcps).
 
 ### Docker MCP (Recommended)
 
@@ -80,7 +77,7 @@ Browse available tools at the [Docker MCP Catalog](https://hub.docker.com/search
 | `tools`       | array  | Optional: only expose these tools                                |
 | `instruction` | string | Custom instructions injected into the agent's context            |
 | `config`      | any    | MCP server-specific configuration (passed during initialization) |
-| `working_dir` | string | Working directory for the MCP gateway subprocess. Only applies when the catalog entry runs as a local process (not remote). Relative paths are resolved against the agent's working directory. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details]({{ '/configuration/overview/#variable-expansion-in-config-fields' | relative_url }})). |
+| `working_dir` | string | Working directory for the MCP gateway subprocess. Only applies when the catalog entry runs as a local process (not remote). Relative paths are resolved against the agent's working directory. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details](../overview/index.md#variable-expansion-in-config-fields)). |
 
 ### Local MCP (stdio)
 
@@ -102,7 +99,7 @@ toolsets:
 | `args` | array | Command arguments |
 | `tools` | array | Optional: only expose these tools |
 | `env` | object | Environment variables (key-value pairs) |
-| `working_dir` | string | Working directory for the MCP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details]({{ '/configuration/overview/#variable-expansion-in-config-fields' | relative_url }})). |
+| `working_dir` | string | Working directory for the MCP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details](../overview/index.md#variable-expansion-in-config-fields)). |
 | `instruction` | string | Custom instructions injected into the agent's context |
 | `version` | string | Package reference for [auto-installing](#auto-installing-tools) the command binary |
 
@@ -208,11 +205,8 @@ export DOCKER_AGENT_AUTO_INSTALL=false
 
 Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are only downloaded once.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Auto-install supports both Go packages (via <code>go install</code>) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.</p>
-</div>
+> [!TIP]
+> Auto-install supports both Go packages (via `go install`) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.
 
 ## Toolset Lifecycle
 
@@ -276,11 +270,8 @@ toolsets:
 | `startup_timeout` | duration | Cap on the initial connect+initialize duration. Today this is informational; the eager-startup phase that enforces it ships in a follow-up. |
 | `call_timeout` | duration | Documented per-call timeout. Informational; the runtime currently uses the caller's context for cancellation. |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title"><code>required</code> and <code>startup_timeout</code> are not yet enforced
-</div>
-  <p>The schema validates these fields and the supervisor stores them, but no code path acts on them yet. They are documented now so config files written today keep working when the planned eager-startup phase lands. Picking the <code>strict</code> profile is forward-compatible — it will start enforcing <code>required=true</code> automatically.</p>
-</div>
+> [!NOTE]
+> **`required` and `startup_timeout` are not yet enforced**: The schema validates these fields and the supervisor stores them, but no code path acts on them yet. They are documented now so config files written today keep working when the planned eager-startup phase lands. Picking the `strict` profile is forward-compatible — it will start enforcing `required=true` automatically.
 
 ### Inspecting and restarting toolsets at runtime
 
@@ -289,7 +280,7 @@ The TUI exposes the supervisor through two slash commands:
 - `/tools` — the unified tools dialog. Its top section lists every toolset on the current agent with its lifecycle state (`Stopped`, `Starting`, `Ready`, `Degraded`, `Restarting`, `Failed`), restart count, and last error; its bottom section lists every tool the agent can call, grouped by category. Use this to answer both "what can the agent do?" and "is anything degraded?" with one command.
 - `/toolset-restart <name>` — force the supervisor to reconnect the named toolset. Useful after completing OAuth, when a remote MCP server has been redeployed, or when an LSP like `gopls` is stuck.
 
-See the [TUI reference]({{ '/features/tui/' | relative_url }}) for the full list of slash commands.
+See the [TUI reference](../../features/tui/index.md) for the full list of slash commands.
 
 See [`examples/lifecycle.yaml`](https://github.com/docker/docker-agent/blob/main/examples/lifecycle.yaml) for a complete lifecycle configuration example.
 
@@ -313,11 +304,8 @@ toolsets:
 
 When a tool's output is not valid JSON, it is returned unchanged — TOON encoding is best-effort and never breaks tools that emit plain text.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">When to use TOON
-</div>
-  <p>TOON typically yields 30-60% smaller payloads than equivalent JSON for MCP tools that return arrays of records (issue lists, search results, file listings, …). It works best when the schema is regular; one-off responses with deeply nested or heterogeneous shapes may benefit less.</p>
-</div>
+> [!NOTE]
+> **When to use TOON**: TOON typically yields 30-60% smaller payloads than equivalent JSON for MCP tools that return arrays of records (issue lists, search results, file listings, …). It works best when the schema is regular; one-off responses with deeply nested or heterogeneous shapes may benefit less.
 
 ## Per-Toolset Model Routing
 
@@ -366,11 +354,8 @@ toolsets:
     tools: ["shell"]
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Filtering tools improves agent performance — fewer tools means less confusion for the model about which tool to use.</p>
-</div>
+> [!TIP]
+> Filtering tools improves agent performance — fewer tools means less confusion for the model about which tool to use.
 
 ## Tool Instructions
 
@@ -504,8 +489,5 @@ agents:
             Authorization: "Bearer ${env.INTERNAL_TOKEN}"
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Toolset Order Matters
-</div>
-  <p>If multiple toolsets provide a tool with the same name, the first one wins. Order your toolsets intentionally.</p>
-</div>
+> [!WARNING]
+> **Toolset Order Matters**: If multiple toolsets provide a tool with the same name, the first one wins. Order your toolsets intentionally.

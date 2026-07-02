@@ -1,7 +1,7 @@
 ---
 title: "Moonshot AI"
 description: "Use Moonshot AI (Kimi) models with docker-agent."
-permalink: /providers/moonshot/
+keywords: docker agent, ai agents, model providers, moonshot ai
 ---
 
 # Moonshot AI

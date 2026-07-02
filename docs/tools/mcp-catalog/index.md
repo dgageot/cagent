@@ -1,7 +1,7 @@
 ---
 title: "MCP Catalog Tool"
 description: "Let the agent discover and activate remote MCP servers from the Docker MCP Catalog on demand."
-permalink: /tools/mcp-catalog/
+keywords: docker agent, ai agents, tools, mcp catalog tool
 ---
 
 # MCP Catalog Tool
@@ -14,11 +14,8 @@ The `mcp_catalog` toolset gives an agent access to a curated subset of the [Dock
 
 Servers are **not** active by default. Instead, the toolset exposes a small set of meta-tools the agent uses to search, enable, and disable servers as a turn unfolds. Tools from un-enabled servers stay hidden, so the prompt is not flooded with hundreds of tool definitions the agent will never use.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">When to use it
-</div>
-  <p>Use <code>mcp_catalog</code> when you want the agent to <em>decide at runtime</em> which third-party services it needs (Notion, Stripe, Brave Search, …) instead of pinning that decision in YAML up front. For a fixed set of servers, declare each one with <a href="{{ '/configuration/tools/#mcp-tools' | relative_url }}"><code>type: mcp</code></a> directly — the catalog adds an extra layer of meta-tools that pure <code>type: mcp</code> entries do not need.</p>
-</div>
+> [!NOTE]
+> **When to use it**: Use `mcp_catalog` when you want the agent to _decide at runtime_ which third-party services it needs (Notion, Stripe, Brave Search, …) instead of pinning that decision in YAML up front. For a fixed set of servers, declare each one with [`type: mcp`](../../configuration/tools/index.md#mcp-tools) directly — the catalog adds an extra layer of meta-tools that pure `type: mcp` entries do not need.
 
 ## Configuration
 
@@ -77,7 +74,7 @@ The catalog only includes servers docker-agent can authenticate itself, so there
 - **`oauth`** — `enable_remote_mcp_server` surfaces an authorization URL through the elicitation pipeline (the same one used by YAML-declared remote MCP toolsets) and blocks until the user either authorizes or cancels. Once the user authorizes, tokens are persisted in the OS keyring and re-used on subsequent runs. Use `reset_remote_mcp_server_auth` to wipe them. If the user dismisses the dialog, `enable` returns an error result naming the decline so the agent can ask whether to retry.
 - **`none`** — No authentication. The server is reachable as soon as it is enabled.
 
-Servers that require a caller-provided API key are intentionally excluded from the catalog. To use one, declare it explicitly with [`type: mcp`]({{ '/configuration/tools/#mcp-tools' | relative_url }}) and supply the key via an environment variable.
+Servers that require a caller-provided API key are intentionally excluded from the catalog. To use one, declare it explicitly with [`type: mcp`](../../configuration/tools/index.md#mcp-tools) and supply the key via an environment variable.
 
 ## Example
 
@@ -101,14 +98,11 @@ A complete, runnable configuration lives in [`examples/mcp_catalog.yaml`](https:
 
 ## Notes and Limitations
 
-- **Streamable-http only.** The catalog deliberately excludes servers that require a local subprocess or the MCP gateway — declare those with [`type: mcp`]({{ '/configuration/tools/#mcp-tools' | relative_url }}) instead.
+- **Streamable-http only.** The catalog deliberately excludes servers that require a local subprocess or the MCP gateway — declare those with [`type: mcp`](../../configuration/tools/index.md#mcp-tools) instead.
 - **Catalog membership changes between releases.** The set of available servers is updated with each docker-agent release as integrations are added or removed. Servers present in one release may not appear in the next.
 - **Blocking enable.** DNS, TCP, MCP handshake and any OAuth flow happen synchronously inside `enable_remote_mcp_server` so the agent gets a deterministic result in the same turn. On startup, however, the runtime probes tools non-interactively (`mcp.WithoutInteractivePrompts`); OAuth-pending servers fail fast there and are silently deferred to the next interactive turn — including the sidebar-only tool-count pass, where a dialog would be impossible.
 - **No prompt discovery.** MCP prompt lookups (`/prompts`) walk YAML-declared `mcp` toolsets directly; prompts exposed by servers activated through the catalog are not surfaced. Tools — the primary interface — work fine.
 - **Frozen at build time.** The list of servers is embedded in the binary. New entries land with each docker-agent release.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Pair with permissions
-</div>
-  <p>Because the agent decides which third-party services to talk to, this toolset works best with explicit <a href="{{ '/configuration/permissions/' | relative_url }}">permissions</a> on the surrounding tools (filesystem writes, shell commands) so a misrouted server cannot exfiltrate data unnoticed.</p>
-</div>
+> [!TIP]
+> **Pair with permissions**: Because the agent decides which third-party services to talk to, this toolset works best with explicit [permissions](../../configuration/permissions/index.md) on the surrounding tools (filesystem writes, shell commands) so a misrouted server cannot exfiltrate data unnoticed.

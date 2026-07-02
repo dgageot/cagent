@@ -1,7 +1,7 @@
 ---
 title: "Agent Distribution"
 description: "Package, share, and run agents via OCI-compatible registries — just like container images."
-permalink: /concepts/distribution/
+keywords: docker agent, ai agents, concepts, agent distribution
 ---
 
 # Agent Distribution
@@ -12,12 +12,8 @@ _Package, share, and run agents via OCI-compatible registries — just like cont
 
 docker-agent agents can be pushed to any OCI-compatible registry (Docker Hub, GitHub Container Registry, etc.) and pulled/run anywhere. This makes sharing agents as easy as sharing Docker images.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>For CLI commands related to distribution, see <a href="{{ '/features/cli/' | relative_url }}">CLI Reference</a> (<code>docker agent share push</code>, <code>docker agent share pull</code>, <code>docker agent alias</code>).</p>
-
-</div>
+> [!TIP]
+> For CLI commands related to distribution, see [CLI Reference](../../features/cli/index.md) (`docker agent share push`, `docker agent share pull`, `docker agent alias`).
 
 ## Pushing Agents
 
@@ -85,7 +81,7 @@ External sub-agents are automatically named after their last path segment. Use t
 
 Tag references are checked against the registry on every `docker agent run`, which adds a network round-trip per sub-agent at startup. Pin them to a digest (`agentcatalog/pirate@sha256:…`) to serve them from cache instead.
 
-See [Pin external sub-agents to a digest]({{ '/concepts/multi-agent/#pin-external-sub-agents-to-a-digest' | relative_url }}) and [External Sub-Agents]({{ '/concepts/multi-agent/#external-sub-agents-from-registries' | relative_url }}) for details.
+See [Pin external sub-agents to a digest](../multi-agent/index.md#pin-external-sub-agents-to-a-digest) and [External Sub-Agents](../multi-agent/index.md#external-sub-agents-from-registries) for details.
 
 ## Using with Aliases
 
@@ -121,19 +117,13 @@ $ docker agent share push ./agent.yaml docker.io/myorg/private-agent:latest
 $ docker agent run docker.io/myorg/private-agent:latest
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Docker Desktop credentials
-</div>
-  <p>When pulling or running an agent from a <code>docker.com</code> or <code>*.docker.com</code> HTTPS URL (e.g. <code>desktop.docker.com</code>), docker-agent automatically forwards your Docker Desktop JWT for authentication — no explicit login required when Docker Desktop is running and signed in.</p>
-  <p>Note: <code>docker.io</code> (the standard Docker Hub registry domain) is a separate domain and is <strong>not</strong> covered by automatic JWT forwarding. Agents pulled from <code>docker.io</code> or <code>registry-1.docker.io</code> still require <code>docker login docker.io</code> for private repositories.</p>
-</div>
+> [!NOTE]
+> **Docker Desktop credentials**: When pulling or running an agent from a `docker.com` or `*.docker.com` HTTPS URL (e.g. `desktop.docker.com`), docker-agent automatically forwards your Docker Desktop JWT for authentication — no explicit login required when Docker Desktop is running and signed in.
+>
+> Note: `docker.io` (the standard Docker Hub registry domain) is a separate domain and is **not** covered by automatic JWT forwarding. Agents pulled from `docker.io` or `registry-1.docker.io` still require `docker login docker.io` for private repositories.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Troubleshooting
-</div>
-  <p>Having issues with push/pull? See <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> for common registry issues.</p>
-
-</div>
+> [!NOTE]
+> **Troubleshooting**: Having issues with push/pull? See [Troubleshooting](../../community/troubleshooting/index.md) for common registry issues.
 
 ## Local Development
 

@@ -1,7 +1,7 @@
 ---
 title: "Chat Server"
 description: "Expose your agents through an OpenAI-compatible Chat Completions API so any tool that already speaks OpenAI can drive a docker-agent agent."
-permalink: /features/chat-server/
+keywords: docker agent, ai agents, features, chat server
 ---
 
 # Chat Server
@@ -35,12 +35,8 @@ $ docker agent serve chat agentcatalog/pirate --listen 127.0.0.1:9090
 $ docker agent serve chat agent.yaml --api-key-env CHAT_BEARER_TOKEN
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">When to use chat server vs. API server
-</div>
-  <p>Use the <strong>chat server</strong> when you want to plug docker-agent into existing OpenAI-compatible tooling (chat UIs, IDE integrations, OpenAI SDK clients). Use the <a href="{{ '/features/api-server/' | relative_url }}">API server</a> when you want full control over sessions, agent execution, tool-call confirmations, and streamed runtime events.</p>
-
-</div>
+> [!TIP]
+> **When to use chat server vs. API server**: Use the **chat server** when you want to plug docker-agent into existing OpenAI-compatible tooling (chat UIs, IDE integrations, OpenAI SDK clients). Use the [API server](../api-server/index.md) when you want full control over sessions, agent execution, tool-call confirmations, and streamed runtime events.
 
 ## Endpoints
 
@@ -169,12 +165,8 @@ Clients must then send an `Authorization: Bearer <token>` header on every
 request to `/v1/*`. Both `/v1/models` and `/v1/chat/completions` are
 protected once a key is set.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Public exposure
-</div>
-  <p>The default listen address is <code>127.0.0.1:8083</code>. If you bind to a non-loopback address, always set <code>--api-key</code> or <code>--api-key-env</code> — there is no other authentication layer.</p>
-
-</div>
+> [!WARNING]
+> **Public exposure**: The default listen address is `127.0.0.1:8083`. If you bind to a non-loopback address, always set `--api-key` or `--api-key-env` — there is no other authentication layer.
 
 ## CORS
 
@@ -205,7 +197,7 @@ docker agent serve chat <agent-file>|<registry-ref> [flags]
 | `--conversation-ttl <dur>`    | `30m`              | Idle TTL after which a cached conversation is evicted.                                                            |
 | `--max-idle-runtimes <n>`     | `4`                | Maximum number of idle runtimes pooled per agent. `0` disables pooling.                                           |
 
-All [runtime configuration flags]({{ '/features/cli/#runtime-configuration-flags' | relative_url }})
+All [runtime configuration flags](../cli/index.md#runtime-configuration-flags)
 (`--working-dir`, `--env-from-file`, `--models-gateway`, `--hook-*`, …) are
 also accepted.
 
@@ -230,9 +222,5 @@ in:
 
 3. Each agent in your config appears as a selectable model.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>For the docker-agent–native HTTP API (sessions, tool-call confirmation, runtime events), see the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>. For full CLI flag documentation, see the <a href="{{ '/features/cli/#docker-agent-serve-chat' | relative_url }}">CLI Reference</a>.</p>
-
-</div>
+> [!NOTE]
+> **See also**: For the docker-agent–native HTTP API (sessions, tool-call confirmation, runtime events), see the [API Server](../api-server/index.md). For full CLI flag documentation, see the [CLI Reference](../cli/index.md#docker-agent-serve-chat).

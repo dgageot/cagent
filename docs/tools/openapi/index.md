@@ -1,7 +1,7 @@
 ---
 title: "OpenAPI Tool"
 description: "Automatically generate tools from an OpenAPI specification."
-permalink: /tools/openapi/
+keywords: docker agent, ai agents, tools, openapi tool
 ---
 
 # OpenAPI Tool

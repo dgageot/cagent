@@ -1,7 +1,7 @@
 ---
 title: "A2A Protocol"
 description: "Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for interoperability with other agent frameworks."
-permalink: /features/a2a/
+keywords: docker agent, ai agents, features, a2a protocol
 ---
 
 # A2A Protocol
@@ -12,12 +12,8 @@ _Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for inter
 
 The `docker agent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://a2a-protocol.org/latest/). This enables communication between Docker Agent and other agent frameworks that support A2A.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Early support
-</div>
-  <p>A2A support is functional but still evolving. Tool calls, artifacts, and memory features have limited A2A integration. See limitations below.</p>
-
-</div>
+> [!WARNING]
+> **Early support**: A2A support is functional but still evolving. Tool calls, artifacts, and memory features have limited A2A integration. See limitations below.
 
 ## Usage
 
@@ -42,7 +38,7 @@ $ docker agent serve a2a agentcatalog/pirate
 | `--env-from-file <file>`          | (none)           | Load additional environment variables from a `.env` file (repeatable).                                               |
 | `--models-gateway <url>`          | (none)           | Route all provider traffic through a models gateway URL.                                                             |
 | `--code-mode-tools`               | `false`          | Expose tools as a single "code" toolset that accepts a JavaScript snippet to run.                                    |
-| `--hook-pre-tool-use <cmd>`       | (none)           | Add a pre-tool-use hook (repeatable). See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                     |
+| `--hook-pre-tool-use <cmd>`       | (none)           | Add a pre-tool-use hook (repeatable). See [Hooks](../../configuration/hooks/index.md).                     |
 | `--hook-post-tool-use <cmd>`      | (none)           | Add a post-tool-use hook (repeatable).                                                                               |
 | `--hook-session-start <cmd>`      | (none)           | Add a session-start hook (repeatable).                                                                               |
 | `--hook-session-end <cmd>`        | (none)           | Add a session-end hook (repeatable).                                                                                 |
@@ -56,12 +52,8 @@ $ docker agent serve a2a agentcatalog/pirate
 - **Full docker-agent features** — Supports all tools, models, and gateway features
 - **Multiple sources** — Load agents from files or the agent catalog
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>For exposing agents via MCP instead, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>. For stdio-based integration, see <a href="{{ '/features/acp/' | relative_url }}">ACP</a>. For the HTTP API, see <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>.</p>
-
-</div>
+> [!TIP]
+> **See also**: For exposing agents via MCP instead, see [MCP Mode](../mcp-mode/index.md). For stdio-based integration, see [ACP](../acp/index.md). For the HTTP API, see [API Server](../api-server/index.md).
 
 ## Current Limitations
 

@@ -1,7 +1,7 @@
 ---
 title: "Vercel AI Gateway"
 description: "Use Vercel AI Gateway models with docker-agent."
-permalink: /providers/vercel/
+keywords: docker agent, ai agents, model providers, vercel ai gateway
 ---
 
 # Vercel AI Gateway

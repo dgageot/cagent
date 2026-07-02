@@ -1,7 +1,7 @@
 ---
 title: "MCP Mode"
 description: "Expose your docker-agent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications."
-permalink: /features/mcp-mode/
+keywords: docker agent, ai agents, features, mcp mode
 ---
 
 # MCP Mode
@@ -17,12 +17,8 @@ The `docker agent serve mcp` command makes your agents available to any applicat
 - Build reusable agent teams consumable from any MCP client
 - Integrate domain-specific agents into existing workflows
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">What is MCP?
-</div>
-  <p>The <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> is an open standard for connecting AI tools. See also <a href="{{ '/features/remote-mcp/' | relative_url }}">Remote MCP Servers</a> for connecting to cloud services.</p>
-
-</div>
+> [!NOTE]
+> **What is MCP?** The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard for connecting AI tools. See also [Remote MCP Servers](../remote-mcp/index.md) for connecting to cloud services.
 
 ## Basic Usage
 
@@ -59,7 +55,7 @@ $ docker agent serve mcp ./agent.yaml --http --listen 0.0.0.0:9090
 | `--tool-name`          | (none)             | Override the MCP tool identifier clients call (defaults to agent name); only valid when exposing one agent.  |
 | `--mcp-keepalive`      | `0`                | Interval between MCP keep-alive pings (e.g. `30s`); `0` disables keep-alive.                                 |
 
-Runtime configuration flags such as `--working-dir`, `--env-from-file`, `--models-gateway`, and hook flags are also available — see the [CLI reference]({{ '/features/cli/' | relative_url }}).
+Runtime configuration flags such as `--working-dir`, `--env-from-file`, `--models-gateway`, and hook flags are also available — see the [CLI reference](../cli/index.md).
 
 ## Using with Claude Desktop
 

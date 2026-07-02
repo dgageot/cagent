@@ -1,7 +1,7 @@
 ---
 title: "Baseten"
 description: "Use Baseten AI models with docker-agent."
-permalink: /providers/baseten/
+keywords: docker agent, ai agents, model providers, baseten
 ---
 
 # Baseten

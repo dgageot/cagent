@@ -1,7 +1,7 @@
 ---
 title: "Hugging Face"
 description: "Use Hugging Face Inference Providers with docker-agent."
-permalink: /providers/huggingface/
+keywords: docker agent, ai agents, model providers, hugging face
 ---
 
 # Hugging Face

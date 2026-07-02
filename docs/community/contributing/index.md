@@ -1,7 +1,7 @@
 ---
 title: "Contributing"
 description: "docker-agent is open source. Here's how to set up your development environment and contribute."
-permalink: /community/contributing/
+keywords: docker agent, ai agents, community, contributing
 ---
 
 # Contributing
@@ -17,12 +17,8 @@ _docker-agent is open source. Here's how to set up your development environment 
 - [Task](https://taskfile.dev/installation/)
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/local/)
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Platform Support
-</div>
-  <p>macOS and Linux are fully supported for development. On Windows, use <code>task build-local</code> to build via Docker.</p>
-
-</div>
+> [!NOTE]
+> **Platform Support**: macOS and Linux are fully supported for development. On Windows, use `task build-local` to build via Docker.
 
 ### Build from Source
 
@@ -86,12 +82,8 @@ Key conventions:
 
 File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent/issues). Please:
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">See also
-</div>
-  <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> — Common issues and debug mode. <a href="{{ '/community/telemetry/' | relative_url }}">Telemetry</a> — What data is collected and how to opt out.
-
-</div>
+> [!NOTE]
+> **See also**: [Troubleshooting](../troubleshooting/index.md) — Common issues and debug mode. [Telemetry](../telemetry/index.md) — What data is collected and how to opt out.
 
 - Use the included issue template
 - Search for existing issues before creating new ones
@@ -105,12 +97,8 @@ File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent
 4. **Sign** your commits with `git commit -s` (DCO required)
 5. **Open a pull request** against the `main` branch
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Use the dogfooding agent (<code>docker agent run ./golang_developer.yaml</code>) to help write and review your changes before submitting.</p>
-
-</div>
+> [!TIP]
+> Use the dogfooding agent (`docker agent run ./golang_developer.yaml`) to help write and review your changes before submitting.
 
 ## Sign Your Work
 

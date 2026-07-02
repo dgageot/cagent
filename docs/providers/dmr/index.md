@@ -1,7 +1,7 @@
 ---
 title: "Docker Model Runner"
 description: "Run AI models locally with Docker — no API keys, no costs, full data privacy."
-permalink: /providers/dmr/
+keywords: docker agent, ai agents, model providers, docker model runner
 ---
 
 # Docker Model Runner
@@ -14,12 +14,8 @@ Docker Model Runner (DMR) lets you run open-source AI models directly on your ma
 
 docker-agent automatically discovers models you have already pulled from DMR. When no model is explicitly configured, auto-selection prefers a locally-installed model (choosing the model specified via the `model:` key in the agent YAML if it is already pulled locally, or otherwise the first available non-embedding model) rather than always defaulting to `ai/qwen3:latest` and triggering a pull prompt.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">No API key needed
-</div>
-  <p>DMR runs models locally — your data never leaves your machine. Great for development, sensitive data, or offline use.</p>
-
-</div>
+> [!TIP]
+> **No API key needed**: DMR runs models locally — your data never leaves your machine. Great for development, sensitive data, or offline use.
 
 ## Prerequisites
 
@@ -154,7 +150,7 @@ Accepted values: any Go duration string (`"30s"`, `"5m"`, `"1h"`, `"2h30m"`), `"
 
 ## Unloading models on agent switch
 
-In multi-agent setups where two DMR models can't fit in GPU memory simultaneously, wire the [`unload`]({{ '/configuration/hooks/#available-built-ins' | relative_url }}) built-in hook into each agent's `on_agent_switch` chain. Every time the active agent transfers control, the runtime POSTs to the engine's `_unload` endpoint to free the previous model's resources before the next one is loaded:
+In multi-agent setups where two DMR models can't fit in GPU memory simultaneously, wire the [`unload`](../../configuration/hooks/index.md#available-built-ins) built-in hook into each agent's `on_agent_switch` chain. Every time the active agent transfers control, the runtime POSTs to the engine's `_unload` endpoint to free the previous model's resources before the next one is loaded:
 
 ```yaml
 agents:
@@ -189,13 +185,10 @@ models:
     model: ai/qwen3
 ```
 
-Unload errors are logged and swallowed — a stuck or unreachable engine never blocks an agent transfer (each call is bounded to 10 s). Pair this with [`keep_alive`](#keeping-models-resident-in-memory-keep_alive) only when you want the model to *also* survive idle periods within a single agent's run; the hook controls **between-agent** unloads independently.
+Unload errors are logged and swallowed — a stuck or unreachable engine never blocks an agent transfer (each call is bounded to 10 s). Pair this with [`keep_alive`](#keeping-models-resident-in-memory-keep_alive) only when you want the model to _also_ survive idle periods within a single agent's run; the hook controls **between-agent** unloads independently.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Single-tenant assumption</div>
-
-The `_unload` endpoint is engine-level: it evicts the model from DMR's memory regardless of who is using it. If two concurrent sessions on the same runtime (e.g. an API server serving multiple users) hit the same agent, switching away in session A will yank the model out from under session B's in-flight request, which then has to wait for a reload. Wire `unload` only when the agents using these models are not run concurrently — typically a single TUI/CLI session.
-</div>
+> [!WARNING]
+> **Single-tenant assumption**: The `_unload` endpoint is engine-level: it evicts the model from DMR's memory regardless of who is using it. If two concurrent sessions on the same runtime (e.g. an API server serving multiple users) hit the same agent, switching away in session A will yank the model out from under session B's in-flight request, which then has to wait for a reload. Wire `unload` only when the agents using these models are not run concurrently — typically a single TUI/CLI session.
 
 See [`examples/unload_on_switch.yaml`](https://github.com/docker/docker-agent/blob/main/examples/unload_on_switch.yaml) for the full example.
 

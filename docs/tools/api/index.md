@@ -1,7 +1,7 @@
 ---
 title: "API Tool"
 description: "Create custom tools that call HTTP APIs."
-permalink: /tools/api/
+keywords: docker agent, ai agents, tools, api tool
 ---
 
 # API Tool
@@ -12,15 +12,12 @@ _Create custom tools that call HTTP APIs._
 
 The API tool type lets you define custom tools that make HTTP requests to external APIs. This is useful for integrating agents with REST APIs, webhooks, or any HTTP-based service without writing code.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">When to Use
-</div>
-
-- Integrating with REST APIs that don't have an MCP server
-- Simple HTTP operations (GET, POST)
-- Quick prototyping before building a full MCP server
-
-</div>
+> [!NOTE]
+> **When to Use**:
+>
+> - Integrating with REST APIs that don't have an MCP server
+> - Simple HTTP operations (GET, POST)
+> - Quick prototyping before building a full MCP server
 
 ## Configuration
 
@@ -238,20 +235,11 @@ toolsets:
       instruction: Check the local service health
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">SSRF
-</div>
-  <p>Setting <code>allow_private_ips: true</code> re-exposes the SSRF surface for this tool. Only enable it when the configured <code>endpoint</code> is a trusted internal service — a prompt-injected agent cannot redirect the call elsewhere because the endpoint is fixed in config, but redirects from the configured host can still reach unexpected places.</p>
-</div>
+> [!WARNING]
+> **SSRF**: Setting `allow_private_ips: true` re-exposes the SSRF surface for this tool. Only enable it when the configured `endpoint` is a trusted internal service — a prompt-injected agent cannot redirect the call elsewhere because the endpoint is fixed in config, but redirects from the configured host can still reach unexpected places.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">For Complex APIs
-</div>
-  <p>For APIs that need authentication flows, pagination, or complex request/response handling, consider using an MCP server instead. The API tool is best for simple, stateless HTTP operations.</p>
-</div>
+> [!TIP]
+> **For Complex APIs**: For APIs that need authentication flows, pagination, or complex request/response handling, consider using an MCP server instead. The API tool is best for simple, stateless HTTP operations.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Security
-</div>
-  <p>API keys and tokens in headers are visible in debug logs. Use environment variables (<code>${env.VAR}</code>) rather than hardcoding secrets in configuration files.</p>
-</div>
+> [!WARNING]
+> **Security**: API keys and tokens in headers are visible in debug logs. Use environment variables (`${env.VAR}`) rather than hardcoding secrets in configuration files.

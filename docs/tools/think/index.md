@@ -1,7 +1,7 @@
 ---
 title: "Think Tool"
 description: "Step-by-step reasoning scratchpad for planning and decision-making."
-permalink: /tools/think/
+keywords: docker agent, ai agents, tools, think tool
 ---
 
 # Think Tool
@@ -23,8 +23,5 @@ toolsets:
 
 No configuration options.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">When to use
-</div>
-  <p>Use the think tool with models that don't have native reasoning capabilities. If your model already supports a <a href="{{ '/configuration/models/#thinking-budget' | relative_url }}">thinking budget</a>, you likely don't need this tool.</p>
-</div>
+> [!TIP]
+> **When to use**: Use the think tool with models that don't have native reasoning capabilities. If your model already supports a [thinking budget](../../configuration/models/index.md#thinking-budget), you likely don't need this tool.

@@ -13,6 +13,7 @@ and examples consistent across every page on this site.
 | Internal identifiers / package names | as defined in code (e.g. `cagent`) — never invent new spellings in prose | mixing internal identifiers into user-facing copy |
 
 A simple rule of thumb:
+
 - **Talking about the product?** → "Docker Agent"
 - **Showing a command the user types?** → `docker agent run agent.yaml`
 
@@ -28,7 +29,7 @@ A simple rule of thumb:
 
 ## Code samples
 
-- All shell prompts use `$ ` (dollar + space) and the command on the
+- All shell prompts use `$` followed by a space, with the command on the
   same line. Output, when shown, has no prompt.
 - YAML/HCL examples should be runnable as-is when reasonable, or end
   in `# ...` to make truncation explicit.
@@ -38,21 +39,34 @@ A simple rule of thumb:
 
 ## Callouts
 
-Use the existing pattern; the new visual style does the rest:
+Use GitHub-style alerts — they render natively on docs.docker.com and
+are upgraded to the styled callout panels on github.io:
 
 ```markdown
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">When to use it</div>
-  <p>Body text.</p>
-</div>
+> [!TIP]
+> **When to use it**: Body text.
 ```
 
-- `callout-info` — neutral context
-- `callout-tip` — positive, "consider this"
-- `callout-warning` — caution, breaking, security
+- `[!NOTE]` — neutral context
+- `[!TIP]` — positive, "consider this"
+- `[!WARNING]` — caution, breaking, security
 
-Don't prefix the title with an emoji — the icon badge already provides
-one.
+An optional bold lead-in (`**Title**:`) names the callout; skip it when
+the kind alone says enough. Don't prefix it with an emoji — the icon
+badge already provides one.
+
+## Links
+
+Use plain relative Markdown links between pages, including the
+`index.md` filename, so both renderers resolve them. From a page two
+levels deep (e.g. `concepts/agents/index.md`):
+
+```markdown
+See [Models](../../concepts/models/index.md) for details.
+```
+
+Never use Liquid (`relative_url`) or root-absolute paths — they break
+when the docs are mounted on docs.docker.com.
 
 ## Glossary one-liners
 

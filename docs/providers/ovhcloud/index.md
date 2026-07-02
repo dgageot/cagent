@@ -1,7 +1,7 @@
 ---
 title: "OVHcloud"
 description: "Use OVHcloud AI Endpoints models with docker-agent."
-permalink: /providers/ovhcloud/
+keywords: docker agent, ai agents, model providers, ovhcloud
 ---
 
 # OVHcloud

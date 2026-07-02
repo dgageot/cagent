@@ -1,7 +1,7 @@
 ---
 title: "DeepSeek"
 description: "Use DeepSeek models with docker-agent."
-permalink: /providers/deepseek/
+keywords: docker agent, ai agents, model providers, deepseek
 ---
 
 # DeepSeek

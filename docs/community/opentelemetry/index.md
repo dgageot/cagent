@@ -1,12 +1,12 @@
 ---
 title: "OpenTelemetry Tracing"
 description: "Export docker-agent traces to any OTLP backend, including Langfuse and LangSmith, for debugging agentic workflows."
-permalink: /community/opentelemetry/
+keywords: docker agent, ai agents, community, opentelemetry tracing
 ---
 
 # OpenTelemetry Tracing
 
-_docker-agent can export OpenTelemetry traces of an agent run to any OTLP/HTTP backend. This is separate from [product-analytics telemetry](/community/telemetry/) and is opt-in via the `--otel` flag._
+_docker-agent can export OpenTelemetry traces of an agent run to any OTLP/HTTP backend. This is separate from [product-analytics telemetry](../telemetry/index.md) and is opt-in via the `--otel` flag._
 
 When enabled, docker-agent emits OpenTelemetry GenAI (`gen_ai.*`) and MCP (`mcp.*`) spans following the [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/). Spans cover the agent turn, model calls (with token usage and cost attributes), tool calls, MCP client/server activity, sub-agent hand-offs, and provider fallbacks. W3C `traceparent` context is propagated so the whole run renders as a single connected trace tree.
 
@@ -29,19 +29,13 @@ docker-agent reads the standard OTLP environment variables:
 | `OTEL_RESOURCE_ATTRIBUTES` | Extra resource attributes merged into every span. |
 | `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | Set to `true` to capture prompt and response message content as span attributes. Off by default. |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Base endpoint, not the full signal URL
-</div>
-  <p>Set <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> to the <strong>base</strong> endpoint (for example <code>https://cloud.langfuse.com/api/public/otel</code>). docker-agent appends <code>/v1/traces</code> for you, matching the value documented by Langfuse and LangSmith. A bare <code>host:port</code> is also accepted and gets <code>https://</code> (or <code>http://</code> for localhost).</p>
+> [!NOTE]
+> **Base endpoint, not the full signal URL**: Set `OTEL_EXPORTER_OTLP_ENDPOINT` to the **base** endpoint (for example `https://cloud.langfuse.com/api/public/otel`). docker-agent appends `/v1/traces` for you, matching the value documented by Langfuse and LangSmith. A bare `host:port` is also accepted and gets `https://` (or `http://` for localhost).
 
-</div>
-
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Message content can contain sensitive data
-</div>
-  <p><code>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT</code> is off by default because chat history routinely contains PII, secrets, and internal documents. Enable it only for backends and environments where exporting that content is acceptable.</p>
-
-</div>
+> [!WARNING]
+> **Message content can contain sensitive data**:
+>
+> `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is off by default because chat history routinely contains PII, secrets, and internal documents. Enable it only for backends and environments where exporting that content is acceptable.
 
 ## Backends
 
@@ -89,12 +83,8 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
 docker agent run agent.yaml --otel
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Langfuse and LangSmith ingest traces only
-</div>
-  <p>Both backends accept the traces signal only. docker-agent also wires metric and log exporters at the same endpoint, so their periodic exports return <code>404</code> against trace-only backends. This is harmless to traces but appears in the debug log. Point a full OTLP collector at the endpoint if you also want metrics and logs.</p>
-
-</div>
+> [!NOTE]
+> **Langfuse and LangSmith ingest traces only**: Both backends accept the traces signal only. docker-agent also wires metric and log exporters at the same endpoint, so their periodic exports return `404` against trace-only backends. This is harmless to traces but appears in the debug log. Point a full OTLP collector at the endpoint if you also want metrics and logs.
 
 ## Inspecting traces locally
 

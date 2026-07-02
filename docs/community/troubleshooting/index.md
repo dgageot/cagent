@@ -1,7 +1,7 @@
 ---
 title: "Troubleshooting"
 description: "Common issues and how to resolve them when working with docker-agent."
-permalink: /community/troubleshooting/
+keywords: docker agent, ai agents, community, troubleshooting
 ---
 
 # Troubleshooting
@@ -62,12 +62,8 @@ $ docker agent run config.yaml --debug --log-file ./debug.log
 $ docker agent run config.yaml --otel
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Always enable <code>--debug</code> when reporting issues. The log file contains detailed traces of API calls, tool executions, and agent interactions.</p>
-
-</div>
+> [!TIP]
+> Always enable `--debug` when reporting issues. The log file contains detailed traces of API calls, tool executions, and agent interactions.
 
 ## Agent Not Responding
 
@@ -137,13 +133,10 @@ MCP tools using stdio transport must complete the initialization handshake befor
 3. Check that the MCP server process starts and responds to `initialize`
 4. Verify environment variables required by the tool are set (check `env` and `env_file` in the toolset config)
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Startup tool-listing timeout
-</div>
-  <p>At startup, docker-agent queries each toolset for its tool list. If a toolset does not respond within 10 seconds (e.g. a wedged MCP stdio server that never answers <code>tools/list</code>), that toolset is skipped with a warning and the remaining toolsets load normally. The sidebar resolves showing whichever tools did load — no infinite spinner. Enable <code>--debug</code> to see the warning message, and use <code>/toolset-restart &lt;name&gt;</code> once the server becomes responsive.</p>
-</div>
+> [!NOTE]
+> **Startup tool-listing timeout**: At startup, docker-agent queries each toolset for its tool list. If a toolset does not respond within 10 seconds (e.g. a wedged MCP stdio server that never answers `tools/list`), that toolset is skipped with a warning and the remaining toolsets load normally. The sidebar resolves showing whichever tools did load — no infinite spinner. Enable `--debug` to see the warning message, and use `/toolset-restart <name>` once the server becomes responsive.
 
-If a toolset keeps crashing in a tight loop, tune the [`lifecycle`]({{ '/configuration/tools/#toolset-lifecycle' | relative_url }}) block on the toolset (e.g. raise `backoff.initial`, lower `max_restarts`, or switch to the `best-effort` profile) so a flaky dependency does not amplify into a restart storm.
+If a toolset keeps crashing in a tight loop, tune the [`lifecycle`](../../configuration/tools/index.md#toolset-lifecycle) block on the toolset (e.g. raise `backoff.initial`, lower `max_restarts`, or switch to the `best-effort` profile) so a flaky dependency does not amplify into a restart storm.
 
 ## Configuration Errors
 
@@ -167,12 +160,8 @@ docker-agent validates config at startup and reports errors with line numbers. C
 - MCP toolsets need either `command` (stdio), `remote` (Streamable HTTP/SSE), or `ref` (Docker)
 - Provider names must be one of: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, etc.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Schema Validation
-</div>
-  <p>Use the <a href="https://github.com/docker/docker-agent/blob/main/agent-schema.json">JSON schema</a> in your editor for real-time config validation and autocompletion.</p>
-
-</div>
+> [!NOTE]
+> **Schema Validation**: Use the [JSON schema](https://github.com/docker/docker-agent/blob/main/agent-schema.json) in your editor for real-time config validation and autocompletion.
 
 ## Session &amp; Connectivity Issues
 
@@ -217,7 +206,7 @@ The API server stores every conversation as a distinct session in the SQLite dat
 
 - Check if MCP tools are adding latency (visible in debug logs)
 - Use the `/cost` command in TUI to see token usage and identify expensive interactions
-- For DMR, consider enabling [speculative decoding]({{ '/providers/dmr/' | relative_url }}) for faster inference
+- For DMR, consider enabling [speculative decoding](../../providers/dmr/index.md) for faster inference
 
 ### Tool resource leaks
 
@@ -251,14 +240,10 @@ When reviewing debug logs, search for these key patterns:
 | `"Tool call"`               | A tool is being executed                                                                         |
 | `"Tool call result"`        | Tool execution completed                                                                         |
 | `"Stream stopped"`          | Agent finished processing                                                                        |
-| `HTTP 429`                  | Rate limiting — consider adding a [fallback model]({{ '/configuration/agents/' | relative_url }}) |
+| `HTTP 429`                  | Rate limiting — consider adding a [fallback model](../../configuration/agents/index.md) |
 | `context canceled`          | Operation was interrupted (timeout or user cancel)                                               |
 | `[RAG Manager]`             | RAG retrieval operations                                                                         |
 | `[Reranker]`                | Reranking operations                                                                             |
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Still stuck?
-</div>
-  <p>If these steps don't resolve your issue, file a bug on the <a href="https://github.com/docker/docker-agent/issues">GitHub issue tracker</a> with your debug log attached, or ask on <a href="https://dockercommunity.slack.com/archives/C09DASHHRU4">Slack</a>.</p>
-
-</div>
+> [!WARNING]
+> **Still stuck?** If these steps don't resolve your issue, file a bug on the [GitHub issue tracker](https://github.com/docker/docker-agent/issues) with your debug log attached, or ask on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4).

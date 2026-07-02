@@ -1,19 +1,15 @@
 ---
 title: "CLI Reference"
 description: "Complete reference for all docker-agent command-line commands and flags."
-permalink: /features/cli/
+keywords: docker agent, ai agents, features, cli reference
 ---
 
 # CLI Reference
 
 _Complete reference for all docker-agent command-line commands and flags._
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">No config needed
-</div>
-  <p>Running <code>docker agent run</code> without a config file uses a built-in default agent. Perfect for quick experimentation.</p>
-
-</div>
+> [!TIP]
+> **No config needed**: Running `docker agent run` without a config file uses a built-in default agent. Perfect for quick experimentation.
 
 ## Commands
 
@@ -37,7 +33,7 @@ $ docker agent run [config] [message...] [flags]
 | `--attach <path>`                       | Attach an image file to the initial message                                                                                               |
 | `--dry-run`                             | Initialize the agent without executing anything (useful for validating a config)                                                          |
 | `--remote <addr>`                       | Use a remote runtime at the given address instead of running the agent locally                                                            |
-| `--listen <addr>`                       | Expose this run's control plane over HTTP so an external process can drive the running TUI (send follow-ups, stream events, read the title). Accepts `host:port` or `unix://`, `npipe://`, `fd://`. See the [API Server]({{ '/features/api-server/' | relative_url }}#listen). |
+| `--listen <addr>`                       | Expose this run's control plane over HTTP so an external process can drive the running TUI (send follow-ups, stream events, read the title). Accepts `host:port` or `unix://`, `npipe://`, `fd://`. See the [API Server](../api-server/index.md#listen). |
 | `--lean`                                | Use a simplified, non-alternate-screen TUI. Unlike the default full-screen TUI, this renders inline in the normal terminal buffer — useful in environments where an alternate screen is unwanted (e.g. inside tmux panes, CI with a tty, or log-friendly pipelines). Displays an ASCII art banner on startup. |
 | `--app-name <name>`                     | Override the application name label shown in the TUI (status bar, window title, "/exit" notifications).                                   |
 | `--sidebar`                             | Control sidebar visibility. Set to `--sidebar=false` to hide the sidebar and disable the Ctrl+B toggle (default: `true`).                 |
@@ -47,10 +43,10 @@ $ docker agent run [config] [message...] [flags]
 | `--json`                                | Output results as newline-delimited JSON (use with `--exec`)                                                                              |
 | `--hide-tool-calls`                     | Hide tool calls in the output                                                                                                             |
 | `--hide-tool-results`                   | Hide tool call results in the output                                                                                                      |
-| `--sandbox`                             | Run the agent inside a Docker sandbox (see [Sandbox]({{ '/configuration/sandbox/' | relative_url }}))                                     |
+| `--sandbox`                             | Run the agent inside a Docker sandbox (see [Sandbox](../../configuration/sandbox/index.md))                                     |
 | `--template <image>`                    | Template image for the sandbox (default: `docker/sandbox-templates:docker-agent`)                                                         |
 | `--sbx`                                 | Prefer the `sbx` CLI backend when available (default `true`; set `--sbx=false` to force `docker sandbox`)                                 |
-| `--no-kit`                              | Disable the [auto-kit]({{ '/configuration/sandbox/' | relative_url }}#auto-kit): do not stage skills or prompt files into the sandbox    |
+| `--no-kit`                              | Disable the [auto-kit](../../configuration/sandbox/index.md#auto-kit): do not stage skills or prompt files into the sandbox    |
 | `--agent-picker [refs]`                 | Show a full-screen interactive picker before launching, letting you browse and select an agent. Accepts an optional comma-separated list of agent references to show (defaults to `default,coder`). Arrow keys navigate; `?` toggles the YAML preview panel; Enter confirms. Not available in `--exec` or non-TTY modes. |
 | `-w, --worktree [name]`                 | Run the agent in a fresh git worktree of the working directory, isolating its changes from your checkout. Optionally name it (`--worktree=my-feature`); otherwise a name is generated. Requires the working directory to be inside a git repository. Every tool (the shell included) runs inside the worktree. Combine with `--working-dir` to branch from another repository, and with `--session` to resume into the same worktree later. Cannot be combined with `--remote` or `--sandbox`. When the session ends, a clean worktree is removed automatically; one with work prompts to keep or remove (never in `--exec`). |
 | `--worktree-base <ref>`                  | Branch the `--worktree` from `<ref>` (a branch, tag, commit, or remote-tracking ref like `origin/main`) instead of the current `HEAD`. A remote-tracking ref is fetched first so the worktree starts from the latest remote state. Requires `--worktree`; cannot be combined with `--worktree-pr`, `--remote`, or `--sandbox`. |
@@ -59,7 +55,7 @@ $ docker agent run [config] [message...] [flags]
 | `--env-from-file <path>`                | Load environment variables from file (repeatable)                                                                                         |
 | `--code-mode-tools`                     | Provide a single tool to call other tools via JavaScript (forces code-mode tools globally)                                                |
 | `--models-gateway <addr>`               | Route model traffic through a gateway. Also reads `DOCKER_AGENT_MODELS_GATEWAY` (legacy `CAGENT_MODELS_GATEWAY`) env var.                  |
-| `--hook-pre-tool-use <cmd>`             | Add a pre-tool-use hook command (repeatable). See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                                  |
+| `--hook-pre-tool-use <cmd>`             | Add a pre-tool-use hook command (repeatable). See [Hooks](../../configuration/hooks/index.md).                                  |
 | `--hook-post-tool-use <cmd>`            | Add a post-tool-use hook command (repeatable)                                                                                             |
 | `--hook-session-start <cmd>`            | Add a session-start hook command (repeatable)                                                                                             |
 | `--hook-session-end <cmd>`              | Add a session-end hook command (repeatable)                                                                                               |
@@ -100,17 +96,11 @@ $ docker agent run --agent-picker
 $ docker agent run --agent-picker=agentcatalog/coder,agentcatalog/researcher
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Lean, inline TUI
-</div>
-  <p>Pass <code>--lean</code> to get a lightweight TUI that renders inline in your terminal (no alternate screen). It displays an ASCII art banner on startup and supports the same slash commands and streaming output as the full TUI, making it handy inside tmux, scripts, or any context where a full-screen takeover is unwanted.</p>
-</div>
+> [!TIP]
+> **Lean, inline TUI**: Pass `--lean` to get a lightweight TUI that renders inline in your terminal (no alternate screen). It displays an ASCII art banner on startup and supports the same slash commands and streaming output as the full TUI, making it handy inside tmux, scripts, or any context where a full-screen takeover is unwanted.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Isolate a run in a git worktree
-</div>
-  <p>When the working directory is inside a git repository, <code>--worktree</code> creates a fresh <a href="https://git-scm.com/docs/git-worktree">git worktree</a> and points the session at it, so the agent's edits land on a separate branch and never touch your checkout. Every tool — the shell included — runs inside the worktree. The worktree is stored under <code>&lt;data-dir&gt;/worktrees/&lt;name&gt;</code> on a branch named <code>worktree-&lt;name&gt;</code>.</p>
-</div>
+> [!TIP]
+> **Isolate a run in a git worktree**: When the working directory is inside a git repository, `--worktree` creates a fresh [git worktree](https://git-scm.com/docs/git-worktree) and points the session at it, so the agent's edits land on a separate branch and never touch your checkout. Every tool — the shell included — runs inside the worktree. The worktree is stored under `<data-dir>/worktrees/<name>` on a branch named `worktree-<name>`.
 
 ```bash
 # Run in an isolated worktree with a generated name (e.g. "focused_turing")
@@ -217,7 +207,7 @@ $ docker agent serve api <agent-file>|<agents-dir>|<registry-ref> [flags]
 | `--pull-interval <minutes>`| `0`                | Periodically re-pull OCI/URL references and refresh the agent definition. `0` disables auto-pull.          |
 | `--fake <path>`             | (none)             | Replay AI responses from a cassette file (for testing). Mutually exclusive with `--record`.               |
 | `--record [path]`           | (none)             | Record AI API interactions to a cassette file.                                                            |
-| `--mcp-oauth-redirect-uri <url>` | (none)        | OAuth redirect URI for the unmanaged MCP OAuth flow in server mode. When set, the runtime drives PKCE and code exchange in-process and sends the full authorize URL to the client via elicitation. See [Remote MCP]({{ '/features/remote-mcp/' | relative_url }}) for details. |
+| `--mcp-oauth-redirect-uri <url>` | (none)        | OAuth redirect URI for the unmanaged MCP OAuth flow in server mode. When set, the runtime drives PKCE and code exchange in-process and sends the full authorize URL to the client via elicitation. See [Remote MCP](../remote-mcp/index.md) for details. |
 
 > **Diagnostics:** Set `CAGENT_PPROF_ADDR=127.0.0.1:6060` (or `--pprof-addr`, a hidden flag) to start a live Go pprof server at `/debug/pprof/`. Use a loopback address; a non-loopback binding logs a security warning.
 
@@ -231,7 +221,7 @@ $ docker agent serve api ./agents/                          # directory of agent
 $ docker agent serve api ociReference --pull-interval 10    # auto-refresh
 ```
 
-See [API Server]({{ '/features/api-server/' | relative_url }}) for the full HTTP API reference.
+See [API Server](../api-server/index.md) for the full HTTP API reference.
 
 ### `docker agent serve mcp`
 
@@ -260,7 +250,7 @@ $ docker agent serve mcp agent.yaml --working-dir /path/to/project
 $ docker agent serve mcp agentcatalog/coder
 ```
 
-See [MCP Mode]({{ '/features/mcp-mode/' | relative_url }}) for detailed setup.
+See [MCP Mode](../mcp-mode/index.md) for detailed setup.
 
 ### `docker agent serve a2a`
 
@@ -305,7 +295,7 @@ $ docker agent serve acp ./team.yaml
 $ docker agent serve acp agentcatalog/pirate
 ```
 
-See [ACP]({{ '/features/acp/' | relative_url }}) for details on the Agent Client Protocol.
+See [ACP](../acp/index.md) for details on the Agent Client Protocol.
 
 ### `docker agent serve chat`
 
@@ -341,7 +331,7 @@ $ curl http://127.0.0.1:8083/v1/chat/completions \
     -d '{"model": "root", "messages": [{"role": "user", "content": "hello"}]}'
 ```
 
-See [Chat Server]({{ '/features/chat-server/' | relative_url }}) for the full feature reference.
+See [Chat Server](../chat-server/index.md) for the full feature reference.
 
 ### `docker agent share push` / `docker agent share pull`
 
@@ -362,7 +352,7 @@ $ docker agent share pull docker.io/username/my-agent:latest --force
 | ---------- | ---------- | ---------------------------------------------------------- |
 | `--force`  | `pull`     | Force pull even if the configuration already exists locally |
 
-See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for full registry workflow details.
+See [Agent Distribution](../../concepts/distribution/index.md) for full registry workflow details.
 
 ### `docker agent eval`
 
@@ -395,7 +385,7 @@ $ docker agent eval agent.yaml --only "auth*"             # only run matching ev
 $ docker agent eval agent.yaml --repeat 5                 # repeat each eval 5 times
 ```
 
-See [Evaluation]({{ '/features/evaluation/' | relative_url }}) for details on creating eval sessions and interpreting results.
+See [Evaluation](../evaluation/index.md) for details on creating eval sessions and interpreting results.
 
 ### `docker agent version`
 
@@ -438,7 +428,7 @@ $ docker agent run yolo-coder
 - `--yolo` — Auto-approve all tool calls when running the alias
 - `--model &lt;ref&gt;` — Override the model for the alias
 - `--hide-tool-results` — Hide tool call results in the TUI when running the alias
-- `--sandbox` — Always run the alias inside a [Docker sandbox]({{ '/configuration/sandbox/' | relative_url }})
+- `--sandbox` — Always run the alias inside a [Docker sandbox](../../configuration/sandbox/index.md)
 
 When listing aliases, options are shown in brackets:
 
@@ -479,25 +469,21 @@ $ docker agent alias list --json
 
 JSON output is sorted by name and omits false/zero-valued fields. This is useful for scripting and automation.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Override alias options
-</div>
-  <p>Command-line flags override alias options. For example, <code>docker agent run yolo-coder --yolo=false</code> disables yolo mode even though the alias has it enabled.</p>
+> [!TIP]
+> **Override alias options**: Command-line flags override alias options. For example, `docker agent run yolo-coder --yolo=false` disables yolo mode even though the alias has it enabled.
 
-</div>
-
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Set a default agent
-</div>
-  <p>Create a <code>default</code> alias to customize what <code>docker agent</code> starts with no arguments:</p>
-  <pre><code>$ docker agent alias add default /my/default/agent.yaml</code></pre>
-  <p>Then simply run <code>docker agent</code> — it will launch that agent automatically.</p>
-
-</div>
+> [!TIP]
+> **Set a default agent**: Create a `default` alias to customize what `docker agent` starts with no arguments:
+>
+> ```bash
+> $ docker agent alias add default /my/default/agent.yaml
+> ```
+>
+> Then simply run `docker agent` — it will launch that agent automatically.
 
 ### `docker agent sandbox`
 
-Manage settings shared by every [`--sandbox`]({{ '/configuration/sandbox/' | relative_url }}) run — today, the persistent network allowlist that turns a `Blocked by network policy` 403 into a one-line, durable fix:
+Manage settings shared by every [`--sandbox`](../../configuration/sandbox/index.md) run — today, the persistent network allowlist that turns a `Blocked by network policy` 403 into a one-line, durable fix:
 
 ```bash
 # Allow a host on every subsequent --sandbox run.
@@ -548,7 +534,7 @@ These flags are accepted by every command that loads an agent (`run`, `run --exe
 | `--env-from-file <path>`        | Load environment variables from file (repeatable).                                                                       |
 | `--code-mode-tools`             | Provide a single tool to call other tools via JavaScript (forces code-mode tools globally).                              |
 | `--models-gateway <addr>`       | Route model traffic through a gateway. Reads `DOCKER_AGENT_MODELS_GATEWAY` (legacy `CAGENT_MODELS_GATEWAY`) env var.      |
-| `--hook-pre-tool-use <cmd>`     | Add a pre-tool-use hook command (repeatable). See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                 |
+| `--hook-pre-tool-use <cmd>`     | Add a pre-tool-use hook command (repeatable). See [Hooks](../../configuration/hooks/index.md).                 |
 | `--hook-post-tool-use <cmd>`    | Add a post-tool-use hook command (repeatable).                                                                           |
 | `--hook-session-start <cmd>`    | Add a session-start hook command (repeatable).                                                                           |
 | `--hook-session-end <cmd>`      | Add a session-end hook command (repeatable).                                                                             |
@@ -567,9 +553,5 @@ Commands that accept a config support multiple reference types:
 | Alias         | `pirate` (after `docker agent alias add`)   |
 | Default       | (no argument) — uses built-in default agent |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Debugging
-</div>
-  <p>Having issues? See <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> for debug mode, log analysis, and common solutions.</p>
-
-</div>
+> [!NOTE]
+> **Debugging**: Having issues? See [Troubleshooting](../../community/troubleshooting/index.md) for debug mode, log analysis, and common solutions.

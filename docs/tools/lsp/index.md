@@ -1,7 +1,7 @@
 ---
 title: "LSP Tool"
 description: "Connect to Language Server Protocol servers for code intelligence."
-permalink: /tools/lsp/
+keywords: docker agent, ai agents, tools, lsp tool
 ---
 
 # LSP Tool
@@ -12,11 +12,8 @@ _Connect to Language Server Protocol servers for code intelligence._
 
 The LSP tool connects your agent to any Language Server Protocol (LSP) server, providing comprehensive code intelligence capabilities like go-to-definition, find references, diagnostics, and more.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">What is LSP?
-</div>
-  <p>The <a href="https://microsoft.github.io/language-server-protocol/">Language Server Protocol</a> is a standard for providing language features like autocomplete, go-to-definition, and diagnostics. Most programming languages have LSP servers available.</p>
-</div>
+> [!NOTE]
+> **What is LSP?** The [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) is a standard for providing language features like autocomplete, go-to-definition, and diagnostics. Most programming languages have LSP servers available.
 
 ## Available Tools
 
@@ -66,7 +63,7 @@ agents:
 | `env`         | object | ✗        | Environment variables for the LSP process                                                                                    |
 | `file_types`  | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`)                                                                   |
 | `working_dir` | string | ✗        | Working directory for the LSP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. |
-| `version`     | string | ✗        | Package reference for [auto-installing]({{ '/configuration/tools/#auto-installing-tools' | relative_url }}) the command binary |
+| `version`     | string | ✗        | Package reference for [auto-installing](../../configuration/tools/index.md#auto-installing-tools) the command binary |
 
 ## Common LSP Servers
 
@@ -164,11 +161,8 @@ The LSP tool includes built-in instructions that guide the agent on how to use i
 4. Check `lsp_diagnostics` after every code change
 5. Apply `lsp_format` after edits are complete
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Best Practice
-</div>
-  <p>Always include the <code>filesystem</code> tool alongside LSP. The agent needs filesystem access to read and write code files, while LSP provides intelligence about the code.</p>
-</div>
+> [!TIP]
+> **Best Practice**: Always include the `filesystem` tool alongside LSP. The agent needs filesystem access to read and write code files, while LSP provides intelligence about the code.
 
 ## Capability Detection
 
@@ -196,7 +190,7 @@ Available Capabilities:
 
 ## Auto-Restart and Lifecycle
 
-LSP toolsets are managed by the same supervisor as MCP toolsets, so a crashed `gopls` (or any other language server) is reconnected automatically with exponential backoff. Use the [`lifecycle`]({{ '/configuration/tools/#toolset-lifecycle' | relative_url }}) block to tune the policy per toolset — for example, mark `gopls` as `strict` if your CI flow requires it to be available, or use `/toolset-restart gopls` from the TUI to force a reconnect when the server gets stuck.
+LSP toolsets are managed by the same supervisor as MCP toolsets, so a crashed `gopls` (or any other language server) is reconnected automatically with exponential backoff. Use the [`lifecycle`](../../configuration/tools/index.md#toolset-lifecycle) block to tune the policy per toolset — for example, mark `gopls` as `strict` if your CI flow requires it to be available, or use `/toolset-restart gopls` from the TUI to force a reconnect when the server gets stuck.
 
 ```yaml
 toolsets:
@@ -222,8 +216,5 @@ All LSP tools use **1-based** line and character positions:
 }
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Auto-Installation
-</div>
-  <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="{{ '/configuration/tools/#auto-installing-tools' | relative_url }}">Auto-Installing Tools</a> for details.</p>
-</div>
+> [!TIP]
+> **Auto-Installation**: docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the `version` property to specify a package, or let docker-agent auto-detect it from the command name. See [Auto-Installing Tools](../../configuration/tools/index.md#auto-installing-tools) for details.

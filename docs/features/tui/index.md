@@ -1,16 +1,14 @@
 ---
 title: "Terminal UI (TUI)"
 description: "docker-agent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more."
-permalink: /features/tui/
+keywords: docker agent, ai agents, features, terminal ui (tui)
 ---
 
 # Terminal UI (TUI)
 
 _docker-agent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more._
 
-<div class="demo-container">
-  <img src="{{ '/demo.gif' | relative_url }}" alt="docker-agent TUI in action showing an interactive agent session" loading="lazy">
-</div>
+![docker-agent TUI in action showing an interactive agent session](../../demo.gif)
 
 ## Launching the TUI
 
@@ -168,7 +166,7 @@ When enabled, docker-agent records filesystem snapshots at turn boundaries. The 
 
 Neither command removes messages from the session transcript — they only touch files on disk. Both commands (and the matching command-palette entries) are hidden when snapshots are turned off. Omit `snapshot` or set it to `false` to leave automatic snapshots off; agents can still configure snapshot hooks manually.
 
-See [Snapshots]({{ '/features/snapshots/' | relative_url }}) for how the shadow-git machinery works and how to wire it per-agent.
+See [Snapshots](../snapshots/index.md) for how the shadow-git machinery works and how to wire it per-agent.
 
 ## File Attachments
 
@@ -195,12 +193,8 @@ Change the AI model during a session with `/model` or <kbd>Ctrl</kbd>+<kbd>M</kb
 
 When a models gateway is configured (`--models-gateway`) and it exposes an OpenAI-style `/v1/models` endpoint, the picker lists the models actually served by the gateway (merged with the models defined in the agent config). When the gateway doesn't expose `/v1/models`, the picker falls back to the regular catalog.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Use model switching to try a more capable model for complex tasks, or a cheaper one for simple queries — without modifying your YAML config.</p>
-
-</div>
+> [!TIP]
+> Use model switching to try a more capable model for complex tasks, or a cheaper one for simple queries — without modifying your YAML config.
 
 ## Editable Messages
 
@@ -239,12 +233,8 @@ Customize session titles to make them more meaningful and easier to find. By def
 2. Type your new title
 3. Press <kbd>Enter</kbd> to save, or <kbd>Escape</kbd> to cancel
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Note
-</div>
-  <p>Manually set titles are preserved and won’t be overwritten by auto-generation. Title changes are persisted immediately to the session.</p>
-
-</div>
+> [!NOTE]
+> Manually set titles are preserved and won’t be overwritten by auto-generation. Title changes are persisted immediately to the session.
 
 ## Keyboard Shortcuts
 
@@ -388,19 +378,11 @@ settings:
 
 **At runtime:** Use the `/theme` command to open the theme picker and select from available themes. Your selection is saved globally in `~/.config/cagent/config.yaml` under `settings.theme` and persists across sessions.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Hot Reload
-</div>
-  <p>Custom themes auto-reload when you save changes to the file — no restart needed. This makes it easy to tweak colors in real-time.</p>
+> [!TIP]
+> **Hot Reload**: Custom themes auto-reload when you save changes to the file — no restart needed. This makes it easy to tweak colors in real-time.
 
-</div>
-
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Partial overrides
-</div>
-  <p>All user themes are applied on top of the <code>default</code> theme. If you want to customize a built-in theme (e.g., <code>dracula</code>), copy its full YAML from the <a href="https://github.com/docker/docker-agent/tree/main/pkg/tui/styles/themes">built-in themes on GitHub</a> into <code>~/.cagent/themes/</code> and edit the copy. Otherwise, omitted values will use <code>default</code> colors, not the original theme's colors.</p>
-
-</div>
+> [!WARNING]
+> **Partial overrides**: All user themes are applied on top of the `default` theme. If you want to customize a built-in theme (e.g., `dracula`), copy its full YAML from the [built-in themes on GitHub](https://github.com/docker/docker-agent/tree/main/pkg/tui/styles/themes) into `~/.cagent/themes/` and edit the copy. Otherwise, omitted values will use `default` colors, not the original theme's colors.
 
 ## Tool Permissions
 
@@ -412,12 +394,8 @@ When an agent calls a tool, docker-agent shows a confirmation dialog by default.
 
 **Granular permissions:** The permission system supports pattern-based matching. When you “Always allow” a specific tool command, only that exact pattern is auto-approved — other commands from the same tool still require confirmation. This lets you auto-approve safe, read-only operations while maintaining control over destructive ones.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">YOLO mode
-</div>
-  <p>Use <code>--yolo</code> or the <code>/yolo</code> command to auto-approve all tool calls. You can also toggle this mid-session. For aliases, set <code>--yolo</code> when creating the alias: <code>docker agent alias add fast agentcatalog/coder --yolo</code>.</p>
-
-</div>
+> [!TIP]
+> **YOLO mode**: Use `--yolo` or the `/yolo` command to auto-approve all tool calls. You can also toggle this mid-session. For aliases, set `--yolo` when creating the alias: `docker agent alias add fast agentcatalog/coder --yolo`.
 
 ## Notifications
 

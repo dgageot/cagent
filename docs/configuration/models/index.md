@@ -1,7 +1,7 @@
 ---
 title: "Model Configuration"
 description: "Complete reference for defining models with providers, parameters, and reasoning settings."
-permalink: /configuration/models/
+keywords: docker agent, ai agents, configuration, model configuration
 ---
 
 # Model Configuration
@@ -48,7 +48,7 @@ models:
 | Property              | Type       | Required | Description                                                                           |
 | --------------------- | ---------- | -------- | ------------------------------------------------------------------------------------- |
 | `first_available`     | array      | ✗        | Candidate model references tried in order; selects the first whose credentials are configured. Mutually exclusive with other model settings. |
-| `provider`            | string     | ✓/✗      | Required for regular model definitions; omitted for `first_available` selectors. Provider: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, `mistral`, `xai`, `nebius`, `minimax`, `baseten`, `ovhcloud`, `groq`, `fireworks`, `deepseek`, `cerebras`, `together`, `huggingface`, `moonshot`, `vercel`, `cloudflare-workers-ai`, `cloudflare-ai-gateway`, `requesty`, `openrouter`, `azure`, `ollama`, `github-copilot`, or any [named provider]({{ '/providers/custom/' | relative_url }}). |
+| `provider`            | string     | ✓/✗      | Required for regular model definitions; omitted for `first_available` selectors. Provider: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, `mistral`, `xai`, `nebius`, `minimax`, `baseten`, `ovhcloud`, `groq`, `fireworks`, `deepseek`, `cerebras`, `together`, `huggingface`, `moonshot`, `vercel`, `cloudflare-workers-ai`, `cloudflare-ai-gateway`, `requesty`, `openrouter`, `azure`, `ollama`, `github-copilot`, or any [named provider](../../providers/custom/index.md). |
 | `model`               | string     | ✓/✗      | Required for regular model definitions; omitted for `first_available` selectors. Model name (e.g., `gpt-4o`, `claude-sonnet-4-5`, `gemini-3.5-flash`) |
 | `temperature`         | float      | ✗        | Sampling randomness. Range is provider-dependent — typically `0.0–2.0` (Anthropic caps at `1.0`). `0.0` is deterministic. |
 | `max_tokens`          | int        | ✗        | Maximum response length in tokens                                                     |
@@ -61,7 +61,7 @@ models:
 | `task_budget`         | int/object | ✗        | Total token budget for an agentic task (forwarded to Anthropic; see [Task Budget](#task-budget)). |
 | `parallel_tool_calls` | boolean    | ✗        | Allow model to call multiple tools at once                                            |
 | `track_usage`         | boolean    | ✗        | Track and report token usage for this model                                           |
-| `routing`             | array      | ✗        | Rule-based routing to different models. See [Model Routing]({{ '/configuration/routing/' | relative_url }}). |
+| `routing`             | array      | ✗        | Rule-based routing to different models. See [Model Routing](../routing/index.md). |
 | `capabilities`        | object     | ✗        | Override attachment capabilities for this model. See [Attachment Capability Overrides](#attachment-capability-overrides). |
 | `provider_opts`       | object     | ✗        | Provider-specific options (see provider pages)                                        |
 | `title_model`         | string     | ✗        | Model used for session-title generation. Can be a named model from the `models:` section or an inline `provider/model` string. When omitted, the agent's primary model generates titles. Cannot be combined with `first_available`. |
@@ -122,11 +122,10 @@ The value can be a named entry from the `models` stanza or an inline
 `provider/model` string. When omitted, the agent's primary model generates
 titles.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Constraint
-</div>
-  <p><code>title_model</code> cannot be combined with <code>first_available</code> model selection — the combination is rejected at validation time.</p>
-</div>
+> [!WARNING]
+> **Constraint**:
+>
+> `title_model` cannot be combined with `first_available` model selection — the combination is rejected at validation time.
 
 ## Delegating Session Compaction
 
@@ -153,11 +152,10 @@ call can always ingest the full conversation. Pair the primary with a
 compaction model whose window is at least as large to keep the proactive
 trigger aligned with the primary's window.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Constraint
-</div>
-  <p><code>compaction_model</code> cannot be combined with <code>first_available</code> model selection — the combination is rejected at validation time.</p>
-</div>
+> [!WARNING]
+> **Constraint**:
+>
+> `compaction_model` cannot be combined with `first_available` model selection — the combination is rejected at validation time.
 
 See [`examples/compaction_model.yaml`](https://github.com/docker/docker-agent/blob/main/examples/compaction_model.yaml) for a complete example.
 
@@ -187,17 +185,13 @@ through the gateway as before.
 Bypass is propagated transparently through router models: a bypass-flagged routing
 model passes the flag to all of its routed targets automatically.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Security note
-</div>
-  <p>On an untrusted config, a malicious <code>base_url</code> combined with <code>bypass_models_gateway: true</code> could route provider credentials to an attacker-controlled endpoint. Only enable this on configs you control.</p>
-</div>
+> [!WARNING]
+> **Security note**: On an untrusted config, a malicious `base_url` combined with `bypass_models_gateway: true` could route provider credentials to an attacker-controlled endpoint. Only enable this on configs you control.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Constraint
-</div>
-  <p><code>bypass_models_gateway: true</code> cannot be combined with <code>first_available</code> — the combination is rejected at validation time.</p>
-</div>
+> [!WARNING]
+> **Constraint**:
+>
+> `bypass_models_gateway: true` cannot be combined with `first_available` — the combination is rejected at validation time.
 
 See [`examples/bypass_models_gateway.yaml`](https://github.com/docker/docker-agent/blob/main/examples/bypass_models_gateway.yaml) for a complete example.
 
@@ -314,7 +308,7 @@ thinking_budget: none # or 0
 
 Models that always reason (OpenAI o-series, gpt-5, Gemini 3) fall back to the API default and still reason internally.
 
-See the [Thinking / Reasoning guide]({{ '/guides/thinking/' | relative_url }}) for per-provider details, including AWS Bedrock and Docker Model Runner.
+See the [Thinking / Reasoning guide](../../guides/thinking/index.md) for per-provider details, including AWS Bedrock and Docker Model Runner.
 
 ## Task Budget
 
@@ -365,7 +359,7 @@ Setting `task_budget: 0` (or omitting the field) disables the feature — the
 model falls back to the provider's default behavior.
 
 Like other inheritable model settings, `task_budget` can also be declared on a
-[provider definition]({{ '/providers/custom/' | relative_url }}) and is
+[provider definition](../../providers/custom/index.md) and is
 inherited by every model that references that provider.
 
 See [`examples/task_budget.yaml`](https://github.com/docker/docker-agent/blob/main/examples/task_budget.yaml) for a complete example.
@@ -399,7 +393,7 @@ models:
       thinking_display: summarized # "summarized", "display", or "omitted"
 ```
 
-See the [Anthropic provider page]({{ '/providers/anthropic/#thinking-display' | relative_url }}) for details.
+See the [Anthropic provider page](../../providers/anthropic/index.md#thinking-display) for details.
 
 ## Custom HTTP Headers
 
@@ -421,7 +415,7 @@ models:
 
 Header names are matched case-insensitively. The `github-copilot` provider
 automatically sets `Copilot-Integration-Id: copilot-developer-cli` — see the
-[GitHub Copilot provider page]({{ '/providers/github-copilot/' | relative_url }})
+[GitHub Copilot provider page](../../providers/github-copilot/index.md)
 for details.
 
 ## Examples by Provider
@@ -464,7 +458,7 @@ models:
     max_tokens: 8192
 ```
 
-For detailed provider setup, see the [Model Providers]({{ '/providers/overview/' | relative_url }}) section.
+For detailed provider setup, see the [Model Providers](../../providers/overview/index.md) section.
 
 ## Custom Endpoints
 
@@ -503,9 +497,9 @@ models:
     base_url: "${env.DMR_BASE_URL}"
 ```
 
-See [Variable Expansion in Config Fields]({{ '/configuration/overview/#variable-expansion-in-config-fields' | relative_url }}) for the full set of fields and supported syntaxes.
+See [Variable Expansion in Config Fields](../overview/index.md#variable-expansion-in-config-fields) for the full set of fields and supported syntaxes.
 
-See [Local Models]({{ '/providers/local/' | relative_url }}) for more examples of custom endpoints.
+See [Local Models](../../providers/local/index.md) for more examples of custom endpoints.
 
 ## Inheriting from Provider Definitions
 
@@ -532,4 +526,4 @@ models:
     thinking_budget: 1024  # Overrides provider default
 ```
 
-See [Provider Definitions]({{ '/providers/custom/' | relative_url }}) for the full list of inheritable properties.
+See [Provider Definitions](../../providers/custom/index.md) for the full list of inheritable properties.

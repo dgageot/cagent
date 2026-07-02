@@ -1,7 +1,7 @@
 ---
 title: "HCL Configuration"
 description: "Write docker-agent configs in HCL instead of YAML, using labeled blocks, heredocs, and the same underlying schema."
-permalink: /configuration/hcl/
+keywords: docker agent, ai agents, configuration, hcl configuration
 ---
 
 # HCL Configuration
@@ -10,11 +10,8 @@ _Write docker-agent configs in HCL instead of YAML. It maps to the same docker-a
 
 `docker-agent` supports `.hcl` config files anywhere it supports `.yaml` or `.yml` files. HCL is useful if you prefer labeled blocks, less punctuation, and heredocs for long prompts.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Same config model, different syntax
-</div>
-  <p>YAML and HCL are just two syntaxes for the same docker-agent configuration model. docker-agent converts HCL to the equivalent YAML structure internally, then runs the normal schema validation and loading pipeline.</p>
-</div>
+> [!TIP]
+> **Same config model, different syntax**: YAML and HCL are just two syntaxes for the same docker-agent configuration model. docker-agent converts HCL to the equivalent YAML structure internally, then runs the normal schema validation and loading pipeline.
 
 ## Minimal Example
 
@@ -40,11 +37,8 @@ $ docker agent run --exec agent.hcl "Summarize this repository"
 $ docker agent serve api ./agents/   # directories may mix .yaml, .yml, and .hcl files
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>HCL changes the syntax, not the meaning of fields. For what each field does, see <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a>, <a href="{{ '/configuration/models/' | relative_url }}">Model Config</a>, and <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>.</p>
-</div>
+> [!TIP]
+> **See also**: HCL changes the syntax, not the meaning of fields. For what each field does, see [Agent Config](../agents/index.md), [Model Config](../models/index.md), and [Tool Config](../tools/index.md).
 
 ## YAML vs HCL
 

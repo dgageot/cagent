@@ -2,20 +2,20 @@
 layout: default
 title: "Docker Agent"
 description: "Run AI agents like containers. Define them in YAML, share them through any OCI registry, and run them anywhere."
-permalink: /
+keywords: docker agent, ai agents
 ---
 
 <div class="hero">
   <h1>Docker Agent</h1>
   <p><strong>Docker Agent is to AI agents what <code>docker run</code> is to containers.</strong><br>Define an agent in a YAML file, run it with one command, share it through any OCI registry — the same workflow you already use for images.</p>
   <div class="hero-buttons">
-    <a href="{{ '/getting-started/quickstart/' | relative_url }}" class="btn btn-primary">Quick Start →</a>
+    <a href="getting-started/quickstart/" class="btn btn-primary">Quick Start →</a>
     <a href="https://github.com/docker/docker-agent" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View on GitHub</a>
   </div>
 </div>
 
 <div class="demo-container">
-  <img src="{{ '/demo.gif' | relative_url }}" alt="Docker Agent TUI demo showing an interactive agent session" loading="lazy">
+  <img src="demo.gif" alt="Docker Agent TUI demo showing an interactive agent session" loading="lazy">
 </div>
 
 <div class="elevator">
@@ -104,6 +104,7 @@ while True:
   # …parse tool_use blocks, dispatch, append, loop…
   if resp.stop_reason == "end_turn": break
 ```
+
   </div>
   <div class="compare-side compare-with" markdown="1">
     <div class="compare-label">With Docker Agent</div>
@@ -123,6 +124,7 @@ agents:
 ```bash
 $ docker agent run agent.yaml
 ```
+
   </div>
 </div>
 
@@ -213,7 +215,7 @@ What people build with Docker Agent today:
     </div>
     <h3>Ops &amp; SRE</h3>
     <p>Triage incidents, search logs, run kubectl, build Dockerfiles. Pipe alerts in via <code>--exec</code> for headless runs.</p>
-    <a href="{{ '/features/cli/' | relative_url }}">CLI reference →</a>
+    <a href="features/cli/">CLI reference →</a>
   </div>
   <div class="usecase">
     <div class="usecase-icon">
@@ -221,7 +223,7 @@ What people build with Docker Agent today:
     </div>
     <h3>Data &amp; research</h3>
     <p>Persistent memory, web fetch, RAG over local docs, structured output for downstream pipelines.</p>
-    <a href="{{ '/tools/rag/' | relative_url }}">RAG guide →</a>
+    <a href="tools/rag/">RAG guide →</a>
   </div>
   <div class="usecase">
     <div class="usecase-icon">
@@ -229,7 +231,7 @@ What people build with Docker Agent today:
     </div>
     <h3>Custom workflows</h3>
     <p>Multi-agent teams, hooks, model routing, A2A and MCP servers — wire agents into your existing stack.</p>
-    <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-agent →</a>
+    <a href="concepts/multi-agent/">Multi-agent →</a>
   </div>
 </div>
 
@@ -238,7 +240,7 @@ What people build with Docker Agent today:
 Docker Agent follows a simple loop:
 
 <figure class="flow-diagram">
-  <img src="{{ '/assets/how-it-works.svg' | relative_url }}" alt="agent.yaml is run by 'docker agent run', which loops through Model, Tools and Sub-agents, then streams results to the TUI or API." loading="lazy">
+  <img src="assets/how-it-works.svg" alt="agent.yaml is run by 'docker agent run', which loops through Model, Tools and Sub-agents, then streams results to the TUI or API." loading="lazy">
   <figcaption>Your YAML config is the input; the runtime drives a Model ↔ Tools ↔ Sub-agents loop until the task is done; results stream back to the TUI or any API client.</figcaption>
 </figure>
 
@@ -333,11 +335,8 @@ $ cat error.log | docker agent run --exec agent.yaml "What's wrong in this log?"
 $ docker agent serve api agent.yaml --listen :8080
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Prefer HCL?
-</div>
-  <p>You can also write agent configs in HCL using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
-</div>
+> [!TIP]
+> **Prefer HCL?** You can also write agent configs in HCL using labeled blocks and heredocs. See [HCL Configuration](configuration/hcl/index.md).
 
 ## Part of the Docker ecosystem
 
@@ -365,42 +364,42 @@ Docker Agent reuses the tooling and conventions you already know:
 ## Explore the Docs
 
 <div class="cards">
-  <a class="card" href="{{ '/getting-started/introduction/' | relative_url }}">
+  <a class="card" href="getting-started/introduction/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
     </div>
     <h3>Introduction</h3>
     <p>The full story: what Docker Agent is, why it exists, and how it works.</p>
   </a>
-  <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
+  <a class="card" href="getting-started/quickstart/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
     </div>
     <h3>Quick Start</h3>
     <p>Get your first agent running in under 5 minutes.</p>
   </a>
-  <a class="card" href="{{ '/concepts/agents/' | relative_url }}">
+  <a class="card" href="concepts/agents/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.4 1 1 1 1.7V18h6v-1.6c0-.7.4-1.3 1-1.7A7 7 0 0 0 12 2z"/></svg>
     </div>
     <h3>Core Concepts</h3>
     <p>Agents, models, tools, and multi-agent orchestration explained.</p>
   </a>
-  <a class="card" href="{{ '/configuration/overview/' | relative_url }}">
+  <a class="card" href="configuration/overview/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </div>
     <h3>Configuration</h3>
     <p>Full reference for every YAML and HCL option.</p>
   </a>
-  <a class="card" href="{{ '/providers/overview/' | relative_url }}">
+  <a class="card" href="providers/overview/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/></svg>
     </div>
     <h3>Model Providers</h3>
     <p>OpenAI, Anthropic, Gemini, Bedrock, Docker Model Runner, and more.</p>
   </a>
-  <a class="card" href="{{ '/features/tui/' | relative_url }}">
+  <a class="card" href="features/tui/">
     <div class="card-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </div>

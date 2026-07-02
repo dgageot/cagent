@@ -1,7 +1,7 @@
 ---
 title: "Transfer Task Tool"
 description: "Delegate tasks to sub-agents in multi-agent setups."
-permalink: /tools/transfer-task/
+keywords: docker agent, ai agents, tools, transfer task tool
 ---
 
 # Transfer Task Tool
@@ -55,10 +55,7 @@ The `transfer_task` tool takes three parameters:
 | `task`            | string | ✓        | Clear, concise description of the task the sub-agent should achieve.                        |
 | `expected_output` | string | ✓        | Description of the result/format the caller expects back.                                   |
 
-The call blocks until the sub-agent returns its result, which becomes the tool's response. For non-blocking parallel delegation, use [`background_agents`]({{ '/tools/background-agents/' | relative_url }}) instead.
+The call blocks until the sub-agent returns its result, which becomes the tool's response. For non-blocking parallel delegation, use [`background_agents`](../background-agents/index.md) instead.
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>For parallel task delegation, see <a href="{{ '/tools/background-agents/' | relative_url }}">Background Agents</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>.</p>
-</div>
+> [!TIP]
+> **See also**: For parallel task delegation, see [Background Agents](../background-agents/index.md). For multi-agent patterns, see [Multi-Agent](../../concepts/multi-agent/index.md).

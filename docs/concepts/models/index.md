@@ -1,7 +1,7 @@
 ---
 title: "Models"
 description: "Models are the AI brains behind your agents. docker-agent supports multiple providers and flexible configuration."
-permalink: /concepts/models/
+keywords: docker agent, ai agents, concepts, models
 ---
 
 # Models
@@ -65,7 +65,7 @@ agents:
 
 At load time, docker-agent selects the first candidate whose credentials are
 configured. You only need credentials for one candidate. See
-[Model Configuration]({{ '/configuration/models/#first-available-models' | relative_url }})
+[Model Configuration](../../configuration/models/index.md#first-available-models)
 for details.
 
 ## Supported Providers
@@ -99,7 +99,7 @@ for details.
 | Ollama              | `ollama`         | Any local Ollama model               | None (local; optional `base_url`)   |
 | GitHub Copilot      | `github-copilot` | Copilot-hosted OpenAI/Anthropic      | `GITHUB_TOKEN` (PAT with `copilot`) |
 
-See the [Model Providers]({{ '/providers/overview/' | relative_url }}) section for detailed configuration guides.
+See the [Model Providers](../../providers/overview/index.md) section for detailed configuration guides.
 
 ## Model Properties
 
@@ -142,12 +142,8 @@ models:
     thinking_budget: none # disable thinking
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Multi-provider teams
-</div>
-  <p>Different agents can use different providers in the same config. See <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a> for patterns.</p>
-
-</div>
+> [!NOTE]
+> **Multi-provider teams**: Different agents can use different providers in the same config. See [Multi-Agent](../multi-agent/index.md) for patterns.
 
 ## Alloy Models
 

@@ -1,7 +1,7 @@
 ---
 title: "Thinking / Reasoning"
 description: "Control how much a model reasons before responding. Works across OpenAI, Anthropic, Google Gemini, AWS Bedrock, and Docker Model Runner."
-permalink: /guides/thinking/
+keywords: docker agent, ai agents, guides, thinking / reasoning
 ---
 
 # Thinking / Reasoning
@@ -14,11 +14,8 @@ Several modern models support an extended reasoning phase that happens before th
 
 docker-agent exposes this through a single `thinking_budget` field on any named model. The value format differs slightly by provider, but the semantics are the same: higher effort means more thorough reasoning.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Think tool vs. thinking budget
-</div>
-  <p>The <a href="{{ '/tools/think/' | relative_url }}">think tool</a> is a scratchpad for models that lack native reasoning. If your model supports <code>thinking_budget</code>, you do not need the think tool.</p>
-</div>
+> [!NOTE]
+> **Think tool vs. thinking budget**: The [think tool](../../tools/think/index.md) is a scratchpad for models that lack native reasoning. If your model supports `thinking_budget`, you do not need the think tool.
 
 ## Quick Reference
 
@@ -60,11 +57,8 @@ models:
 
 These effort levels (`minimal`–`xhigh`) are the **only** values accepted for OpenAI. Token counts, `max`, `adaptive`, and `adaptive/<effort>` are rejected with a configuration error at request time. The `xhigh` level is only supported by gpt-5.2 and later minor versions (e.g. gpt-5.2, gpt-5.4-mini); o-series and earlier gpt-5 releases top out at `high`. Older models (o1, o3-mini) only accept `low`/`medium`/`high` — sending an unsupported level returns an API error.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Tokens and max_tokens
-</div>
-  <p>OpenAI reasoning models always reason internally — even with <code>thinking_budget: none</code> there are hidden reasoning tokens that count against <code>max_tokens</code>. docker-agent automatically raises the output-token floor for its internal low-effort calls (e.g. title generation) so hidden reasoning cannot starve visible text output.</p>
-</div>
+> [!WARNING]
+> **Tokens and max_tokens**: OpenAI reasoning models always reason internally — even with `thinking_budget: none` there are hidden reasoning tokens that count against `max_tokens`. docker-agent automatically raises the output-token floor for its internal low-effort calls (e.g. title generation) so hidden reasoning cannot starve visible text output.
 
 ## Anthropic
 
@@ -118,11 +112,8 @@ models:
 
 `minimal` is treated as `low` (bare form only). `high` is the default when `adaptive` is used without an effort level.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Effort strings require adaptive-capable models
-</div>
-  <p>Every string effort value on Anthropic is sent as adaptive thinking (<code>output_config.effort</code>), which only newer Claude models (Opus 4.6+, Sonnet 4.6) accept. For older models like Sonnet 4.5, use an integer token budget instead. Conversely, models that <em>only</em> support adaptive thinking (Opus 4.6, 4.7, 4.8, Sonnet 4.6) automatically have token budgets coerced to <code>adaptive</code> (a warning is logged).</p>
-</div>
+> [!WARNING]
+> **Effort strings require adaptive-capable models**: Every string effort value on Anthropic is sent as adaptive thinking (`output_config.effort`), which only newer Claude models (Opus 4.6+, Sonnet 4.6) accept. For older models like Sonnet 4.5, use an integer token budget instead. Conversely, models that _only_ support adaptive thinking (Opus 4.6, 4.7, 4.8, Sonnet 4.6) automatically have token budgets coerced to `adaptive` (a warning is logged).
 
 ### Disabling thinking
 
@@ -145,11 +136,8 @@ models:
       interleaved_thinking: false
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Temperature and top_p
-</div>
-  <p>When extended thinking is enabled, Anthropic requires <code>temperature=1.0</code>. docker-agent automatically suppresses any <code>temperature</code> or <code>top_p</code> settings you have configured — they are silently ignored while thinking is active.</p>
-</div>
+> [!NOTE]
+> **Temperature and top_p**: When extended thinking is enabled, Anthropic requires `temperature=1.0`. docker-agent automatically suppresses any `temperature` or `top_p` settings you have configured — they are silently ignored while thinking is active.
 
 ### Thinking display
 
@@ -186,7 +174,7 @@ models:
     task_budget: 128000   # total token ceiling for the whole task
 ```
 
-See the [Anthropic provider page]({{ '/providers/anthropic/#task-budget' | relative_url }}) for details.
+See the [Anthropic provider page](../../providers/anthropic/index.md#task-budget) for details.
 
 ## Google Gemini
 
@@ -269,11 +257,8 @@ models:
       region: us-east-1
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Bedrock thinking requirements
-</div>
-  <p>Bedrock Claude requires token-based <code>thinking_budget</code> values to be ≥ 1024 and less than <code>max_tokens</code>. docker-agent logs a warning and ignores the budget if either condition is violated. Interleaved thinking requires the <code>interleaved-thinking-2025-05-14</code> beta header, which docker-agent adds automatically; it is auto-enabled whenever a token thinking budget is set on a Bedrock-hosted Claude model (adaptive thinking interleaves on its own).</p>
-</div>
+> [!WARNING]
+> **Bedrock thinking requirements**: Bedrock Claude requires token-based `thinking_budget` values to be ≥ 1024 and less than `max_tokens`. docker-agent logs a warning and ignores the budget if either condition is violated. Interleaved thinking requires the `interleaved-thinking-2025-05-14` beta header, which docker-agent adds automatically; it is auto-enabled whenever a token thinking budget is set on a Bedrock-hosted Claude model (adaptive thinking interleaves on its own).
 
 ## Docker Model Runner (local models)
 
@@ -291,13 +276,13 @@ models:
 - **vLLM**: sent as `thinking_token_budget` on each request.
 - **MLX / SGLang**: no reasoning-budget knob; the value is silently ignored.
 
-See the [Docker Model Runner provider page]({{ '/providers/dmr/' | relative_url }}) for details.
+See the [Docker Model Runner provider page](../../providers/dmr/index.md) for details.
 
 ## xAI (Grok) and Mistral
 
 xAI and Mistral run through docker-agent's OpenAI-compatible client, but the `reasoning_effort` parameter is only sent for OpenAI reasoning model names (o-series, gpt-5). **Setting `thinking_budget` on Grok or Mistral models currently has no effect** — the value is accepted by config validation but never sent to the API.
 
-Grok and Mistral reasoning models (e.g. `grok-3-mini`, `magistral`) manage reasoning on their own; for non-reasoning models, consider the [think tool]({{ '/tools/think/' | relative_url }}) instead.
+Grok and Mistral reasoning models (e.g. `grok-3-mini`, `magistral`) manage reasoning on their own; for non-reasoning models, consider the [think tool](../../tools/think/index.md) instead.
 
 ## Disabling Thinking
 

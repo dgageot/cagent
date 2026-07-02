@@ -1,7 +1,7 @@
 ---
 title: "Local Models (Ollama, vLLM, LocalAI)"
 description: "Run docker-agent with locally hosted models for privacy, offline use, or cost savings."
-permalink: /providers/local/
+keywords: docker agent, ai agents, model providers, local models (ollama, vllm, localai)
 ---
 
 # Local Models (Ollama, vLLM, LocalAI)
@@ -16,12 +16,8 @@ docker-agent can connect to any OpenAI-compatible local model server. This guide
 - **vLLM** — High-performance inference server
 - **LocalAI** — OpenAI-compatible API for various backends
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Docker Model Runner
-</div>
-  <p>For the easiest local model experience, consider <a href="{{ '/providers/dmr/' | relative_url }}">Docker Model Runner</a> which is built into Docker Desktop and requires no additional setup.</p>
-
-</div>
+> [!TIP]
+> **Docker Model Runner**: For the easiest local model experience, consider [Docker Model Runner](../dmr/index.md) which is built into Docker Desktop and requires no additional setup.
 
 ## Ollama
 
@@ -169,16 +165,13 @@ agents:
 
 ## Performance Tips
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Local Model Considerations
-</div>
-
-- **Memory:** Larger models need more RAM/VRAM. A 7B model typically needs 8-16GB RAM.
-- **GPU:** GPU acceleration dramatically improves speed. Check your server's GPU support.
-- **Context length:** Local models often have smaller context windows than cloud models.
-- **Tool calling:** Not all local models support function/tool calling. Test your model's capabilities.
-
-</div>
+> [!NOTE]
+> **Local Model Considerations**:
+>
+> - **Memory:** Larger models need more RAM/VRAM. A 7B model typically needs 8-16GB RAM.
+> - **GPU:** GPU acceleration dramatically improves speed. Check your server's GPU support.
+> - **Context length:** Local models often have smaller context windows than cloud models.
+> - **Tool calling:** Not all local models support function/tool calling. Test your model's capabilities.
 
 ## Example: Offline Development Agent
 

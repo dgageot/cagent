@@ -1,7 +1,7 @@
 ---
 title: "MCP Tool"
 description: "Extend agents with external tools via the Model Context Protocol."
-permalink: /tools/mcp/
+keywords: docker agent, ai agents, tools, mcp tool
 ---
 
 # MCP Tool
@@ -18,11 +18,8 @@ The `mcp` toolset connects your agent to any MCP server — a process or remote 
 | **Local stdio** | Subprocess over stdin/stdout | Custom or community MCP servers run from a binary or `npx`/`pip` package |
 | **Remote** | Streamable HTTP or SSE | Cloud services with hosted MCP endpoints (Linear, Notion, Atlassian, …) |
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">What is MCP?
-</div>
-  <p>The <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> is an open standard for connecting AI tools. Docker Agent can both <em>use</em> MCP servers (this page) and <em>expose</em> agents as MCP servers — see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
-</div>
+> [!NOTE]
+> **What is MCP?** The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard for connecting AI tools. Docker Agent can both _use_ MCP servers (this page) and _expose_ agents as MCP servers — see [MCP Mode](../../features/mcp-mode/index.md).
 
 ## Docker MCP (Recommended)
 
@@ -41,11 +38,11 @@ Browse available servers at the [Docker MCP Catalog](https://hub.docker.com/u/mc
 
 | Property      | Type   | Description                                                      |
 | ------------- | ------ | ---------------------------------------------------------------- |
-| `ref`         | string | Docker MCP reference (`docker:name`) or a name from the [reusable `mcps:`]({{ '/configuration/overview/#reusable-mcp-servers-mcps' | relative_url }}) block. |
+| `ref`         | string | Docker MCP reference (`docker:name`) or a name from the [reusable `mcps:`](../../configuration/overview/index.md#reusable-mcp-servers-mcps) block. |
 | `tools`       | array  | Optional whitelist — only expose these tools to the model.       |
 | `instruction` | string | Custom instructions injected into the agent's context.           |
 | `config`      | any    | MCP server-specific configuration passed during initialization.  |
-| `working_dir` | string | Working directory for the MCP gateway subprocess. Only applies when the catalog entry runs as a local process (not remote). Relative paths are resolved against the agent's working directory. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details]({{ '/configuration/overview/#variable-expansion-in-config-fields' | relative_url }})). |
+| `working_dir` | string | Working directory for the MCP gateway subprocess. Only applies when the catalog entry runs as a local process (not remote). Relative paths are resolved against the agent's working directory. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details](../../configuration/overview/index.md#variable-expansion-in-config-fields)). |
 
 ## Local MCP (stdio)
 
@@ -67,15 +64,12 @@ toolsets:
 | `args`        | array  | Command arguments. |
 | `tools`       | array  | Optional whitelist — only expose these tools. |
 | `env`         | object | Environment variables (key-value pairs). |
-| `working_dir` | string | Working directory for the MCP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details]({{ '/configuration/overview/#variable-expansion-in-config-fields' | relative_url }})). |
+| `working_dir` | string | Working directory for the MCP server process. Relative paths are resolved against the agent's working directory. Defaults to the agent's working directory when omitted. Supports `${env.VAR}` (canonical), plus `~` and shell-style `$VAR`/`${VAR}` expansion ([details](../../configuration/overview/index.md#variable-expansion-in-config-fields)). |
 | `instruction` | string | Custom instructions injected into the agent's context. |
-| `version`     | string | Package reference for [auto-installing]({{ '/configuration/tools/#auto-installing-tools' | relative_url }}) the command binary. |
+| `version`     | string | Package reference for [auto-installing](../../configuration/tools/index.md#auto-installing-tools) the command binary. |
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Auto-installation
-</div>
-  <p>If the <code>command</code> is not in your <code>PATH</code>, docker-agent looks it up in the <a href="https://github.com/aquaproj/aqua-registry">aqua registry</a> and installs it for you. Use <code>version: "false"</code> to opt out, or set <code>DOCKER_AGENT_AUTO_INSTALL=false</code> globally. See <a href="{{ '/configuration/tools/#auto-installing-tools' | relative_url }}">Auto-Installing Tools</a>.</p>
-</div>
+> [!TIP]
+> **Auto-installation**: If the `command` is not in your `PATH`, docker-agent looks it up in the [aqua registry](https://github.com/aquaproj/aqua-registry) and installs it for you. Use `version: "false"` to opt out, or set `DOCKER_AGENT_AUTO_INSTALL=false` globally. See [Auto-Installing Tools](../../configuration/tools/index.md#auto-installing-tools).
 
 ## Remote MCP (Streamable HTTP / SSE)
 
@@ -99,10 +93,10 @@ toolsets:
 | `remote.url`            | string  | Base URL of the MCP server. |
 | `remote.transport_type` | string  | `streamable` or `sse`. |
 | `remote.headers`        | object  | HTTP headers (typically for static auth tokens). |
-| `remote.oauth`          | object  | Explicit OAuth client credentials for servers that don't support DCR. See [Remote MCP Servers]({{ '/features/remote-mcp/' | relative_url }}#oauth-for-servers-without-dynamic-client-registration). |
+| `remote.oauth`          | object  | Explicit OAuth client credentials for servers that don't support DCR. See [Remote MCP Servers](../../features/remote-mcp/index.md#oauth-for-servers-without-dynamic-client-registration). |
 | `allow_private_ips`     | boolean | Permit remote MCP OAuth helper requests to dial non-public IP addresses. Use only for trusted internal servers. |
 
-For a curated list of public remote MCP endpoints (Linear, GitHub, Vercel, Notion, …) and full OAuth configuration details, see [Remote MCP Servers]({{ '/features/remote-mcp/' | relative_url }}).
+For a curated list of public remote MCP endpoints (Linear, GitHub, Vercel, Notion, …) and full OAuth configuration details, see [Remote MCP Servers](../../features/remote-mcp/index.md).
 
 ## Embedded Resources
 
@@ -138,7 +132,7 @@ agents:
         ref: playwright
 ```
 
-See [Reusable MCP Servers]({{ '/configuration/overview/#reusable-mcp-servers-mcps' | relative_url }}) for the full reference.
+See [Reusable MCP Servers](../../configuration/overview/index.md#reusable-mcp-servers-mcps) for the full reference.
 
 ## Common Options
 
@@ -213,7 +207,7 @@ toolsets:
     model: openai/gpt-4o-mini
 ```
 
-See [Per-Toolset Model Routing]({{ '/configuration/tools/#per-toolset-model-routing' | relative_url }}).
+See [Per-Toolset Model Routing](../../configuration/tools/index.md#per-toolset-model-routing).
 
 ### Lifecycle (auto-restart, profiles)
 
@@ -232,7 +226,7 @@ toolsets:
       profile: strict      # fail-fast: required, no retries
 ```
 
-See [Toolset Lifecycle]({{ '/configuration/tools/#toolset-lifecycle' | relative_url }}) for all profiles and tuning knobs, and [`/toolset-restart`]({{ '/features/tui/' | relative_url }}) to force a reconnect from the TUI.
+See [Toolset Lifecycle](../../configuration/tools/index.md#toolset-lifecycle) for all profiles and tuning knobs, and [`/toolset-restart`](../../features/tui/index.md) to force a reconnect from the TUI.
 
 ## Combined Example
 
@@ -273,16 +267,13 @@ agents:
         instruction: Use Linear for issue tracking.
 ```
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Toolset order matters
-</div>
-  <p>If multiple toolsets provide a tool with the same name, the first one wins: the duplicate from the later toolset is ignored and a warning identifies both toolsets. Order your toolsets intentionally. To keep both tools callable, give the MCP toolset a unique <code>name:</code> (its tools are then exposed as <code>&lt;name&gt;_&lt;tool&gt;</code>) or restrict the overlapping toolset with its <code>tools:</code> filter.</p>
-</div>
+> [!WARNING]
+> **Toolset order matters**: If multiple toolsets provide a tool with the same name, the first one wins: the duplicate from the later toolset is ignored and a warning identifies both toolsets. Order your toolsets intentionally. To keep both tools callable, give the MCP toolset a unique `name:` (its tools are then exposed as `<name>_<tool>`) or restrict the overlapping toolset with its `tools:` filter.
 
 ## See Also
 
-- [Tool Configuration]({{ '/configuration/tools/' | relative_url }}) — full reference for every toolset type, plus shared options (lifecycle, TOON, model routing, …).
-- [Reusable MCP Servers]({{ '/configuration/overview/#reusable-mcp-servers-mcps' | relative_url }}) — the top-level `mcps:` block.
-- [Remote MCP Servers]({{ '/features/remote-mcp/' | relative_url }}) — catalog of public remote MCP endpoints + OAuth recipes.
-- [MCP Mode]({{ '/features/mcp-mode/' | relative_url }}) — expose your own agents as MCP tools to Claude Desktop, Claude Code, etc.
-- [Auto-Installing Tools]({{ '/configuration/tools/#auto-installing-tools' | relative_url }}) — automatic installation of MCP server binaries.
+- [Tool Configuration](../../configuration/tools/index.md) — full reference for every toolset type, plus shared options (lifecycle, TOON, model routing, …).
+- [Reusable MCP Servers](../../configuration/overview/index.md#reusable-mcp-servers-mcps) — the top-level `mcps:` block.
+- [Remote MCP Servers](../../features/remote-mcp/index.md) — catalog of public remote MCP endpoints + OAuth recipes.
+- [MCP Mode](../../features/mcp-mode/index.md) — expose your own agents as MCP tools to Claude Desktop, Claude Code, etc.
+- [Auto-Installing Tools](../../configuration/tools/index.md#auto-installing-tools) — automatic installation of MCP server binaries.

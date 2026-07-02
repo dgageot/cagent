@@ -1,7 +1,7 @@
 ---
 title: "Snapshots"
 description: "Shadow-git snapshots capture your workspace at turn boundaries so you can review what an agent changed and undo it without touching your real git history."
-permalink: /features/snapshots/
+keywords: docker agent, ai agents, features, snapshots
 ---
 
 # Snapshots
@@ -24,13 +24,8 @@ Snapshots only ever touch files on disk. They never write commits to your
 repository, never move your `HEAD`, and never appear in `git log` or
 `git status`.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Git repositories only
-</div>
-  <p>The snapshot machinery is a no-op outside a git worktree. It needs a git
-  repository to scope which files belong to your project and to mirror the
-  repository's ignore rules.</p>
-</div>
+> [!NOTE]
+> **Git repositories only**: The snapshot machinery is a no-op outside a git worktree. It needs a git repository to scope which files belong to your project and to mirror the repository's ignore rules.
 
 ## Enabling Snapshots
 
@@ -45,7 +40,7 @@ settings:
 
 Omit `snapshot` or set it to `false` to leave automatic snapshots off.
 
-You can also wire the [`snapshot` built-in hook]({{ '/configuration/hooks/#available-built-ins' | relative_url }})
+You can also wire the [`snapshot` built-in hook](../../configuration/hooks/index.md#available-built-ins)
 into a single agent instead of enabling it globally:
 
 ```yaml
@@ -67,7 +62,7 @@ for a complete configuration.
 
 ## Using Snapshots in the TUI
 
-When snapshots are enabled, the [TUI]({{ '/features/tui/' | relative_url }})
+When snapshots are enabled, the [TUI](../tui/index.md)
 exposes two slash commands:
 
 - **`/undo`** restores files from the most recent snapshot (one step back).
@@ -106,8 +101,8 @@ when snapshots are turned off.
 
 ## See Also
 
-- [Hooks]({{ '/configuration/hooks/' | relative_url }}) — the `snapshot`
+- [Hooks](../../configuration/hooks/index.md) — the `snapshot`
   built-in and the events it can run on.
-- [Terminal UI]({{ '/features/tui/' | relative_url }}) — the `/undo` and
+- [Terminal UI](../tui/index.md) — the `/undo` and
   `/snapshots` commands.
 - [`examples/snapshot_hooks.yaml`](https://github.com/docker/docker-agent/blob/main/examples/snapshot_hooks.yaml) — a complete snapshot hook configuration.

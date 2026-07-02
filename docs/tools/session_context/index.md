@@ -1,7 +1,7 @@
 ---
 title: "Session Context Tool"
 description: "Reference a previous session as context in the current one."
-permalink: /tools/session_context/
+keywords: docker agent, ai agents, tools, session context tool
 ---
 
 # Session Context Tool
@@ -51,7 +51,7 @@ toolsets:
 
 A long session could overflow the current context window, so `read_session` caps the rendered transcript. When a transcript is larger than the budget, the oldest messages are dropped (the most recent are usually the most useful for continuing work) and a note records how many were omitted:
 
-```
+```text
 [12 earlier message(s) omitted to fit the context budget; showing the most recent 8]
 ```
 

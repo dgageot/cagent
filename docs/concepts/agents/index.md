@@ -1,7 +1,7 @@
 ---
 title: "Agents"
 description: "Agents are the core building blocks of docker-agent. Each agent is an AI-powered entity with a model, instructions, tools, and optional sub-agents."
-permalink: /concepts/agents/
+keywords: docker agent, ai agents, concepts, agents
 ---
 
 # Agents
@@ -12,7 +12,7 @@ _Agents are the core building blocks of docker-agent. Each agent is an AI-powere
 
 An agent in docker-agent is defined by:
 
-- **Model** — The AI model powering it (e.g., Claude, GPT-5, Gemini). See [Models]({{ '/concepts/models/' | relative_url }}).
+- **Model** — The AI model powering it (e.g., Claude, GPT-5, Gemini). See [Models](../models/index.md).
 - **Description** — A brief summary of what the agent does (used by other agents for delegation)
 - **Instruction** — The system prompt that defines the agent's behavior and personality
 - **Tools** — Capabilities like filesystem access, shell commands, or external APIs
@@ -36,12 +36,8 @@ agents:
 
 Every docker-agent configuration has a **root agent** — the entry point that receives user messages. In a single-agent setup, this is the only agent. In a multi-agent setup, the root agent acts as a coordinator, delegating tasks to specialized sub-agents.
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Naming
-</div>
-  <p>The first agent defined in your YAML (or the one named <code>root</code>) is the root agent by default. You can also specify which agent to start with using <code>docker agent run config.yaml -a agent_name</code>.</p>
-
-</div>
+> [!NOTE]
+> **Naming**: The first agent defined in your YAML (or the one named `root`) is the root agent by default. You can also specify which agent to start with using `docker agent run config.yaml -a agent_name`.
 
 ## Agent Properties
 
@@ -110,9 +106,5 @@ $ docker agent alias add default /path/to/my-agent.yaml
 $ docker agent run  # now runs your custom agent
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">See also
-</div>
-  <p>For reusable task-specific instructions, see <a href="{{ '/features/skills/' | relative_url }}">Skills</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>. For full config reference, see <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a>.</p>
-
-</div>
+> [!TIP]
+> **See also**: For reusable task-specific instructions, see [Skills](../../features/skills/index.md). For multi-agent patterns, see [Multi-Agent](../multi-agent/index.md). For full config reference, see [Agent Config](../../configuration/agents/index.md).

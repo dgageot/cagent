@@ -1,7 +1,7 @@
 ---
 title: "Managing Secrets"
 description: "How to securely provide API keys and credentials to docker-agent using environment variables, env files, Docker Compose secrets, macOS Keychain, pass, and 1Password references."
-permalink: /guides/secrets/
+keywords: docker agent, ai agents, guides, managing secrets
 ---
 
 # Managing Secrets
@@ -81,10 +81,8 @@ The file format supports:
 - Quoted values: `KEY="value with spaces"`
 - Blank lines are ignored
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Important</div>
-<p>Add <code>.env</code> to your <code>.gitignore</code> to avoid committing secrets to version control.</p>
-</div>
+> [!WARNING]
+> **Important**: Add `.env` to your `.gitignore` to avoid committing secrets to version control.
 
 ## Docker Compose Secrets
 
@@ -232,10 +230,8 @@ docker agent run agent.yaml
 
 References follow the `op://<vault>/<item>/<field>` format. Make sure the `op` CLI is installed and you are signed in (`op signin`) so that non-interactive reads succeed.
 
-<div class="callout callout-warning" markdown="1">
-<div class="callout-title">Behaviour when resolution fails</div>
-<p>If the value starts with <code>op://</code> but the <code>op</code> CLI is not installed, or the reference cannot be read (not signed in, wrong path, locked vault), docker-agent logs a warning and uses an <strong>empty value</strong> — it never forwards the raw <code>op://</code> reference to a model provider or tool. Resolved references (and deterministic failures) are cached for the lifetime of the run; transient failures such as a cancelled lookup are not cached, so a later attempt can retry.</p>
-</div>
+> [!WARNING]
+> **Behaviour when resolution fails**: If the value starts with `op://` but the `op` CLI is not installed, or the reference cannot be read (not signed in, wrong path, locked vault), docker-agent logs a warning and uses an **empty value** — it never forwards the raw `op://` reference to a model provider or tool. Resolved references (and deterministic failures) are cached for the lifetime of the run; transient failures such as a cancelled lookup are not cached, so a later attempt can retry.
 
 ## Choosing a Method
 
@@ -271,4 +267,4 @@ agents:
       - type: shell
 ```
 
-The ruleset covers GitHub PATs, AWS / GCP / Azure credentials, Stripe / Slack / GitLab / Hugging Face tokens, JWTs, PEM-encoded private keys, Docker Hub PATs, and many others. Each detected span is replaced with the literal `[REDACTED]`. See the [Redacting Secrets]({{ '/configuration/agents/#redacting-secrets' | relative_url }}) section in the agent configuration reference for the full picture and important caveats about false negatives.
+The ruleset covers GitHub PATs, AWS / GCP / Azure credentials, Stripe / Slack / GitLab / Hugging Face tokens, JWTs, PEM-encoded private keys, Docker Hub PATs, and many others. Each detected span is replaced with the literal `[REDACTED]`. See the [Redacting Secrets](../../configuration/agents/index.md#redacting-secrets) section in the agent configuration reference for the full picture and important caveats about false negatives.

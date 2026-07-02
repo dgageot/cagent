@@ -1,7 +1,7 @@
 ---
 title: "Quick Start"
 description: "Get up and running with Docker Agent in under 5 minutes. Pick whichever path suits you best."
-permalink: /getting-started/quickstart/
+keywords: docker agent, ai agents, getting started, quick start
 ---
 
 # Quick Start
@@ -82,12 +82,8 @@ This gives your agent:
 $ docker agent run agent.yaml
 ```
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Prefer HCL?
-</div>
-  <p>You can write the same config as <code>agent.hcl</code> using labeled blocks and heredocs. See <a href="{{ '/configuration/hcl/' | relative_url }}">HCL Configuration</a>.</p>
-
-</div>
+> [!TIP]
+> **Prefer HCL?** You can write the same config as `agent.hcl` using labeled blocks and heredocs. See [HCL Configuration](../../configuration/hcl/index.md).
 
 ## Try It Out
 
@@ -97,12 +93,8 @@ Once your agent is running, try asking it to:
 - _"Create a Python script that fetches weather data"_
 - _"Explain what the code in main.go does"_
 
-<div class="callout callout-tip" markdown="1">
-<div class="callout-title">Tip
-</div>
-  <p>Add <code>--yolo</code> to auto-approve all tool calls: `docker agent run agent.yaml --yolo`</p>
-
-</div>
+> [!TIP]
+> Add `--yolo` to auto-approve all tool calls: `docker agent run agent.yaml --yolo`
 
 ## Non-Interactive Mode
 
@@ -136,34 +128,12 @@ agents:
         ref: docker:duckduckgo
 ```
 
-<div class="callout callout-info" markdown="1">
-<div class="callout-title">Docker MCP Tools
-</div>
-  <p>The <code>ref: docker:duckduckgo</code> syntax runs the DuckDuckGo MCP server in a Docker container. This is the recommended way to use MCP tools — secure, isolated, and easy to configure. Requires Docker Desktop.</p>
-
-</div>
+> [!NOTE]
+> **Docker MCP Tools**: The `ref: docker:duckduckgo` syntax runs the DuckDuckGo MCP server in a Docker container. This is the recommended way to use MCP tools — secure, isolated, and easy to configure. Requires Docker Desktop.
 
 ## What's Next?
 
-<div class="cards">
-  <a class="card" href="{{ '/concepts/agents/' | relative_url }}">
-    <div class="card-icon">🤖</div>
-    <h3>Understand Agents</h3>
-    <p>Learn how agents work and what you can configure.</p>
-  </a>
-  <a class="card" href="{{ '/concepts/multi-agent/' | relative_url }}">
-    <div class="card-icon">👥</div>
-    <h3>Multi-Agent Systems</h3>
-    <p>Build teams of collaborating agents.</p>
-  </a>
-  <a class="card" href="{{ '/configuration/overview/' | relative_url }}">
-    <div class="card-icon">📚</div>
-    <h3>Configuration Reference</h3>
-    <p>Full reference for all YAML and HCL options.</p>
-  </a>
-  <a class="card" href="{{ '/community/troubleshooting/' | relative_url }}">
-    <div class="card-icon">🔧</div>
-    <h3>Troubleshooting</h3>
-    <p>Something not working? Debug tips and common fixes.</p>
-  </a>
-</div>
+- **[Understand Agents](../../concepts/agents/index.md)** — Learn how agents work and what you can configure.
+- **[Multi-Agent Systems](../../concepts/multi-agent/index.md)** — Build teams of collaborating agents.
+- **[Configuration Reference](../../configuration/overview/index.md)** — Full reference for all YAML and HCL options.
+- **[Troubleshooting](../../community/troubleshooting/index.md)** — Something not working? Debug tips and common fixes.

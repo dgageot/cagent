@@ -1,7 +1,7 @@
 ---
 title: "Nebius"
 description: "Use Nebius AI models with docker-agent."
-permalink: /providers/nebius/
+keywords: docker agent, ai agents, model providers, nebius
 ---
 
 # Nebius

@@ -1,7 +1,7 @@
 ---
 title: "Groq"
 description: "Use Groq fast-inference models with docker-agent."
-permalink: /providers/groq/
+keywords: docker agent, ai agents, model providers, groq
 ---
 
 # Groq
