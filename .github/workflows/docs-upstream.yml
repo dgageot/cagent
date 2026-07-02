@@ -1,0 +1,33 @@
+# Validates that changes under docs/** still build correctly on
+# docs.docker.com, by running docker/docs' reusable validate-upstream
+# workflow against this repo's commit (same pattern as buildx/compose).
+#
+# Until docker/docs mounts the docker-agent Hugo module (phase 2.1 of
+# https://github.com/docker/docker-agent/issues/3371), the validation
+# builds docs.docker.com without mounting these pages and is a no-op.
+name: docs-upstream
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/docs-upstream.yml"
+      - "docs/**"
+  pull_request:
+    paths:
+      - ".github/workflows/docs-upstream.yml"
+      - "docs/**"
+
+jobs:
+  validate:
+    # Tracks docker/docs main; bump the pin when validation needs newer docs changes.
+    uses: docker/docs/.github/workflows/validate-upstream.yml@8255e2bd5f08f1645c0ef677598d2c5f0555e336 # main
+    with:
+      module-name: docker/docker-agent
