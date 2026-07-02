@@ -800,9 +800,9 @@ details.sidebar-section[open] > summary.sidebar-heading::after {
 
 /* ===== Callouts / Admonitions =====
  * docs.docker.com-style: rounded panel with a filled, circular icon
- * badge in the upper-left and a strong title. Authors keep using the
- * existing Markdown:
- *   <div class="callout callout-tip" markdown="1">
+ * badge in the upper-left and a strong title. Authors write GitHub-style
+ * alerts (> [!TIP]); js/app.js upgrades the rendered blockquote to:
+ *   <div class="callout callout-tip">
  *   <div class="callout-title">…</div>
  *   <p>…</p>
  *   </div>

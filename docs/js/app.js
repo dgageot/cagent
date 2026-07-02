@@ -304,6 +304,38 @@ function restoreSidebarScroll() {
   });
 }
 
+// ---------- GitHub-style alerts ----------
+// Kramdown renders `> [!NOTE]` as a plain blockquote; upgrade it to the
+// styled callout markup used across the site (Hugo on docs.docker.com
+// styles the same syntax natively).
+function upgradeAlerts() {
+  const kinds = { NOTE: 'info', TIP: 'tip', WARNING: 'warning', IMPORTANT: 'info', CAUTION: 'warning' };
+  ($content || document).querySelectorAll('blockquote').forEach(bq => {
+    // Only a direct-child <p> counts — don't upgrade a prose blockquote
+    // that merely contains a nested alert.
+    const first = Array.from(bq.children).find(el => el.tagName === 'P');
+    const m = first?.textContent.match(/^\[!(\w+)\]\s*/);
+    const kind = m && kinds[m[1]];
+    if (!kind) return;
+    // Drop the [!KIND] marker from the leading text node (and a trailing
+    // <br>, if any) without reserializing the paragraph's HTML.
+    const lead = first.firstChild;
+    if (!lead || lead.nodeType !== Node.TEXT_NODE) return;
+    lead.textContent = lead.textContent.replace(/^\[!\w+\]\s*/, '');
+    if (!lead.textContent) lead.remove();
+    if (first.firstChild?.nodeName === 'BR') first.firstChild.remove();
+    if (!first.textContent.trim()) first.remove();
+    const div = document.createElement('div');
+    div.className = `callout callout-${kind}`;
+    const title = document.createElement('div');
+    title.className = 'callout-title';
+    title.textContent = m[1].charAt(0) + m[1].slice(1).toLowerCase();
+    div.appendChild(title);
+    while (bq.firstChild) div.appendChild(bq.firstChild);
+    bq.replaceWith(div);
+  });
+}
+
 // ---------- Bind buttons (no inline handlers) ----------
 function bindButtons() {
   document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
@@ -315,6 +347,7 @@ function bindButtons() {
 // ---------- Init ----------
 initTheme();
 restoreSidebarScroll();
+upgradeAlerts();
 buildSearchIndex();
 buildTOC();
 addCopyButtons();
