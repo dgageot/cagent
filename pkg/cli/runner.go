@@ -169,6 +169,18 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 				out.Print(e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
 				out.Print(e.Content)
+			// Provider metadata shares stdout with the answer; --hide-tool-calls
+			// keeps piped (e.g. structured) output free of it.
+			case *runtime.AgentCitationsEvent:
+				if cfg.HideToolCalls {
+					continue
+				}
+				out.PrintCitations(e.Citations)
+			case *runtime.ServerToolCallEvent:
+				if cfg.HideToolCalls {
+					continue
+				}
+				out.PrintServerToolCall(e.ToolCall)
 			case *runtime.ToolCallConfirmationEvent:
 				result := out.PrintToolCallWithConfirmation(ctx, e.ToolCall, rd)
 				// If interrupted, skip resuming; the runtime will notice context cancellation and stop

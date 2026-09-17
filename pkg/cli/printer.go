@@ -13,6 +13,7 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/term"
 
+	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/input"
 	"github.com/docker/docker-agent/pkg/tools"
 )
@@ -157,6 +158,64 @@ func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall to
 // PrintToolCallResponse prints a tool call response
 func (p *Printer) PrintToolCallResponse(name, response string) {
 	p.Printf("\n%s response%s\n", bold(name), formatToolCallResponse(response))
+}
+
+// PrintServerToolCall prints a built-in tool the provider executed on its
+// own side. Every field is provider-supplied, so control sequences are
+// neutralized before they reach the terminal.
+func (p *Printer) PrintServerToolCall(call chat.ServerToolCall) {
+	name := sanitizeForTerminal(call.Name)
+	label := name
+	if call.Language != "" {
+		label += " (" + sanitizeForTerminal(call.Language) + ")"
+	}
+	p.Printf("\nProvider ran %s", bold(label))
+	if call.Input != "" {
+		p.Printf(":\n%s", strings.TrimRight(sanitizeForTerminal(call.Input), "\n"))
+	}
+	p.Println()
+	if call.Output != "" {
+		status := "output"
+		if call.IsError {
+			status = "error"
+		}
+		p.Printf("%s %s:\n%s\n", bold(name), status, strings.TrimRight(sanitizeForTerminal(call.Output), "\n"))
+	}
+}
+
+// PrintCitations prints the sources a response was grounded on.
+func (p *Printer) PrintCitations(citations []chat.Citation) {
+	if len(citations) == 0 {
+		return
+	}
+	p.Printf("\n\n%s\n", bold("Sources:"))
+	for i, c := range citations {
+		uri := sanitizeForTerminal(c.URI)
+		if c.Title != "" {
+			p.Printf("%d. %s — %s\n", i+1, sanitizeForTerminal(c.Title), uri)
+			continue
+		}
+		p.Printf("%d. %s\n", i+1, uri)
+	}
+}
+
+// sanitizeForTerminal rewrites control and bidi-formatting runes (see
+// chat.IsDisplayControl) to '_', keeping newlines and tabs so multi-line
+// code and output stay readable.
+func sanitizeForTerminal(s string) string {
+	if !strings.ContainsFunc(s, isTerminalUnsafe) {
+		return s
+	}
+	return strings.Map(func(r rune) rune {
+		if isTerminalUnsafe(r) {
+			return '_'
+		}
+		return r
+	}, s)
+}
+
+func isTerminalUnsafe(r rune) bool {
+	return r != '\n' && r != '\t' && chat.IsDisplayControl(r)
 }
 
 // PromptMaxIterationsContinue prompts the user to continue after max iterations

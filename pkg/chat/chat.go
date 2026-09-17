@@ -96,6 +96,13 @@ type Message struct {
 	// Only set for assistant messages.
 	FinishReason FinishReason `json:"finish_reason,omitempty"`
 
+	// Citations and ServerToolCalls are display-only provider annotations
+	// (grounding sources, provider-executed built-in tools). Providers never
+	// read them back, so they are inert in model history. See [Citation] and
+	// [ServerToolCall].
+	Citations       []Citation       `json:"citations,omitempty"`
+	ServerToolCalls []ServerToolCall `json:"server_tool_calls,omitempty"`
+
 	// CacheControl marks this message as a stable prompt-cache checkpoint
 	// boundary honored by providers such as Anthropic and OpenAI. Providers
 	// enforce their own model-specific breakpoint limits and capabilities.
@@ -160,6 +167,12 @@ type MessageDelta struct {
 	// pointer — a scalar field silently dropped every blob but the last. See
 	// [MediaDelta].
 	Media []MediaDelta `json:"media,omitempty"`
+	// Citations carries grounding sources surfaced by this chunk; the
+	// accumulator deduplicates by URI. ServerToolCalls carries complete
+	// provider-executed invocations (adapters pair input and output before
+	// emitting). See [Citation] and [ServerToolCall].
+	Citations       []Citation       `json:"citations,omitempty"`
+	ServerToolCalls []ServerToolCall `json:"server_tool_calls,omitempty"`
 }
 
 // MessageStreamChoice represents a choice in a streaming response

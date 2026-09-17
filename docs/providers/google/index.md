@@ -197,6 +197,49 @@ models:
 | `google_maps`    | Enables Google Maps grounding for location queries   |
 | `code_execution` | Enables server-side code execution for computations  |
 
+### Seeing what the model did
+
+Built-in tools run on Google's side, so they never go through the local tool
+loop: no confirmation prompt, no tool result in the conversation, and nothing
+is re-executed when the session is replayed. Their activity is still made
+visible:
+
+- **Search queries** (`google_search`) and **code execution** (`code_execution`,
+  with the code, its language and the captured output or error) appear as
+  completed tool cards in the TUI and are printed in `--exec` runs.
+- **URL fetches** made by the `url_context` tool are listed per URL with their
+  retrieval status; paywalled, unsafe or failed fetches show as errors.
+- When built-in tools are combined with your own tools, Gemini also returns
+  the server-side invocations themselves (`toolCall`/`toolResponse` parts).
+  Those are shown with their arguments and response under the tool's name
+  (`google_search`, `google_maps`, `url_context`, ...) and, once seen,
+  suppress the query and URL summaries above. A summary that streamed before
+  the first explicit invocation is still shown, so an invocation can
+  occasionally appear twice.
+- **Sources** the answer was grounded on (grounding chunks and quoted
+  citations) are listed as a `Sources:` footer under the response, one entry
+  per URL.
+
+Both are persisted on the assistant message (`citations`,
+`server_tool_calls`) so they show up again when a session is reopened, and are
+streamed to API clients as `server_tool_call` and `agent_citations` events
+(see the [API server](../../features/api-server/index.md)). The assistant text
+itself is left untouched — structured output and JSON schema responses are
+not affected. Two gaps: a turn that produced only built-in tool activity and
+no text, local tool call or media is not recorded, so its annotations are
+lost when the session is reopened; and the Markdown transcript export does
+not include citations or server tool calls.
+
+In `--exec` runs the cards and the `Sources:` footer are written to stdout
+along with the answer. Pass `--hide-tool-calls` when piping the output to
+another program, or use `--json` for one event per line.
+
+Known limitation: server-side `toolCall`/`toolResponse` parts are not echoed
+back to Gemini on later turns (the SDK recommends doing so when built-in and
+function tools are mixed). This predates their display and is not addressed
+by it: the model does not see its own earlier built-in invocations, which may
+affect follow-up turns that rely on them.
+
 ## Vertex AI Model Garden
 
 You can use non-Gemini models (e.g. Claude, Llama) hosted on Google Cloud's

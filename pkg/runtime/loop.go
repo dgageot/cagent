@@ -1202,7 +1202,8 @@ func shouldWarnOnCacheMiss(sess *session.Session, usage *MessageUsage) bool {
 
 // recordAssistantMessage adds the model's response to the session and returns
 // per-message usage information for the token-usage event. Empty responses
-// (no text and no tool calls) are silently skipped since providers reject them.
+// (no text, tool calls or media) are silently skipped since providers reject
+// them; display-only annotations on such a turn are dropped with it.
 // cost is the precomputed per-turn cost (see computeMessageCost); nil records
 // as 0, matching the previous "no pricing data" behaviour.
 func (r *LocalRuntime) recordAssistantMessage(
@@ -1282,6 +1283,8 @@ func (r *LocalRuntime) recordAssistantMessage(
 		ThoughtSignature:  res.ThoughtSignature,
 		ToolCalls:         calls,
 		ToolDefinitions:   toolDefs,
+		Citations:         res.Citations,
+		ServerToolCalls:   res.ServerToolCalls,
 		CreatedAt:         r.now().Format(time.RFC3339),
 		Usage:             res.Usage,
 		Model:             messageModel,

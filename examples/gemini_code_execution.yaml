@@ -1,0 +1,17 @@
+models:
+  gemini:
+    provider: google
+    model: gemini-3.1-flash-lite
+    provider_opts:
+      google_search: true
+      code_execution: true
+
+agents:
+  root:
+    model: gemini
+    description: Gemini with Google Search grounding and server-side code execution
+    instruction: |
+      You are a precise research and computation assistant.
+      Use Google Search for anything that depends on current facts and
+      run code for arithmetic, unit conversions and data crunching instead
+      of estimating. Cite your sources.

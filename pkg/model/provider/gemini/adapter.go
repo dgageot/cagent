@@ -22,13 +22,14 @@ const http2BodyClosedError = "http2: response body closed"
 
 // StreamAdapter adapts the Gemini streaming iterator to chat.MessageStream
 type StreamAdapter struct {
-	iter       func(func(*genai.GenerateContentResponse, error) bool)
-	ch         chan result
-	done       chan struct{}
-	startOnce  sync.Once
-	closeOnce  sync.Once
-	model      string
-	trackUsage bool
+	iter        func(func(*genai.GenerateContentResponse, error) bool)
+	ch          chan result
+	done        chan struct{}
+	startOnce   sync.Once
+	closeOnce   sync.Once
+	model       string
+	trackUsage  bool
+	annotations annotationTracker
 }
 
 type result struct {
@@ -117,8 +118,11 @@ func (g *StreamAdapter) run() {
 			hasText := false
 			hasMedia := false
 			for _, candidate := range resp.Candidates {
-				if candidate.Content != nil {
+				if candidate != nil && candidate.Content != nil {
 					for _, part := range candidate.Content.Parts {
+						if part == nil {
+							continue
+						}
 						if part.Text != "" {
 							hasText = true
 						}
@@ -132,15 +136,16 @@ func (g *StreamAdapter) run() {
 				}
 			}
 
-			// Check for function calls
-			hasFuncs := len(resp.FunctionCalls()) > 0
+			hasFuncs := len(functionCalls(resp)) > 0
 			// Gemini 3 can emit usage metadata on chunks without text/tool
 			// calls. Forward such chunks so downstream can capture token usage.
 			hasUsage := resp.UsageMetadata != nil
+			// Grounding, citation and code-execution metadata also arrive on
+			// chunks of their own.
+			hasMeta := hasAnnotations(resp)
 
-			// Send response if it has content, generated media, function calls, or usage metadata
-			if hasText || hasMedia || hasFuncs || hasUsage {
-				hasContent = hasContent || hasText || hasMedia
+			if hasText || hasMedia || hasFuncs || hasUsage || hasMeta {
+				hasContent = hasContent || hasText || hasMedia || hasMeta
 				hasToolCalls = hasToolCalls || hasFuncs
 				lastResponse = resp // Store for final message
 				if !g.send(result{resp: resp}) {
@@ -222,9 +227,11 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if res.done {
 		// Set finish reason and role
 		resp.Choices[0].Delta.Role = string(chat.MessageRoleAssistant)
+		// Code the provider ran without ever reporting a result stays visible.
+		resp.Choices[0].Delta.ServerToolCalls = g.annotations.flush()
 
 		// Check if we have function calls in the final response
-		if res.resp != nil && len(res.resp.FunctionCalls()) > 0 {
+		if res.resp != nil && len(functionCalls(res.resp)) > 0 {
 			resp.Choices[0].FinishReason = chat.FinishReasonToolCalls
 			// Don't include function calls in the final message - they were already sent
 			slog.Debug("Gemini: Final message with tool calls finish reason")
@@ -238,8 +245,11 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		var thoughtSignature []byte
 		var media []chat.MediaDelta
 		for _, candidate := range res.resp.Candidates {
-			if candidate.Content != nil {
+			if candidate != nil && candidate.Content != nil {
 				for _, part := range candidate.Content.Parts {
+					if part == nil {
+						continue
+					}
 					if len(part.ThoughtSignature) > 0 {
 						thoughtSignature = part.ThoughtSignature
 					}
@@ -283,9 +293,10 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		if len(media) > 0 {
 			resp.Choices[0].Delta.Media = media
 		}
+		resp.Choices[0].Delta.Citations, resp.Choices[0].Delta.ServerToolCalls = g.annotations.collect(res.resp)
 
 		// Handle function calls
-		if funcs := res.resp.FunctionCalls(); len(funcs) > 0 {
+		if funcs := functionCalls(res.resp); len(funcs) > 0 {
 			toolCalls := make([]tools.ToolCall, 0, len(funcs))
 			for _, fc := range funcs {
 				argsJSON, _ := json.Marshal(fc.Args)
@@ -305,6 +316,21 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	}
 
 	return resp, nil
+}
+
+// functionCalls mirrors resp.FunctionCalls() (first candidate only) but
+// tolerates nil candidates and parts, which the SDK dereferences unchecked.
+func functionCalls(resp *genai.GenerateContentResponse) []*genai.FunctionCall {
+	if len(resp.Candidates) == 0 || resp.Candidates[0] == nil || resp.Candidates[0].Content == nil {
+		return nil
+	}
+	var calls []*genai.FunctionCall
+	for _, part := range resp.Candidates[0].Content.Parts {
+		if part != nil && part.FunctionCall != nil {
+			calls = append(calls, part.FunctionCall)
+		}
+	}
+	return calls
 }
 
 // Close closes the stream

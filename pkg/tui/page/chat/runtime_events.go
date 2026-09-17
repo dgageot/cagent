@@ -31,6 +31,8 @@ import (
 // Content Events:
 //   - AgentChoiceEvent         → Append text to message
 //   - AgentChoiceReasoningEvent → Append reasoning block
+//   - AgentCitationsEvent      → Attach grounding sources footer
+//   - ServerToolCallEvent      → Show provider-executed tool card
 //   - UserMessageEvent         → Replace loading with user message
 //   - MessageAddedEvent        → Render generated media (local runs only)
 //
@@ -93,6 +95,12 @@ func (p *chatPage) handleRuntimeEvent(msg tea.Msg) (bool, tea.Cmd) {
 
 	case *runtime.AgentChoiceReasoningEvent:
 		return true, p.handleAgentChoiceReasoning(msg)
+
+	case *runtime.AgentCitationsEvent:
+		return true, p.handleAgentCitations(msg)
+
+	case *runtime.ServerToolCallEvent:
+		return true, p.handleServerToolCall(msg)
 
 	case *runtime.MessageAddedEvent:
 		return true, p.handleMessageAdded(msg)
@@ -324,6 +332,26 @@ func (p *chatPage) handleAgentChoiceReasoning(msg *runtime.AgentChoiceReasoningE
 	p.setPendingResponse(false)
 	activityCmd := p.sidebar.SetAgentActivity(msg.AgentName)
 	return tea.Batch(activityCmd, p.messages.AppendReasoning(msg.AgentName, msg.Content))
+}
+
+func (p *chatPage) handleAgentCitations(msg *runtime.AgentCitationsEvent) tea.Cmd {
+	if p.streamCancelled {
+		return nil
+	}
+	p.setPendingResponse(false)
+	return p.messages.AppendAssistantCitations(msg.AgentName, msg.Citations)
+}
+
+// handleServerToolCall renders a provider-executed built-in tool. Unlike
+// local tool events it never touches the working spinner or confirmation
+// flow: the provider already ran it.
+func (p *chatPage) handleServerToolCall(msg *runtime.ServerToolCallEvent) tea.Cmd {
+	if p.streamCancelled {
+		return nil
+	}
+	p.setPendingResponse(false)
+	activityCmd := p.sidebar.SetAgentActivity(msg.AgentName)
+	return tea.Batch(activityCmd, p.messages.AddServerToolCall(msg.AgentName, msg.ToolCall), p.messages.ScrollToBottom())
 }
 
 // handleAgentSwitching forwards transfer_task hop boundaries to the sidebar

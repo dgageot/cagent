@@ -177,6 +177,26 @@ func TestClone_DeepCopiesMessagesAndConfig(t *testing.T) {
 	assert.True(t, *orig.Messages[0].Message.Message.ToolDefinitions[0].Annotations.DestructiveHint)
 }
 
+func TestClone_DeepCopiesAnnotations(t *testing.T) {
+	t.Parallel()
+	orig := New()
+	orig.AddMessage(&Message{Message: chat.Message{
+		Role:            chat.MessageRoleAssistant,
+		Content:         "4",
+		Citations:       []chat.Citation{{URI: "https://orig.example", Title: "Orig"}},
+		ServerToolCalls: []chat.ServerToolCall{{Name: "code_execution", Input: "print(2+2)", Output: "4"}},
+	}})
+
+	clone := orig.Clone()
+	require.NotNil(t, clone)
+
+	clone.Messages[0].Message.Message.Citations[0].URI = "https://mutated.example"
+	clone.Messages[0].Message.Message.ServerToolCalls[0].Output = "mutated"
+
+	assert.Equal(t, "https://orig.example", orig.Messages[0].Message.Message.Citations[0].URI)
+	assert.Equal(t, "4", orig.Messages[0].Message.Message.ServerToolCalls[0].Output)
+}
+
 func TestClone_AppendingDoesNotAffectOriginal(t *testing.T) {
 	t.Parallel()
 	orig := New()

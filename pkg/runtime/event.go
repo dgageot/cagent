@@ -223,6 +223,51 @@ func AgentChoiceReasoning(agentName, sessionID, content string) Event {
 	}
 }
 
+// AgentCitationsEvent surfaces sources the provider grounded the current
+// response on. Emitted once per batch of newly seen citations; the runtime
+// deduplicates by URI before emitting.
+type AgentCitationsEvent struct {
+	AgentContext
+
+	Type      string          `json:"type"`
+	Citations []chat.Citation `json:"citations"`
+	SessionID string          `json:"session_id,omitempty"`
+}
+
+func (e *AgentCitationsEvent) GetSessionID() string { return e.SessionID }
+
+func AgentCitations(agentName, sessionID string, citations []chat.Citation) Event {
+	return &AgentCitationsEvent{
+		Type:         "agent_citations",
+		Citations:    citations,
+		SessionID:    sessionID,
+		AgentContext: newAgentContext(agentName),
+	}
+}
+
+// ServerToolCallEvent reports a built-in tool the provider executed on its
+// own side during the current response (e.g. Gemini code execution). It is
+// informational: no local tool runs, no confirmation is requested, and the
+// call never enters the tool-call history replayed to the model.
+type ServerToolCallEvent struct {
+	AgentContext
+
+	Type      string              `json:"type"`
+	ToolCall  chat.ServerToolCall `json:"tool_call"`
+	SessionID string              `json:"session_id,omitempty"`
+}
+
+func (e *ServerToolCallEvent) GetSessionID() string { return e.SessionID }
+
+func ServerToolCall(agentName, sessionID string, call chat.ServerToolCall) Event {
+	return &ServerToolCallEvent{
+		Type:         "server_tool_call",
+		ToolCall:     call,
+		SessionID:    sessionID,
+		AgentContext: newAgentContext(agentName),
+	}
+}
+
 // ErrorCode constants classify errors so external consumers (boards,
 // dashboards) can react programmatically without parsing free-form messages.
 //

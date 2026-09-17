@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/tui/animation"
 	"github.com/docker/docker-agent/pkg/tui/components/markdown"
 	"github.com/docker/docker-agent/pkg/tui/components/spinner"
@@ -358,7 +359,7 @@ func (mv *messageModel) IsToggleLine(lineIdx int) bool {
 
 func (mv *messageModel) RenderedSegments(width int) (AssistantSegments, bool) {
 	msg := mv.message
-	if msg == nil || msg.Type != types.MessageTypeAssistant || msg.Content == "" || mv.selected || len(mv.markdownImages) != 0 || len(msg.AssistantMedia) != 0 {
+	if msg == nil || msg.Type != types.MessageTypeAssistant || msg.Content == "" || mv.selected || len(mv.markdownImages) != 0 || len(msg.AssistantMedia) != 0 || len(msg.Citations) != 0 {
 		return AssistantSegments{}, false
 	}
 	messageStyle := styles.AssistantMessageStyle
@@ -484,7 +485,7 @@ func (mv *messageModel) isSpinnerDriven() bool {
 	case types.MessageTypeSpinner, types.MessageTypeLoading:
 		return true
 	case types.MessageTypeAssistant:
-		return mv.message.Content == "" && len(mv.message.AssistantMedia) == 0
+		return mv.message.Content == "" && len(mv.message.AssistantMedia) == 0 && len(mv.message.Citations) == 0
 	}
 	return false
 }
@@ -544,7 +545,7 @@ func (mv *messageModel) render(width int) string {
 		noTopPaddingStyle := messageStyle.PaddingTop(0)
 		return noTopPaddingStyle.Width(width).Render(topRow + "\n" + content)
 	case types.MessageTypeAssistant:
-		if msg.Content == "" && len(msg.AssistantMedia) == 0 {
+		if msg.Content == "" && len(msg.AssistantMedia) == 0 && len(msg.Citations) == 0 {
 			return mv.spinner.View()
 		}
 
@@ -562,6 +563,7 @@ func (mv *messageModel) render(width int) string {
 		}
 		rendered, codeBlocks = replaceMarkdownImagePlaceholders(rendered, codeBlocks, imagePlaceholders)
 		rendered = appendAssistantMediaLines(rendered, msg.AssistantMedia, innerRenderWidth)
+		rendered = appendCitationLines(rendered, msg.Citations, innerRenderWidth)
 
 		var prefix string
 		if !mv.sameAgentAsPrevious(msg) {
@@ -747,6 +749,29 @@ func appendAssistantMediaLines(rendered string, media []types.AssistantMedia, wi
 		return joined
 	}
 	return rendered + "\n\n" + joined
+}
+
+// appendCitationLines appends a muted "Sources" footer listing the grounding
+// citations after the text and media. URLs are left verbatim so the
+// transcript's plain-text URL detection keeps them clickable.
+func appendCitationLines(rendered string, citations []chat.Citation, width int) string {
+	if len(citations) == 0 {
+		return rendered
+	}
+	lines := make([]string, 0, len(citations)+1)
+	lines = append(lines, "Sources:")
+	for i, c := range citations {
+		line := fmt.Sprintf("%d. %s", i+1, c.URI)
+		if title := strings.TrimSpace(c.Title); title != "" {
+			line = fmt.Sprintf("%d. %s — %s", i+1, title, c.URI)
+		}
+		lines = append(lines, line)
+	}
+	footer := styles.MutedStyle.Width(width).Render(strings.Join(lines, "\n"))
+	if rendered = strings.TrimRight(rendered, "\n\r\t "); rendered == "" {
+		return footer
+	}
+	return rendered + "\n\n" + footer
 }
 
 // assistantMediaLines renders one generated-media item: a muted name label

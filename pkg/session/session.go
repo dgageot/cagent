@@ -798,6 +798,12 @@ func cloneChatMessage(m chat.Message) chat.Message {
 	if m.ThoughtSignature != nil {
 		m.ThoughtSignature = slices.Clone(m.ThoughtSignature)
 	}
+	if m.Citations != nil {
+		m.Citations = slices.Clone(m.Citations)
+	}
+	if m.ServerToolCalls != nil {
+		m.ServerToolCalls = slices.Clone(m.ServerToolCalls)
+	}
 	return m
 }
 

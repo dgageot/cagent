@@ -216,6 +216,7 @@ remote MCP endpoints.
 | [`rule_based_routing.yaml`](rule_based_routing.yaml) | Cheap router model dispatches the user message to fast or capable models. |
 | [`structured-output.yaml`](structured-output.yaml) | Forces the model to return JSON matching a schema. |
 | [`google_search_grounding.yaml`](google_search_grounding.yaml) | Enables Google Search grounding on Gemini models. |
+| [`gemini_code_execution.yaml`](gemini_code_execution.yaml) | Gemini server-side code execution with visible code and results. |
 | [`openai-service-tier.yaml`](openai-service-tier.yaml) | OpenAI Fast mode and service tier selection with `provider_opts.service_tier`. |
 | [`gemini_image_output.yaml`](gemini_image_output.yaml) | Gemini image-output model: generated images are saved into the workspace, stored portably with the session, and rendered inline in the TUI. |
 | [`sampling-opts.yaml`](sampling-opts.yaml) | Provider-specific sampling parameters (`top_k`, `repetition_penalty`, …). |

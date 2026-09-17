@@ -96,6 +96,12 @@ type Model interface {
 	// by types.AssistantMedia.ID. Items with unknown or zero IDs are
 	// ignored, so a stale asynchronous result is harmless.
 	UpdateAssistantMedia(media []types.AssistantMedia) tea.Cmd
+	// AppendAssistantCitations attaches grounding sources to the agent's
+	// current assistant message (or starts one), rendered as a footer.
+	AppendAssistantCitations(agentName string, citations []chat.Citation) tea.Cmd
+	// AddServerToolCall shows a provider-executed built-in tool as a
+	// completed tool call card. Presentation only: nothing runs locally.
+	AddServerToolCall(agentName string, call chat.ServerToolCall) tea.Cmd
 	AppendReasoning(agentName, content string) tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
 	// AddAgentReturn appends the UI-only "child returned control to parent"
@@ -1901,14 +1907,23 @@ func (m *model) LoadFromSession(sess *session.Session, generatedMedia map[int][]
 				m.messages[lastIdx].Content += smsg.Message.ReasoningContent
 			}
 
-			// Step 2: Handle assistant content — this breaks the reasoning
-			// block chain. Restored generated media joins the same message
-			// (or forms a media-only one), mirroring AppendAssistantMedia's
-			// live behavior.
+			// Step 2: server tool cards precede the answer, as they did live.
+			// Content breaks the reasoning block chain; restored media and
+			// citations join the same message (or form a text-less one).
+			for _, call := range smsg.Message.ServerToolCalls {
+				toolMsg := types.ServerToolCallMessage(smsg.AgentName, call)
+				if reasoningBlock != nil && !hasContent {
+					reasoningBlock.AddToolCall(toolMsg)
+					continue
+				}
+				appendSessionMessage(toolMsg, m.createToolCallView(toolMsg))
+			}
 			restoredMedia := generatedMedia[pos]
-			if hasContent || len(restoredMedia) > 0 {
+			citations, _ := chat.MergeCitations(nil, smsg.Message.Citations)
+			if hasContent || len(restoredMedia) > 0 || len(citations) > 0 {
 				msg := types.Agent(types.MessageTypeAssistant, smsg.AgentName, smsg.Message.Content)
 				msg.AssistantMedia = restoredMedia
+				msg.Citations = citations
 				appendSessionMessage(msg, m.createMessageView(msg))
 			}
 
@@ -2185,6 +2200,52 @@ func (m *model) UpdateAssistantMedia(media []types.AssistantMedia) tea.Cmd {
 		return nil
 	}
 	return tea.Batch(cmds...)
+}
+
+// AppendAssistantCitations mirrors AppendAssistantMedia for grounding
+// sources: they join the agent's current assistant message so the footer
+// renders under the streamed text.
+func (m *model) AppendAssistantCitations(agentName string, citations []chat.Citation) tea.Cmd {
+	if len(citations) == 0 {
+		return nil
+	}
+	m.removeSpinner()
+
+	if len(m.messages) > 0 {
+		lastIdx := len(m.messages) - 1
+		lastMsg := m.messages[lastIdx]
+		if lastMsg.Type == types.MessageTypeAssistant && lastMsg.Sender == agentName {
+			lastMsg.Citations, _ = chat.MergeCitations(lastMsg.Citations, citations)
+			cmd := m.views[lastIdx].(message.Model).SetMessage(lastMsg)
+			m.invalidateItem(lastIdx)
+			return cmd
+		}
+	}
+
+	msg := types.Agent(types.MessageTypeAssistant, agentName, "")
+	msg.Citations, _ = chat.MergeCitations(nil, citations)
+	return m.addMessage(msg)
+}
+
+// AddServerToolCall appends a completed card for a provider-executed tool,
+// joining the active reasoning block when there is one, exactly where a
+// local tool call would land.
+func (m *model) AddServerToolCall(agentName string, call chat.ServerToolCall) tea.Cmd {
+	m.removeSpinner()
+	msg := types.ServerToolCallMessage(agentName, call)
+
+	if block, blockIdx := m.getActiveReasoningBlock(agentName); block != nil {
+		cmd := block.AddToolCall(msg)
+		m.invalidateItem(blockIdx)
+		return cmd
+	}
+
+	m.finalizePreviousMessageView()
+	m.messages = append(m.messages, msg)
+	view := m.createToolCallView(msg)
+	m.views = append(m.views, view)
+	m.renderDirty = true
+	return view.Init()
 }
 
 func (m *model) AppendReasoning(agentName, content string) tea.Cmd {

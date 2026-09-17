@@ -1,9 +1,13 @@
 package types
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/tools"
 	tuiimage "github.com/docker/docker-agent/pkg/tui/image"
 )
@@ -90,6 +94,9 @@ type Message struct {
 	// AssistantMedia holds generated media rendered as part of an assistant
 	// turn, after the message's text content.
 	AssistantMedia []AssistantMedia
+	// Citations lists the sources the provider grounded an assistant message
+	// on, rendered as a footer after the text and media.
+	Citations []chat.Citation
 	// StartedAt records when a tool call entered ToolStatusRunning.
 	// Used to display elapsed time for long-running tool calls.
 	StartedAt *time.Time
@@ -178,6 +185,36 @@ func ToolCallMessage(agentName string, toolCall tools.ToolCall, toolDef tools.To
 		now := time.Now()
 		msg.StartedAt = &now
 	}
+	return msg
+}
+
+// serverToolCallIDs issues process-unique IDs for server tool call cards so
+// they never collide with each other or with real tool call IDs.
+var serverToolCallIDs atomic.Uint64
+
+// ServerToolCallMessage renders a provider-executed built-in tool (see
+// chat.ServerToolCall) as a completed tool call card. The card is
+// presentation only: it is never confirmed, executed, or replayed.
+func ServerToolCallMessage(agentName string, call chat.ServerToolCall) *Message {
+	// A struct (not a map) keeps the language above the code in the card.
+	encoded, _ := json.Marshal(struct {
+		Language string `json:"language,omitempty"`
+		Input    string `json:"input,omitempty"`
+	}{call.Language, call.Input})
+
+	status := ToolStatusCompleted
+	if call.IsError {
+		status = ToolStatusError
+	}
+	msg := ToolCallMessage(agentName, tools.ToolCall{
+		ID:   fmt.Sprintf("server_tool_%d", serverToolCallIDs.Add(1)),
+		Type: "function",
+		Function: tools.FunctionCall{
+			Name:      call.Name,
+			Arguments: string(encoded),
+		},
+	}, tools.Tool{Name: call.Name, Description: "Executed by the model provider"}, status)
+	msg.Content = strings.ReplaceAll(call.Output, "\t", "    ")
 	return msg
 }
 

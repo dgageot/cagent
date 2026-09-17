@@ -51,10 +51,14 @@ type streamResult struct {
 	// Media accumulates every [chat.MediaDelta] streamed during the turn
 	// (e.g. generated images). Populated regardless of provider — see
 	// chat.MessageDelta.Media.
-	Media        []chat.MediaDelta
-	Stopped      bool
-	FinishReason chat.FinishReason
-	Usage        *chat.Usage
+	Media []chat.MediaDelta
+	// Citations and ServerToolCalls are the deduplicated display-only
+	// annotations streamed during the turn (see chat.MessageDelta).
+	Citations       []chat.Citation
+	ServerToolCalls []chat.ServerToolCall
+	Stopped         bool
+	FinishReason    chat.FinishReason
+	Usage           *chat.Usage
 }
 
 // handleStream reads a chat.MessageStream to completion, emitting streaming
@@ -116,6 +120,8 @@ func handleStream(ctx context.Context, cancelStream context.CancelCauseFunc, str
 	var thoughtSignature []byte
 	var toolCalls []tools.ToolCall
 	var media []chat.MediaDelta
+	var citations []chat.Citation
+	var serverToolCalls []chat.ServerToolCall
 	var messageUsage *chat.Usage
 	var providerFinishReason chat.FinishReason
 	var responseStarted bool
@@ -259,6 +265,22 @@ mainLoop:
 				media = append(media, choice.Delta.Media...)
 			}
 
+			// Annotations may ride on the terminal chunk too. Server tool calls
+			// go first so the TUI attaches citations to the answer text, not to
+			// a tool card.
+			for _, call := range choice.Delta.ServerToolCalls {
+				responseStarted = true
+				serverToolCalls = append(serverToolCalls, call)
+				events.Emit(ServerToolCall(a.Name(), sess.ID, call))
+			}
+			if len(choice.Delta.Citations) > 0 {
+				var added []chat.Citation
+				citations, added = chat.MergeCitations(citations, choice.Delta.Citations)
+				if len(added) > 0 {
+					events.Emit(AgentCitations(a.Name(), sess.ID, added))
+				}
+			}
+
 			// Accumulate tool call deltas from this chunk *before* evaluating the
 			// finish reason below. Some OpenAI-compatible providers (e.g. LiteLLM
 			// in front of Gemini) pack a complete tool call and a terminal
@@ -353,6 +375,8 @@ mainLoop:
 					ThinkingSignature: thinkingSignature,
 					ThoughtSignature:  thoughtSignature,
 					Media:             media,
+					Citations:         citations,
+					ServerToolCalls:   serverToolCalls,
 					Stopped:           len(toolCalls) == 0, // stop only when there are no tool calls to execute
 					FinishReason:      finishReason,
 					Usage:             messageUsage,
@@ -451,6 +475,8 @@ mainLoop:
 		ThinkingSignature: thinkingSignature,
 		ThoughtSignature:  thoughtSignature,
 		Media:             media,
+		Citations:         citations,
+		ServerToolCalls:   serverToolCalls,
 		Stopped:           stoppedNoToolCalls,
 		FinishReason:      finishReason,
 		Usage:             messageUsage,

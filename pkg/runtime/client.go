@@ -100,6 +100,8 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 			"authorization_event":    func() Event { return &AuthorizationEvent{} },
 			"agent_choice":           func() Event { return &AgentChoiceEvent{} },
 			"agent_choice_reasoning": func() Event { return &AgentChoiceReasoningEvent{} },
+			"agent_citations":        func() Event { return &AgentCitationsEvent{} },
+			"server_tool_call":       func() Event { return &ServerToolCallEvent{} },
 			"mcp_init_started":       func() Event { return &MCPInitStartedEvent{} },
 			"mcp_init_finished":      func() Event { return &MCPInitFinishedEvent{} },
 			"agent_info":             func() Event { return &AgentInfoEvent{} },

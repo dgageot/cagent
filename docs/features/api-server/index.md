@@ -157,6 +157,8 @@ Event types include:
 - `tool_call` — Agent requesting tool execution
 - `tool_call_confirmation` — Tool call waiting for user approval
 - `tool_call_response` — Tool execution result
+- `server_tool_call` — A built-in tool the model provider executed on its own side (e.g. Gemini code execution, a Google Search query, or a `url_context` fetch). Informational only: nothing runs locally, no confirmation is requested, and the call is never replayed to the model. The payload carries `tool_call.name`, `tool_call.input`, `tool_call.output`, `tool_call.language` and `tool_call.is_error`; `input`/`output` are JSON strings when the provider reported structured arguments and responses.
+- `agent_citations` — Sources the provider grounded the response on (`citations[].uri`, `citations[].title`), deduplicated by URI; each source is announced once per response.
 - `plan_changed` — A shared plan was created, updated, or deleted through the plan toolset. The payload carries the plan's `scope`, `name`, `action`, and `version` — never its content. Shared plans are deliberately process-global: every active stream served by the same process subscribes to the same shared plan notifier and receives the event regardless of which session performed the mutation, and the payload does not identify the mutating session (read the plan's `author` metadata for collaborative attribution).
 - `error` — Error during execution
 
