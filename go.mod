@@ -35,7 +35,7 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/dgageot/rubocop-go v0.0.0-20260914103134-ceff10dc27fa
 	github.com/docker/aijson v0.1.0
-	github.com/docker/cli v29.7.2+incompatible
+	github.com/docker/cli v29.8.1+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/docker/portcullis v1.0.0
 	github.com/dop251/goja v0.0.0-20260917113740-793a2a65c13b
@@ -150,7 +150,7 @@ require (
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/fvbommel/sortorder v1.1.0 // indirect
+	github.com/fvbommel/sortorder v1.2.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
