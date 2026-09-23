@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/fake"
 	"github.com/docker/docker-agent/pkg/history"
+	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
@@ -51,6 +52,8 @@ func newTUIWithProxyOptions(t *testing.T, agentFile string, width, height int, p
 	isolateState(t)
 
 	runConfig := startReplayProxy(t, proxyOpts)
+	modelsStore := modelsdev.NewDatabaseStore(modelsdev.EmbeddedSnapshot())
+	runConfig.ModelsDevStoreOverride = modelsStore
 
 	ctx := t.Context()
 	agentSource, err := sources.Resolve(agentFile, runConfig.EnvProvider())
@@ -77,6 +80,7 @@ func newTUIWithProxyOptions(t *testing.T, agentFile string, width, height int, p
 			EnvProvider:        runConfig.EnvProvider(),
 			ProviderRegistry:   loadResult.ProviderRegistry,
 			AgentDefaultModels: loadResult.AgentDefaultModels,
+			ModelsStore:        modelsStore,
 		}),
 	)
 	require.NoError(t, err)
