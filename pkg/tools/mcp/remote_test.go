@@ -611,13 +611,18 @@ func TestRemoteClientCallToolAbortsOnContextCancellation(t *testing.T) {
 
 	serverStarted := make(chan struct{})
 	serverSawCancel := make(chan struct{})
+	releaseServer := make(chan struct{})
 	server := gomcp.NewServer(&gomcp.Implementation{Name: "test-server", Version: "1.0.0"}, nil)
 	gomcp.AddTool(server, &gomcp.Tool{Name: "hang", Description: "hangs until canceled"},
 		func(ctx context.Context, _ *gomcp.CallToolRequest, _ struct{}) (*gomcp.CallToolResult, struct{}, error) {
 			close(serverStarted)
-			<-ctx.Done()
-			close(serverSawCancel)
-			return nil, struct{}{}, ctx.Err()
+			select {
+			case <-ctx.Done():
+				close(serverSawCancel)
+				return nil, struct{}{}, ctx.Err()
+			case <-releaseServer:
+				return nil, struct{}{}, context.Canceled
+			}
 		})
 
 	httpServer := httptest.NewServer(gomcp.NewStreamableHTTPHandler(func(*http.Request) *gomcp.Server { return server }, nil))
@@ -627,6 +632,8 @@ func TestRemoteClientCallToolAbortsOnContextCancellation(t *testing.T) {
 	_, err := client.Initialize(t.Context(), nil)
 	require.NoError(t, err)
 	defer func() { _ = client.Close(context.WithoutCancel(t.Context())) }()
+	// Unblock cleanup even if cancellation delivery is what failed.
+	defer close(releaseServer)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
