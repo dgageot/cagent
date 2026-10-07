@@ -63,7 +63,7 @@ func callTool(t *testing.T, ts tools.ToolSet, name, args string) string {
 
 func TestBrowserToolsetsServePortableBuiltins(t *testing.T) {
 	registry := browserToolsets(nil)
-	for _, supported := range []string{"mcp", "think", "random", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
+	for _, supported := range []string{"mcp", "calculator", "think", "random", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
 		assert.True(t, registry.Has(supported), supported)
 	}
 	for _, unsupported := range []string{"shell", "script", "filesystem", "file", "git", "tasks", "environment", "background_jobs", "background_agents", "lsp", "mcp_catalog", "a2a", "webhook", "open_url", "scheduler"} {
@@ -588,4 +588,24 @@ agents:
 	result := c.find("tool_result")[0]
 	assert.Equal(t, true, result["is_error"])
 	assert.NotContains(t, result["output"], "pong", "the guarded transport must not reach the loopback mock")
+}
+
+func TestCalculatorToolRunsInASession(t *testing.T) {
+	const yaml = `
+agents:
+  root:
+    model: mock/root
+    toolsets:
+      - type: calculator
+`
+	model := newScriptedModel("mock/root", toolTurn("calculate", `{"expression":"0.1 + 0.2"}`), textTurn("0.3"))
+	s := openTestSession(t, testHost(&echoToolSet{}, map[string]provider.Provider{"root": model}), sessionOptions{YAML: yaml})
+
+	var c collectingEmitter
+	_, err := s.send("calculate", c.emit)
+	require.NoError(t, err)
+	assert.Empty(t, c.find("tool_confirmation"), "calculate has no side effects")
+	results := c.find("tool_result")
+	require.Len(t, results, 1)
+	assert.JSONEq(t, `{"result":"0.3","decimal":"0.3","approximate":false}`, results[0]["output"].(string))
 }

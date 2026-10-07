@@ -10,6 +10,7 @@ import (
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/api"
 	"github.com/docker/docker-agent/pkg/tools/builtin/backgroundjobs"
+	"github.com/docker/docker-agent/pkg/tools/builtin/calculator"
 	"github.com/docker/docker-agent/pkg/tools/builtin/environment"
 	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
 	filetool "github.com/docker/docker-agent/pkg/tools/builtin/file"
@@ -47,6 +48,7 @@ func DefaultToolsetCreators() map[string]teamloader.ToolsetCreator {
 		"api":               api.Creator,
 		"background_agents": teamloader.Creator(agenttool.CreateToolSet),
 		"background_jobs":   backgroundjobs.Creator,
+		"calculator":        teamloader.Creator(calculator.CreateToolSet),
 		"environment":       teamloader.Creator(environment.CreateToolSet),
 		"fetch":             fetch.Creator,
 		"file":              filetool.Creator,

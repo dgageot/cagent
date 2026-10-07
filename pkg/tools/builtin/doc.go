@@ -5,6 +5,7 @@
 //   - shell           — shell command execution
 //   - backgroundjobs  — long-running shell background jobs
 //   - lsp             — Language Server Protocol client tools
+//   - calculator      — exact arithmetic without code execution
 //   - think           — structured thinking/scratchpad
 //   - random          — random integers with agent-chosen bounds
 //   - todo            — task list management

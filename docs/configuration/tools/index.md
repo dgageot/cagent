@@ -24,6 +24,7 @@ Built-in tools are included with Docker Agent and require no external dependenci
 | `background_jobs` | Run and manage long-running shell commands | [Background Jobs](../../tools/background-jobs/index.md) |
 | `scheduler` | Schedule instructions to run at a time or on a recurring interval | [Scheduler](../../tools/scheduler/index.md) |
 | `environment` | Report the OS and resolved shell (read-only, no arguments, auto-approved) | [Environment](../../tools/environment/index.md) |
+| `calculator` | Exact arithmetic without code execution | [Calculator](../../tools/calculator/index.md) |
 | `think` | Reasoning scratchpad | [Think](../../tools/think/index.md) |
 | `random` | Random integers with agent-chosen inclusive bounds | [Random](../../tools/random/index.md) |
 | `plan` | Shared persistent scratchpad for multi-agent collaboration | [Plan](../../tools/plan/index.md) |

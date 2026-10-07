@@ -314,6 +314,7 @@ func TestToolsetValidateValidToolsets(t *testing.T) {
 		{name: "background_jobs", toolset: Toolset{Type: "background_jobs", Env: map[string]string{"A": "b"}, Recall: new(true)}},
 		{name: "memory with path", toolset: Toolset{Type: "memory", Path: "/tmp/memory.db"}},
 		{name: "memory without path", toolset: Toolset{Type: "memory"}},
+		{name: "calculator", toolset: Toolset{Type: "calculator"}},
 		{name: "tasks", toolset: Toolset{Type: "tasks", Path: "./tasks.json"}},
 		{name: "todo shared", toolset: Toolset{Type: "todo", Shared: true}},
 		{name: "script", toolset: Toolset{Type: "script", Shell: map[string]ScriptShellToolConfig{"greet": {}}, Env: map[string]string{"A": "b"}}},
