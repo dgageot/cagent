@@ -14,6 +14,7 @@ var BuiltinToolsets = []BuiltinToolsetInfo{
 	builtinToolset("background_agents", "background-agents", "Dispatch work to sub-agents concurrently and collect results"),
 	builtinToolset("background_jobs", "background-jobs", "Run and manage long-running shell commands"),
 	builtinToolset("calculator", "calculator", "Evaluate arithmetic expressions with exact results and no code execution"),
+	builtinToolset("datetime", "datetime", "Obtain the current date and time in a chosen format and timezone"),
 	builtinToolset("environment", "environment", "Report the OS and resolved shell (read-only, no arguments)"),
 	builtinToolset("fetch", "fetch", "Read content from HTTP/HTTPS URLs"),
 	builtinToolset("file", "file", "Read, write, and edit individual files"),

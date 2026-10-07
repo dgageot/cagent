@@ -2330,7 +2330,8 @@
             "rag",
             "git",
             "webhook",
-            "environment"
+            "environment",
+            "datetime"
           ]
         },
         "instruction": {
@@ -2695,7 +2696,8 @@
                 "model_picker",
                 "background_agents",
                 "scheduler",
-                "git"
+                "git",
+                "datetime"
               ]
             }
           }

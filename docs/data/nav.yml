@@ -69,6 +69,8 @@
           url: /tools/shell/
         - title: Environment
           url: /tools/environment/
+        - title: Date and Time
+          url: /tools/datetime/
         - title: Script
           url: /tools/script/
         - title: Open URL

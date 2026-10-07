@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func callTool(t *testing.T, ts tools.ToolSet, name, args string) string {
 
 func TestBrowserToolsetsServePortableBuiltins(t *testing.T) {
 	registry := browserToolsets(nil)
-	for _, supported := range []string{"mcp", "calculator", "think", "random", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
+	for _, supported := range []string{"datetime", "mcp", "calculator", "think", "random", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
 		assert.True(t, registry.Has(supported), supported)
 	}
 	for _, unsupported := range []string{"shell", "script", "filesystem", "file", "git", "tasks", "environment", "background_jobs", "background_agents", "lsp", "mcp_catalog", "a2a", "webhook", "open_url", "scheduler"} {
@@ -100,6 +101,7 @@ func TestRepeatableToolsRunInASession(t *testing.T) {
 			args    string
 		}{
 			{toolset: "random", tool: "random_int", args: `{"min":1,"max":6}`},
+			{toolset: "datetime", tool: "get_datetime", args: `{"format":"2006-01-02T15:04:05Z07:00","timezone":"UTC"}`},
 		} {
 			t.Run(fmt.Sprintf("%s/code_mode=%t", tc.toolset, codeMode), func(t *testing.T) {
 				yaml := fmt.Sprintf(`
@@ -128,14 +130,26 @@ agents:
 				for _, result := range results {
 					assert.Equal(t, false, result["is_error"])
 					output := result["output"].(string)
-					value, err := strconv.ParseInt(output, 10, 64)
-					require.NoError(t, err)
-					assert.GreaterOrEqual(t, value, int64(1))
-					assert.LessOrEqual(t, value, int64(6))
+					if tc.toolset == "random" {
+						value, err := strconv.ParseInt(output, 10, 64)
+						require.NoError(t, err)
+						assert.GreaterOrEqual(t, value, int64(1))
+						assert.LessOrEqual(t, value, int64(6))
+					} else {
+						_, err := time.Parse(time.RFC3339, output)
+						require.NoError(t, err)
+					}
 				}
 			})
 		}
 	}
+}
+
+func TestDatetimeRunsInBrowser(t *testing.T) {
+	ts := createTool(t, browserToolsets(nil), latest.Toolset{Type: "datetime"})
+	assert.Equal(t, []string{"get_datetime"}, toolNames(t, ts))
+	output := callTool(t, ts, "get_datetime", `{"format":"2006-01-02T15:04:05Z07:00","timezone":"Asia/Tokyo"}`)
+	assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$`, output)
 }
 
 func TestRAGRejectsWhatDocumentsCannotHonour(t *testing.T) {

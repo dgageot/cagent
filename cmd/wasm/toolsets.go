@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/builtin/api/client"
 	"github.com/docker/docker-agent/pkg/tools/builtin/calculator"
+	"github.com/docker/docker-agent/pkg/tools/builtin/datetime"
 	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
 	"github.com/docker/docker-agent/pkg/tools/builtin/memory"
 	"github.com/docker/docker-agent/pkg/tools/builtin/modelpicker"
@@ -59,6 +60,7 @@ func browserToolsetCreators(documents rag.Documents) map[string]teamloader.Tools
 	memories := sync.OnceValue(inmemory.New)
 
 	return map[string]teamloader.ToolsetCreator{
+		"datetime":   teamloader.Creator(datetime.CreateToolSet),
 		"mcp":        mcpCreator,
 		"calculator": teamloader.Creator(calculator.CreateToolSet),
 		"think":      teamloader.Creator(think.CreateToolSet),
