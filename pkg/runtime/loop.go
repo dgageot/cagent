@@ -512,10 +512,7 @@ func (r *LocalRuntime) runStreamLoop(ctx context.Context, sess *session.Session,
 		}
 	}
 
-	// Initialize consecutive duplicate tool call detector.
-	// Polling and wait tools are expected to be called repeatedly with
-	// identical arguments while a background task is in progress. Exempt
-	// them so they never trigger the loop-termination path.
+	// Polling and waiting legitimately repeat identical arguments.
 	loopThreshold := sess.MaxConsecutiveToolCalls
 	if loopThreshold == 0 {
 		loopThreshold = 5 // default: always active
@@ -1056,7 +1053,8 @@ func (r *LocalRuntime) runTurn(
 	// the validated JSON).
 	dispatchCalls, soFinalized := r.handleStructuredOutputCalls(ctx, sess, a, &res, agentTools, modelID.String(), events)
 
-	stopRun, stopMsg := r.processToolCalls(ctx, sess, a, dispatchCalls, agentTools, events)
+	loopSink := &toolCallLoopSink{EventSink: events}
+	stopRun, stopMsg := r.processToolCalls(ctx, sess, a, dispatchCalls, agentTools, loopSink)
 	if stopRun && r.enforceBudget(ctx, sess, a, events) == iterationStop {
 		endReason = turnEndReasonBudgetExceeded
 		return turnExit
@@ -1077,7 +1075,7 @@ func (r *LocalRuntime) runTurn(
 	}
 
 	// Check for degenerate tool call loops
-	if ls.loopDetector.Record(res.Calls) {
+	if ls.loopDetector.Record(res.Calls, loopSink.exemptCalls(res.Calls)...) {
 		toolName := "unknown"
 		if len(res.Calls) > 0 {
 			toolName = res.Calls[0].Function.Name

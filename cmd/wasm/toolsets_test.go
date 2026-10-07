@@ -4,10 +4,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -61,7 +63,7 @@ func callTool(t *testing.T, ts tools.ToolSet, name, args string) string {
 
 func TestBrowserToolsetsServePortableBuiltins(t *testing.T) {
 	registry := browserToolsets(nil)
-	for _, supported := range []string{"mcp", "think", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
+	for _, supported := range []string{"mcp", "think", "random", "todo", "plan", "memory", "user_prompt", "session_context", "fetch", "api", "openapi", "model_picker", "rag"} {
 		assert.True(t, registry.Has(supported), supported)
 	}
 	for _, unsupported := range []string{"shell", "script", "filesystem", "file", "git", "tasks", "environment", "background_jobs", "background_agents", "lsp", "mcp_catalog", "a2a", "webhook", "open_url", "scheduler"} {
@@ -88,6 +90,52 @@ func TestBrowserToolsetsServePortableBuiltins(t *testing.T) {
 	}
 
 	assert.NotContains(t, toolNames(t, createTool(t, registry, latest.Toolset{Type: "plan"})), plan.ToolNameExportPlanToFile, "no files to export plans to")
+}
+
+func TestRepeatableToolsRunInASession(t *testing.T) {
+	for _, codeMode := range []bool{false, true} {
+		for _, tc := range []struct {
+			toolset string
+			tool    string
+			args    string
+		}{
+			{toolset: "random", tool: "random_int", args: `{"min":1,"max":6}`},
+		} {
+			t.Run(fmt.Sprintf("%s/code_mode=%t", tc.toolset, codeMode), func(t *testing.T) {
+				yaml := fmt.Sprintf(`
+agents:
+  root:
+    model: mock/root
+    code_mode_tools: %t
+    toolsets:
+      - type: %s
+`, codeMode, tc.toolset)
+				var turns []func(context.Context) (chat.MessageStream, error)
+				for range 6 {
+					turns = append(turns, toolTurn(tc.tool, tc.args))
+				}
+				turns = append(turns, textTurn("called six times"))
+				model := newScriptedModel("mock/root", turns...)
+				s := openTestSession(t, testHost(&echoToolSet{}, map[string]provider.Provider{"root": model}), sessionOptions{YAML: yaml})
+
+				var c collectingEmitter
+				result, err := s.send("call six times", c.emit)
+				require.NoError(t, err)
+				assert.Equal(t, "called six times", result["message"].(map[string]any)["content"])
+				assert.Empty(t, c.find("tool_confirmation"), "repeatable tools have no external side effects")
+				results := c.find("tool_result")
+				require.Len(t, results, 6)
+				for _, result := range results {
+					assert.Equal(t, false, result["is_error"])
+					output := result["output"].(string)
+					value, err := strconv.ParseInt(output, 10, 64)
+					require.NoError(t, err)
+					assert.GreaterOrEqual(t, value, int64(1))
+					assert.LessOrEqual(t, value, int64(6))
+				}
+			})
+		}
+	}
 }
 
 func TestRAGRejectsWhatDocumentsCannotHonour(t *testing.T) {

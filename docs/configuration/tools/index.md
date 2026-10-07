@@ -25,6 +25,7 @@ Built-in tools are included with Docker Agent and require no external dependenci
 | `scheduler` | Schedule instructions to run at a time or on a recurring interval | [Scheduler](../../tools/scheduler/index.md) |
 | `environment` | Report the OS and resolved shell (read-only, no arguments, auto-approved) | [Environment](../../tools/environment/index.md) |
 | `think` | Reasoning scratchpad | [Think](../../tools/think/index.md) |
+| `random` | Random integers with agent-chosen inclusive bounds | [Random](../../tools/random/index.md) |
 | `plan` | Shared persistent scratchpad for multi-agent collaboration | [Plan](../../tools/plan/index.md) |
 | `session_context` | Reference a previous session as context (read-only) | [Session Context](../../tools/session_context/index.md) |
 | `todo` | Task list management | [Todo](../../tools/todo/index.md) |
@@ -423,7 +424,7 @@ models:
 
 Every deferred tool is then declared to the API with `defer_loading: true` next to a server-executed `tool_search` tool, so the model discovers and calls deferred tools directly, without a `search_tool`/`add_tool` round trip. `search_tool` and `add_tool` stay available. Toolset `tools`, `read_only`, and skill allow-lists apply to the catalog exactly as they do to regular tools, and so do permissions.
 
-The option is ignored, and the legacy behaviour kept, for models without support (only `openai` models that support deferred tools qualify; the `chatgpt` provider and OpenAI-compatible endpoints, including `openai` with a custom `base_url`, do not), on Chat Completions requests, and on fallback models without the option. Agents using `code_mode_tools` keep the legacy behaviour: their tools are only reachable through `run_tools_with_javascript`.
+The option is ignored, and the legacy behaviour kept, for models without support (only `openai` models that support deferred tools qualify; the `chatgpt` provider and OpenAI-compatible endpoints, including `openai` with a custom `base_url`, do not), on Chat Completions requests, and on fallback models without the option. Agents using `code_mode_tools` keep the legacy behaviour: wrapped tools are reachable through `run_tools_with_javascript`, while todo and repeatable tools remain directly callable.
 
 Native search also enables ordered response replay, including encrypted reasoning. For native-only workflows, tell the agent to prefer native tool search over `search_tool`/`add_tool`; those tools remain available for fallback models.
 

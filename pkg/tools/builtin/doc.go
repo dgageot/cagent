@@ -6,6 +6,7 @@
 //   - backgroundjobs  — long-running shell background jobs
 //   - lsp             — Language Server Protocol client tools
 //   - think           — structured thinking/scratchpad
+//   - random          — random integers with agent-chosen bounds
 //   - todo            — task list management
 //   - fetch           — HTTP fetch with domain restrictions
 //   - handoff         — conversation handoff between agents

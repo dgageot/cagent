@@ -3,6 +3,8 @@ package toolexec
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/docker/docker-agent/pkg/tools"
 	bgagent "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/backgroundjobs"
@@ -250,4 +252,23 @@ func TestToolLoopDetector_Reset(t *testing.T) {
 	if d.Consecutive() != 1 {
 		t.Errorf("consecutive = %d, want 1 after first record post-reset", d.Consecutive())
 	}
+}
+
+func TestLoopDetectorSuccessfulCallExemptions(t *testing.T) {
+	t.Parallel()
+
+	d := NewLoopDetector(2, "poll")
+	draw := tools.ToolCall{ID: "draw", Function: tools.FunctionCall{Name: "random_int", Arguments: `{"min":1,"max":6}`}}
+	poll := tools.ToolCall{ID: "poll", Function: tools.FunctionCall{Name: "poll"}}
+	other := tools.ToolCall{ID: "other", Function: tools.FunctionCall{Name: "other"}}
+
+	assert.False(t, d.Record([]tools.ToolCall{draw}))
+	assert.False(t, d.Record([]tools.ToolCall{draw}, draw.ID))
+	assert.False(t, d.Record([]tools.ToolCall{draw, poll}, draw.ID))
+	assert.Equal(t, 1, d.Consecutive(), "successful draws and polling do not reset the failed-call count")
+	assert.True(t, d.Record([]tools.ToolCall{draw}))
+
+	d.Reset()
+	assert.False(t, d.Record([]tools.ToolCall{draw, other}, draw.ID))
+	assert.True(t, d.Record([]tools.ToolCall{draw, other}, draw.ID), "mixed batches still count")
 }

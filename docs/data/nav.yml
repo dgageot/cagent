@@ -99,6 +99,8 @@
           url: /tools/mcp/
     - label: Planning & Reasoning
       items:
+        - title: Random
+          url: /tools/random/
         - title: Think
           url: /tools/think/
         - title: Plan

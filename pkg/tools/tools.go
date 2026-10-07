@@ -176,8 +176,10 @@ type Tool struct { //nolint:recvcheck // JSON marshaling needs a value receiver 
 	// RuntimeHandler identifies the host-owned handler that executes this tool.
 	// Empty means Handler owns execution, regardless of name collisions with
 	// runtime-managed tools.
-	RuntimeHandler          string `json:"-"`
-	AddDescriptionParameter bool   `json:"-"`
+	RuntimeHandler string `json:"-"`
+	// AllowRepeatedCalls exempts successful calls from duplicate-loop detection.
+	AllowRepeatedCalls      bool `json:"-"`
+	AddDescriptionParameter bool `json:"-"`
 	// Deferred keeps tools added after the first model call out of cached prompt prefixes.
 	Deferred             bool   `json:"-"`
 	DeferredAtToolCallID string `json:"-"`

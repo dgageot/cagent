@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools/builtin/openurl"
 	"github.com/docker/docker-agent/pkg/tools/builtin/plan"
 	"github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/random"
 	"github.com/docker/docker-agent/pkg/tools/builtin/scheduler"
 	"github.com/docker/docker-agent/pkg/tools/builtin/sessioncontext"
 	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
@@ -60,6 +61,7 @@ func DefaultToolsetCreators() map[string]teamloader.ToolsetCreator {
 		"openapi":           openapi.Creator,
 		"plan":              teamloader.Creator(plan.CreateToolSet),
 		"rag":               rag.Creator,
+		"random":            teamloader.Creator(random.CreateToolSet),
 		"scheduler":         teamloader.Creator(scheduler.CreateToolSet),
 		"script":            shell.ScriptCreator,
 		"session_context":   teamloader.Creator(sessioncontext.CreateToolSet),

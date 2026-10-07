@@ -119,6 +119,46 @@ func TestCodeModeTool_TypeScriptDeclarationsInDescription(t *testing.T) {
 	assert.NotContains(t, allTools[0].Description, "Where Input follows the following JSON schema")
 }
 
+func TestCodeModeTool_RepeatableToolsStayDirect(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	repeatable := tools.Tool{
+		Name:               "draw_number",
+		AllowRepeatedCalls: true,
+		Parameters:         tools.MustSchemaFor[map[string]any](),
+		Handler: tools.NewHandler(func(context.Context, map[string]any) (*tools.ToolCallResult, error) {
+			calls++
+			return tools.ResultSuccess("4"), nil
+		}),
+	}
+	ts := Wrap(&testToolSet{tools: []tools.Tool{repeatable, {Name: "ordinary_tool"}}})
+	list, err := ts.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	assert.Equal(t, "draw_number", list[1].Name)
+	assert.True(t, list[1].AllowRepeatedCalls)
+	assert.False(t, list[0].AllowRepeatedCalls)
+	assert.NotContains(t, list[0].Description, "DrawNumber")
+	assert.Contains(t, list[0].Description, "OrdinaryTool")
+
+	result, err := list[1].Handler(t.Context(), tools.ToolCall{Function: tools.FunctionCall{Arguments: `{}`}}, tools.NopRuntime{})
+	require.NoError(t, err)
+	assert.Equal(t, "4", result.Output)
+	assert.Equal(t, 1, calls)
+
+	for _, name := range []string{"draw_number", "DrawNumber"} {
+		result, err := list[0].Handler(t.Context(), tools.ToolCall{Function: tools.FunctionCall{
+			Arguments: `{"script":"return await ` + name + `({});"}`,
+		}}, tools.NopRuntime{})
+		require.NoError(t, err)
+		var output ScriptResult
+		require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+		assert.Contains(t, output.Value, "is not defined")
+	}
+	assert.Equal(t, 1, calls, "scripts must not bypass direct-call loop detection")
+}
+
 func TestCodeModeTool_Instructions(t *testing.T) {
 	t.Parallel()
 	tool := &codeModeTool{}

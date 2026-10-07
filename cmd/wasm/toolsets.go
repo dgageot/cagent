@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools/builtin/openapi"
 	"github.com/docker/docker-agent/pkg/tools/builtin/plan"
 	ragtool "github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/random"
 	"github.com/docker/docker-agent/pkg/tools/builtin/sessioncontext"
 	"github.com/docker/docker-agent/pkg/tools/builtin/think"
 	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
@@ -57,8 +58,9 @@ func browserToolsetCreators(documents rag.Documents) map[string]teamloader.Tools
 	memories := sync.OnceValue(inmemory.New)
 
 	return map[string]teamloader.ToolsetCreator{
-		"mcp":   mcpCreator,
-		"think": teamloader.Creator(think.CreateToolSet),
+		"mcp":    mcpCreator,
+		"think":  teamloader.Creator(think.CreateToolSet),
+		"random": teamloader.Creator(random.CreateToolSet),
 		"todo": teamloader.CreatorFromToolset(func(ts latest.Toolset) (tools.ToolSet, error) {
 			if ts.Shared {
 				return sharedTodos(), nil
