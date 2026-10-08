@@ -17,7 +17,6 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"go.yaml.in/yaml/v4"
 
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/config/latest"
@@ -388,13 +387,13 @@ func schemaProxyToProperty(proxy *base.SchemaProxy) map[string]any {
 		enumValues := make([]any, 0, len(s.Enum))
 		for _, node := range s.Enum {
 			if node != nil {
-				enumValues = append(enumValues, yamlNodeToValue(node))
+				enumValues = append(enumValues, yamlNodeToValue(node, node.Value))
 			}
 		}
 		prop["enum"] = enumValues
 	}
 	if s.Default != nil {
-		prop["default"] = yamlNodeToValue(s.Default)
+		prop["default"] = yamlNodeToValue(s.Default, s.Default.Value)
 	}
 
 	return prop
@@ -410,13 +409,15 @@ func schemaType(s *base.Schema) string {
 	return "string"
 }
 
-// yamlNodeToValue converts a yaml.Node to a native Go value, preserving the
-// original type (int, float, bool, null) instead of returning everything as a
-// string.
-func yamlNodeToValue(node *yaml.Node) any {
+type nodeDecoder interface {
+	Decode(target any) error
+}
+
+// yamlNodeToValue preserves decoded types, falling back to the raw value on error.
+func yamlNodeToValue(node nodeDecoder, fallback string) any {
 	var v any
 	if err := node.Decode(&v); err != nil {
-		return node.Value
+		return fallback
 	}
 	return v
 }
