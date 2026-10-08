@@ -18,6 +18,8 @@ func TestEvalContainerForwardsOrderedFlavors(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime executable is a POSIX shell script")
 	}
+	sharedRuntime := filepath.Join(t.TempDir(), "runtime")
+	require.NoError(t, os.WriteFile(sharedRuntime, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"${0%/*}/args\"\necho '{\"type\":\"agent_choice\",\"content\":\"ok\"}'\n"), 0o755))
 	t.Parallel()
 
 	for _, setup := range []string{"", "echo setup"} {
@@ -26,7 +28,7 @@ func TestEvalContainerForwardsOrderedFlavors(t *testing.T) {
 			dir := t.TempDir()
 			argsFile := filepath.Join(dir, "args")
 			fake := filepath.Join(dir, "runtime")
-			require.NoError(t, os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \""+argsFile+"\"\necho '{\"type\":\"agent_choice\",\"content\":\"ok\"}'\n"), 0o755))
+			require.NoError(t, os.Symlink(sharedRuntime, fake))
 			runConfig := &config.RuntimeConfig{
 				Config:              config.Config{Flavors: []string{"baseline", "fixtures,with spaces"}},
 				EnvProviderForTests: environment.NewNoEnvProvider(),
