@@ -80,6 +80,14 @@ Examples that wire up one of the toolsets shipped with docker-agent
 | [`sandbox_agent.yaml`](sandbox_agent.yaml) | Same shell-based agent run with `--sandbox` to confine commands to a Docker container. |
 | [`deferred.yaml`](deferred.yaml) | Wraps the agent in a deferred-execution container (`runtime: deferred`). |
 
+### Calculator, random choices, and date/time
+
+| File | What it shows |
+|------|---------------|
+| [`calculator.yaml`](calculator.yaml) | Exact arithmetic with decimals, fractions, and integer powers, without code execution. |
+| [`random.yaml`](random.yaml) | Random integers with agent-chosen inclusive bounds for dice rolls and random choices. |
+| [`datetime.yaml`](datetime.yaml) | Current date and time in a chosen Go layout and timezone. |
+
 ### Memory, todo, think, cache
 
 | File | What it shows |

@@ -303,7 +303,7 @@ What the browser build supports, and what it refuses and why.
 
 | Area | In the browser |
 | --- | --- |
-| Toolsets | `mcp` (remote only), `think`, `todo`, `plan`, `memory`, `user_prompt`, `session_context`, `fetch`, `api`, `openapi`, `model_picker`, `rag` (over `documents`). See `examples/portable-team.yaml` and `examples/handbook-rag.yaml`. |
+| Toolsets | `datetime`, `mcp` (remote only), [`calculator`](../../docs/tools/calculator/index.md), `think`, `random`, `todo`, `plan`, `memory`, `user_prompt`, `session_context`, `fetch`, `api`, `openapi`, `model_picker`, `rag` (over `documents`). See `examples/portable-team.yaml` and `examples/handbook-rag.yaml`. |
 | Toolset options | `tools`, `readonly`, `instruction`, `model`, `toon`, `defer`, `timeout`, `allow_private_ips`. |
 | Agent features | `code_mode_tools`, sub-agents, handoffs, fallbacks, compaction, `add_date`, `add_environment_info`, structured output, `${...}` JavaScript in instructions and descriptions. |
 | Hooks | `type: builtin` only: `add_context`, `add_date`, `add_environment_info`, `limit_large_tool_results`, `max_iterations`, `redact_secrets`. `limit_large_tool_results` keeps only the bounded tail excerpt: there is no filesystem to spill the full result to, and the notice says so. |

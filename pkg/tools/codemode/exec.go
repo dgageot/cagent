@@ -110,6 +110,9 @@ func (c *codeModeTool) runJavascript(ctx context.Context, rt tools.Runtime, scri
 		}
 
 		for _, tool := range allTools {
+			if tool.AllowRepeatedCalls {
+				continue
+			}
 			call := loop.callTool(ctx, rt, tool)
 			_ = vm.Set(tool.Name, call)
 			if name := typeName(tool.Name); name != tool.Name {

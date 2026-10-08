@@ -20,12 +20,15 @@ import (
 	"github.com/docker/docker-agent/pkg/teamloader"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/builtin/api/client"
+	"github.com/docker/docker-agent/pkg/tools/builtin/calculator"
+	"github.com/docker/docker-agent/pkg/tools/builtin/datetime"
 	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
 	"github.com/docker/docker-agent/pkg/tools/builtin/memory"
 	"github.com/docker/docker-agent/pkg/tools/builtin/modelpicker"
 	"github.com/docker/docker-agent/pkg/tools/builtin/openapi"
 	"github.com/docker/docker-agent/pkg/tools/builtin/plan"
 	ragtool "github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/random"
 	"github.com/docker/docker-agent/pkg/tools/builtin/sessioncontext"
 	"github.com/docker/docker-agent/pkg/tools/builtin/think"
 	"github.com/docker/docker-agent/pkg/tools/builtin/todo"
@@ -57,8 +60,11 @@ func browserToolsetCreators(documents rag.Documents) map[string]teamloader.Tools
 	memories := sync.OnceValue(inmemory.New)
 
 	return map[string]teamloader.ToolsetCreator{
-		"mcp":   mcpCreator,
-		"think": teamloader.Creator(think.CreateToolSet),
+		"datetime":   teamloader.Creator(datetime.CreateToolSet),
+		"mcp":        mcpCreator,
+		"calculator": teamloader.Creator(calculator.CreateToolSet),
+		"think":      teamloader.Creator(think.CreateToolSet),
+		"random":     teamloader.Creator(random.CreateToolSet),
 		"todo": teamloader.CreatorFromToolset(func(ts latest.Toolset) (tools.ToolSet, error) {
 			if ts.Shared {
 				return sharedTodos(), nil

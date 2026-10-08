@@ -70,6 +70,10 @@ func setOAuthLoginHTTPClientForTesting(c *http.Client) (restore func()) {
 // redirect URI is then reused, identically, for DCR, /authorize, and the
 // token exchange below.
 func PerformOAuthLogin(ctx context.Context, remote latest.Remote) error {
+	return performOAuthLogin(ctx, remote, NewCallbackServerOnPort)
+}
+
+func performOAuthLogin(ctx context.Context, remote latest.Remote, newCallbackServer func(context.Context, int) (*CallbackServer, error)) error {
 	tokenStore := NewKeyringTokenStore()
 	client := oauthLoginHTTPClient()
 
@@ -100,7 +104,7 @@ func PerformOAuthLogin(ctx context.Context, remote latest.Remote) error {
 	// Set up the callback server for the redirect, honoring
 	// RemoteOAuthConfig.CallbackPort/CallbackRedirectURL exactly like the
 	// runtime's managed OAuth flow does.
-	callbackServer, err := NewCallbackServerOnPort(ctx, callbackPortFrom(remote.OAuth))
+	callbackServer, err := newCallbackServer(ctx, callbackPortFrom(remote.OAuth))
 	if err != nil {
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}

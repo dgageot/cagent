@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -312,19 +314,63 @@ func TestCallbackConfigAccessors(t *testing.T) {
 	assert.Equal(t, "https://proxy.example.test/cb", callbackRedirectURLFrom(configured))
 }
 
-// reserveFreeLoopbackPort returns a TCP port free on 127.0.0.1 at the time
-// of the call, for tests that need to pin RemoteOAuthConfig.CallbackPort to
-// a specific, real, bindable port. The listener is closed immediately so
-// the test's own call to NewCallbackServerOnPort can bind it.
-func reserveFreeLoopbackPort(t *testing.T) int {
+// Keep the callback listener bound so other fixtures cannot claim its port.
+func reserveCallbackServer(t *testing.T) (int, func(context.Context, int) (*CallbackServer, error)) {
 	t.Helper()
 
-	var lc net.ListenConfig
-	l, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	server, err := NewCallbackServer(t.Context())
 	require.NoError(t, err)
-	port := l.Addr().(*net.TCPAddr).Port
-	require.NoError(t, l.Close())
-	return port
+	var claimed atomic.Bool
+	t.Cleanup(func() {
+		if !claimed.Load() {
+			require.NoError(t, server.Start())
+		}
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 5*time.Second)
+		defer cancel()
+		require.NoError(t, server.Shutdown(ctx))
+	})
+	return server.Port(), func(_ context.Context, port int) (*CallbackServer, error) {
+		if port != server.Port() {
+			return nil, fmt.Errorf("callback port = %d, want %d", port, server.Port())
+		}
+		claimed.Store(true)
+		return server, nil
+	}
+}
+
+func TestReserveCallbackServer(t *testing.T) {
+	t.Parallel()
+
+	port, newCallbackServer := reserveCallbackServer(t)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if listener != nil {
+		listener.Close()
+	}
+	require.Error(t, err, "the callback port must stay reserved")
+
+	_, err = newCallbackServer(t.Context(), 0)
+	require.Error(t, err, "the factory must reject an unexpected port")
+	server, err := newCallbackServer(t.Context(), port)
+	require.NoError(t, err)
+	assert.Equal(t, port, server.Port())
+	require.NoError(t, server.Start())
+}
+
+func startOAuthLogin(t *testing.T, remote latest.Remote, newCallbackServer func(context.Context, int) (*CallbackServer, error)) <-chan error {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	errCh := make(chan error, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		errCh <- performOAuthLogin(ctx, remote, newCallbackServer)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	return errCh
 }
 
 // TestPerformOAuthLogin_DefaultCallback_UsesLoopbackRedirect_EndToEnd drives
@@ -409,7 +455,7 @@ func TestPerformOAuthLogin_CallbackPort_UsesConfiguredPort_EndToEnd(t *testing.T
 	SetDefaultTokenStoreFactory(func() OAuthTokenStore { return store })
 
 	urlCh := fakeBrowserOpener(t)
-	port := reserveFreeLoopbackPort(t)
+	port, newCallbackServer := reserveCallbackServer(t)
 
 	const mcpPath = "/mcp"
 	var tokenRedirectURI string
@@ -455,10 +501,9 @@ func TestPerformOAuthLogin_CallbackPort_UsesConfiguredPort_EndToEnd(t *testing.T
 		OAuth: &latest.RemoteOAuthConfig{CallbackPort: port},
 	}
 
-	errCh := make(chan error, 1)
-	go func() { errCh <- PerformOAuthLogin(t.Context(), remote) }()
+	errCh := startOAuthLogin(t, remote, newCallbackServer)
 
-	authURL := requireCapturedAuthorizeURL(t, urlCh)
+	authURL := requireCapturedAuthorizeURL(t, urlCh, errCh)
 	deliverFakeCallback(t, authURL, "code-configured-port")
 
 	require.NoError(t, <-errCh)
@@ -626,7 +671,7 @@ func TestPerformOAuthLogin_CallbackPortWithExplicitClient_EndToEnd(t *testing.T)
 	SetDefaultTokenStoreFactory(func() OAuthTokenStore { return store })
 
 	urlCh := fakeBrowserOpener(t)
-	port := reserveFreeLoopbackPort(t)
+	port, newCallbackServer := reserveCallbackServer(t)
 
 	const mcpPath = "/mcp"
 	var registerCalls int
@@ -677,10 +722,9 @@ func TestPerformOAuthLogin_CallbackPortWithExplicitClient_EndToEnd(t *testing.T)
 		},
 	}
 
-	errCh := make(chan error, 1)
-	go func() { errCh <- PerformOAuthLogin(t.Context(), remote) }()
+	errCh := startOAuthLogin(t, remote, newCallbackServer)
 
-	authURL := requireCapturedAuthorizeURL(t, urlCh)
+	authURL := requireCapturedAuthorizeURL(t, urlCh, errCh)
 	deliverFakeCallback(t, authURL, "code-explicit-client-port")
 
 	require.NoError(t, <-errCh)

@@ -10,6 +10,8 @@ import (
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/api"
 	"github.com/docker/docker-agent/pkg/tools/builtin/backgroundjobs"
+	"github.com/docker/docker-agent/pkg/tools/builtin/calculator"
+	"github.com/docker/docker-agent/pkg/tools/builtin/datetime"
 	"github.com/docker/docker-agent/pkg/tools/builtin/environment"
 	"github.com/docker/docker-agent/pkg/tools/builtin/fetch"
 	filetool "github.com/docker/docker-agent/pkg/tools/builtin/file"
@@ -23,6 +25,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools/builtin/openurl"
 	"github.com/docker/docker-agent/pkg/tools/builtin/plan"
 	"github.com/docker/docker-agent/pkg/tools/builtin/rag"
+	"github.com/docker/docker-agent/pkg/tools/builtin/random"
 	"github.com/docker/docker-agent/pkg/tools/builtin/scheduler"
 	"github.com/docker/docker-agent/pkg/tools/builtin/sessioncontext"
 	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
@@ -46,6 +49,8 @@ func DefaultToolsetCreators() map[string]teamloader.ToolsetCreator {
 		"api":               api.Creator,
 		"background_agents": teamloader.Creator(agenttool.CreateToolSet),
 		"background_jobs":   backgroundjobs.Creator,
+		"calculator":        teamloader.Creator(calculator.CreateToolSet),
+		"datetime":          teamloader.Creator(datetime.CreateToolSet),
 		"environment":       teamloader.Creator(environment.CreateToolSet),
 		"fetch":             fetch.Creator,
 		"file":              filetool.Creator,
@@ -60,6 +65,7 @@ func DefaultToolsetCreators() map[string]teamloader.ToolsetCreator {
 		"openapi":           openapi.Creator,
 		"plan":              teamloader.Creator(plan.CreateToolSet),
 		"rag":               rag.Creator,
+		"random":            teamloader.Creator(random.CreateToolSet),
 		"scheduler":         teamloader.Creator(scheduler.CreateToolSet),
 		"script":            shell.ScriptCreator,
 		"session_context":   teamloader.Creator(sessioncontext.CreateToolSet),

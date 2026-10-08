@@ -19,7 +19,7 @@ This allows you to combine multiple MCP tool calls in a single request, perform 
 and manipulate the results before returning them.
 
 Instructions:
- - The script has access to all the tools as plain javascript functions.
+ - The script has access to the tools/functions listed below as plain javascript functions.
  - Every tool call returns a Promise. Use "await" to get its result; top-level "await" is supported.
  - Run independent tool calls in parallel with "await Promise.all([ToolA(args), ToolB(args)])".
  - Await dependent tool calls sequentially. Tool failures reject their Promises and can be caught with try/catch.
@@ -74,7 +74,8 @@ type RunToolsWithJavascriptArgs struct {
 }
 
 func isExcludedTool(tool tools.Tool) bool {
-	return tool.Category == "todo"
+	// Repeatable calls need their own dispatch results for loop detection.
+	return tool.Category == "todo" || tool.AllowRepeatedCalls
 }
 
 // availableToolsets returns children whose canonical lifecycle wrapper says

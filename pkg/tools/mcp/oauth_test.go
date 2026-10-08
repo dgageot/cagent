@@ -3757,12 +3757,19 @@ func fakeBrowserOpener(t *testing.T) <-chan string {
 }
 
 // requireCapturedAuthorizeURL waits for the fake browser opener to deliver
-// the authorization URL, timing out after 15 seconds.
-func requireCapturedAuthorizeURL(t *testing.T, urlCh <-chan string) string {
+// the authorization URL, or fail early if the optional login result arrives.
+func requireCapturedAuthorizeURL(t *testing.T, urlCh <-chan string, loginResults ...<-chan error) string {
 	t.Helper()
+	var errCh <-chan error
+	if len(loginResults) > 0 {
+		errCh = loginResults[0]
+	}
 	select {
 	case u := <-urlCh:
 		return u
+	case err := <-errCh:
+		t.Fatalf("OAuth login ended before opening the browser: %v", err)
+		return ""
 	case <-time.After(15 * time.Second):
 		t.Fatal("timed out waiting for the fake browser opener to receive the authorize URL")
 		return ""

@@ -12,7 +12,7 @@ _Let an agent write JavaScript that orchestrates several tool calls in one turn 
 
 By default, a model calls one tool at a time: it emits a tool call, waits for the result, then decides what to call next. For a task that chains many tool calls together — "list every open issue, then for each one fetch its comments, then summarize" — that means one model round-trip per step.
 
-**Code Mode** replaces the agent's individual tools with a single tool, `run_tools_with_javascript`, that runs a JavaScript script. Every tool the agent would otherwise call directly is exposed to that script as a JavaScript function returning a Promise. Scripts support top-level `await`; use `await` for dependent calls and `Promise.all` to run independent calls in parallel. The model writes a script that calls as many of them as it needs, combines and filters the results, and returns a single string — all in one tool call.
+**Code Mode** replaces the agent's individual tools with a single tool, `run_tools_with_javascript`, that runs a JavaScript script. Wrapped tools are exposed to that script as JavaScript functions returning Promises; some tools remain directly callable (see [Limits & Security Notes](#limits--security-notes)). Scripts support top-level `await`; use `await` for dependent calls and `Promise.all` to run independent calls in parallel. The model writes a script that calls as many of them as it needs, combines and filters the results, and returns a single string — all in one tool call.
 
 ## Enabling Code Mode
 
@@ -73,13 +73,13 @@ It is not a general-purpose replacement for direct tool calls: for an agent that
 
 - **One string result.** The script must return a string; use `console.*` inside the script to print debug information if something doesn't behave as expected — it comes back to the model as `stdout`/`stderr` alongside the result, but is not displayed by the terminal UIs.
 - **Failures are diagnosable.** If the script throws or returns unexpectedly, the response includes the tool calls it made before failing (name, arguments, and result or error), so the model can see what happened and adjust the script on the next attempt.
-- **Not every tool is wrapped.** Tools in the `todo` category are excluded from the script environment and stay directly callable as ordinary tools — Code Mode does not replace them.
+- **Not every tool is wrapped.** Tools in the `todo` category and repeatable tools such as `random_int` and `get_datetime` stay directly callable as ordinary tools. Repeatable tools are unavailable inside scripts so successful calls retain their duplicate-loop exemption without exempting failed or unrelated scripts.
 - **The script runs in an embedded, sandboxed JS engine** ([goja](https://github.com/dop251/goja)), not Node.js or a browser: there is no filesystem, network, or process access beyond the tool functions injected into it.
 - **Partial startup is supported.** If one toolset fails to initialize (for example, an MCP server that won't connect), Code Mode remains available with the successfully loaded toolsets. The failed toolset is omitted from the JavaScript environment and retried on subsequent turns. A warning is emitted once when the failure first occurs, but not on subsequent turns while the failure persists. When the toolset recovers, its tools silently reappear in the environment. When the failed toolset's cause is retryable (e.g. an MCP server or RAG knowledge base hitting rate limits), its retries are paced by the same [backoff gate](../../tools/mcp/index.md#lifecycle-auto-restart-profiles) used outside code mode, instead of retrying on every turn.
 
 ## Interaction With Permissions and Tool Approval
 
-[Permissions](../../configuration/permissions/index.md) and interactive tool-call approval are enforced when the **runtime dispatches a tool call requested by the model** — which, with Code Mode enabled, is only `run_tools_with_javascript` itself. The individual tool calls a script makes from inside that JavaScript are invoked directly and do **not** go through a second round of permission checks or approval prompts.
+[Permissions](../../configuration/permissions/index.md) and interactive tool-call approval are enforced when the **runtime dispatches a tool call requested by the model** — which, with Code Mode enabled, includes `run_tools_with_javascript` and any tools that remain directly callable. The individual tool calls a script makes from inside that JavaScript are invoked directly and do **not** go through a second round of permission checks or approval prompts.
 
 In practice this means enabling `code_mode_tools` collapses the approval granularity from "one prompt per tool call" down to "one prompt for the whole script". Treat that single approval as authorizing everything the script's toolset could do:
 
