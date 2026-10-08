@@ -335,11 +335,9 @@ func TestBranchSessionCopiesPrefix(t *testing.T) {
 func TestBranchSessionClonesSubSession(t *testing.T) {
 	t.Parallel()
 
-	tempDB := filepath.Join(t.TempDir(), "test_branch_subsession.db")
-
-	store, err := newSQLiteStoreForTest(t, tempDB)
+	store := openMemoryStore(t)
+	_, err := store.db.ExecContext(t.Context(), "PRAGMA foreign_keys = ON")
 	require.NoError(t, err)
-	defer store.(*SQLiteSessionStore).Close()
 
 	subSession := &Session{
 		ID:        "sub-session",
