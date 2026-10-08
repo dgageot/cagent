@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -64,7 +63,7 @@ func initOTelSDK(ctx context.Context) (err error) {
 		_ = shutdownTracerProvider(ctx, tp)
 		return fmt.Errorf("failed to create logger provider: %w", err)
 	}
-	global.SetLoggerProvider(lp)
+	otel.SetLoggerProvider(lp)
 
 	// Set the global text-map propagator unconditionally so otelhttp
 	// (and any other propagation-aware instrumentation) injects W3C
