@@ -247,9 +247,11 @@ func TestRemoteRuntime_BackgroundSubscriptionWaitsForEventLogAndDeliversElicitat
 		case strings.HasSuffix(req.URL.Path, "/snapshot"):
 			fmt.Fprint(w, `{"id":"s","last_event_seq":0}`)
 		case strings.HasSuffix(req.URL.Path, "/events"):
+			// POST can enable the log as soon as the attempt is published.
+			available := logAvailable.Load()
 			attempts.Add(1)
 			assert.Equal(t, "0", req.Header.Get("Last-Event-ID"))
-			if !logAvailable.Load() {
+			if !available {
 				http.NotFound(w, req)
 				return
 			}
@@ -280,7 +282,11 @@ func TestRemoteRuntime_BackgroundSubscriptionWaitsForEventLogAndDeliversElicitat
 			requests = append(requests, request)
 		}
 	}
-	require.Eventually(t, func() bool { return attempts.Load() >= 2 }, 3*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool {
+		rt.backgroundMu.Lock()
+		defer rt.backgroundMu.Unlock()
+		return rt.background == nil
+	}, 3*time.Second, time.Millisecond)
 	select {
 	case event := <-background:
 		request, ok := event.(*ElicitationRequestEvent)

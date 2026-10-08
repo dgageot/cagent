@@ -3,9 +3,9 @@ package genai
 import (
 	"context"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/log/global"
 )
 
 // EvaluationResult describes one evaluation outcome that should be emitted
@@ -37,7 +37,7 @@ type EvaluationResult struct {
 // can join evaluation outcomes back onto the operation that produced
 // them. No-op when no logger provider is configured.
 func EmitEvaluationResult(ctx context.Context, result EvaluationResult) {
-	logger := global.GetLoggerProvider().Logger(instrumentationName)
+	logger := otel.Logger(instrumentationName)
 
 	var rec log.Record
 	rec.SetEventName("gen_ai.evaluation.result")
