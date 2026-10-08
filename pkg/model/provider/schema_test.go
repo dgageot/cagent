@@ -263,6 +263,7 @@ func TestSchemaForAnthropic(t *testing.T) {
 			"type": "string"
 		}
 	},
+	"additionalProperties": false,
 	"required": ["repo"]
 }`, string(schemaJSON))
 }
