@@ -1277,6 +1277,8 @@ agents:
 
 See [`examples/hook_routing.yaml`](https://github.com/docker/docker-agent/blob/main/examples/hook_routing.yaml)
 (evaluator selector with `researcher → reviewer` continuation via `force_handoff`),
+[`examples/hook_routing_openai.yaml`](https://github.com/docker/docker-agent/blob/main/examples/hook_routing_openai.yaml)
+(the same routing with an OpenAI Decisions evaluator),
 [`examples/hook_routing_command.yaml`](https://github.com/docker/docker-agent/blob/main/examples/hook_routing_command.yaml)
 (offline entry selector),
 [`examples/hook_routing_local.yaml`](https://github.com/docker/docker-agent/blob/main/examples/hook_routing_local.yaml)
