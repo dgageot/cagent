@@ -77,6 +77,8 @@ func TestEvaluateSkipsUnusedJudge(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime executable is a POSIX shell script")
 	}
+	sharedRuntime := filepath.Join(t.TempDir(), "runtime")
+	writeFakeContainerRuntime(t, sharedRuntime, `{"type":"agent_choice","content":"ok"}`)
 	t.Parallel()
 
 	for _, tt := range []struct {
@@ -113,7 +115,7 @@ func TestEvaluateSkipsUnusedJudge(t *testing.T) {
 			}
 
 			fakeRuntime := filepath.Join(tmpDir, "fake-runtime")
-			writeFakeContainerRuntime(t, fakeRuntime, filepath.Join(tmpDir, "args"), `{"type":"agent_choice","content":"ok"}`)
+			require.NoError(t, os.Symlink(sharedRuntime, fakeRuntime))
 
 			runConfig := &config.RuntimeConfig{
 				EnvProviderForTests: environment.NewNoEnvProvider(),
@@ -1226,12 +1228,10 @@ func TestContainerRuntimeOrDefault(t *testing.T) {
 	assert.Equal(t, "podman", custom.containerRuntimeOrDefault())
 }
 
-// writeFakeContainerRuntime writes a POSIX shell script standing in for a
-// Docker-compatible container runtime CLI: it records its arguments to
-// argsFile and prints output on stdout. No daemon is involved.
-func writeFakeContainerRuntime(t *testing.T, path, argsFile, output string) {
+// Write before t.Parallel so forked children cannot inherit a writable executable.
+func writeFakeContainerRuntime(t *testing.T, path, output string) {
 	t.Helper()
-	script := "#!/bin/sh\necho \"$@\" > \"" + argsFile + "\"\necho '" + output + "'\n"
+	script := "#!/bin/sh\necho \"$@\" > \"${0%/*}/args\"\necho '" + output + "'\n"
 	require.NoError(t, os.WriteFile(path, []byte(script), 0o755))
 }
 
@@ -1242,12 +1242,12 @@ func TestRunDockerAgentInContainerUsesConfiguredRuntime(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime executable is a POSIX shell script")
 	}
-	t.Parallel()
 
 	tmpDir := t.TempDir()
 	argsFile := filepath.Join(tmpDir, "args")
 	fakeRuntime := filepath.Join(tmpDir, "fake-podman")
-	writeFakeContainerRuntime(t, fakeRuntime, argsFile, `{"type":"agent_choice","content":"ok"}`)
+	writeFakeContainerRuntime(t, fakeRuntime, `{"type":"agent_choice","content":"ok"}`)
+	t.Parallel()
 
 	runner := newRunner(
 		config.NewFileSource(filepath.Join(tmpDir, "agent.yaml")),
@@ -1275,12 +1275,12 @@ func TestBuildEvalImageUsesConfiguredRuntime(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime executable is a POSIX shell script")
 	}
-	t.Parallel()
 
 	tmpDir := t.TempDir()
 	argsFile := filepath.Join(tmpDir, "args")
 	fakeRuntime := filepath.Join(tmpDir, "fake-podman")
-	writeFakeContainerRuntime(t, fakeRuntime, argsFile, "sha256:fake-image-id")
+	writeFakeContainerRuntime(t, fakeRuntime, "sha256:fake-image-id")
+	t.Parallel()
 
 	evalsDir := filepath.Join(tmpDir, "evals")
 	require.NoError(t, os.Mkdir(evalsDir, 0o755))

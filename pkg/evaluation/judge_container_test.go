@@ -108,14 +108,8 @@ func TestContainerMountsJudgeProviderWithoutCredentials(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime is a POSIX shell script")
 	}
-	t.Parallel()
-
-	for _, setup := range []string{"", "echo setup"} {
-		t.Run(setup, func(t *testing.T) {
-			t.Parallel()
-			dir := t.TempDir()
-			fakeRuntime := filepath.Join(dir, "runtime")
-			require.NoError(t, os.WriteFile(fakeRuntime, []byte(`#!/bin/sh
+	sharedRuntime := filepath.Join(t.TempDir(), "runtime")
+	require.NoError(t, os.WriteFile(sharedRuntime, []byte(`#!/bin/sh
 printf '%s\n' "$@" > "${0%/*}/args"
 for arg in "$@"; do
   case "$arg" in
@@ -129,6 +123,14 @@ done
 printf '%s' "${HOST_JUDGE_KEY-}" > "${0%/*}/host-key"
 echo '{"type":"agent_choice","content":"hello"}'
 `), 0o755))
+	t.Parallel()
+
+	for _, setup := range []string{"", "echo setup"} {
+		t.Run(setup, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			fakeRuntime := filepath.Join(dir, "runtime")
+			require.NoError(t, os.Symlink(sharedRuntime, fakeRuntime))
 			runner := newRunner(config.NewFileSource(filepath.Join(dir, "agent.yaml")), &config.RuntimeConfig{
 				Config:              config.Config{Providers: map[string]latest.ProviderConfig{"corporate": {Provider: "typesafe", TokenKey: "HOST_JUDGE_KEY"}}},
 				EnvProviderOverride: environment.NewMapEnvProvider(map[string]string{"HOST_JUDGE_KEY": "secret-value"}),

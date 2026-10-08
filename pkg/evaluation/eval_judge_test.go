@@ -24,6 +24,8 @@ func TestEvaluateWithEvaluatorJudge(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fake container runtime is a POSIX shell script")
 	}
+	sharedRuntime := filepath.Join(t.TempDir(), "runtime")
+	writeFakeContainerRuntime(t, sharedRuntime, `{"type":"agent_choice","content":"hello"}`)
 	t.Parallel()
 
 	for _, tt := range []struct {
@@ -60,7 +62,7 @@ func TestEvaluateWithEvaluatorJudge(t *testing.T) {
 			require.NoError(t, os.Mkdir(evalsDir, 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(evalsDir, "session.json"), []byte(`{"evals":{`+tt.criteria+`}}`), 0o600))
 			fakeRuntime := filepath.Join(dir, "runtime")
-			writeFakeContainerRuntime(t, fakeRuntime, filepath.Join(dir, "args"), `{"type":"agent_choice","content":"hello"}`)
+			require.NoError(t, os.Symlink(sharedRuntime, fakeRuntime))
 			run, err := Evaluate(t.Context(), &bytes.Buffer{}, &bytes.Buffer{}, false, "test",
 				&config.RuntimeConfig{EnvProviderOverride: environment.NewMapEnvProvider(map[string]string{"TYPESAFE_API_KEY": "secret"})},
 				Config{AgentFilename: agentPath, EvalsDir: evalsDir, JudgeType: JudgeTypeEvaluator, JudgeModel: "relevance", Concurrency: 1, ContainerRuntime: fakeRuntime})
