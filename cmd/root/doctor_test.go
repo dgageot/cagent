@@ -458,7 +458,7 @@ func TestDoctorCommand_ClaudeHarnessNotInstalled(t *testing.T) {
 	assert.Contains(t, output, "Claude Code harness")
 	assert.Contains(t, output, "not found in PATH")
 	assert.Contains(t, output, codingharness.ClaudeInstallDocsURL)
-	assert.Contains(t, output, "claude auth login --claudeai")
+	assert.Contains(t, output, "log in with `claude auth login --claudeai`")
 }
 
 func TestDoctorCommand_ClaudeHarnessUnauthenticated(t *testing.T) {
@@ -475,7 +475,7 @@ func TestDoctorCommand_ClaudeHarnessUnauthenticated(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, output, "Status: installed (2.1.210 (Claude Code)), not logged in")
-	assert.Contains(t, output, "claude auth login --claudeai")
+	assert.Contains(t, output, "run `claude auth login --claudeai`")
 	assert.Contains(t, output, "same OS user and environment")
 }
 

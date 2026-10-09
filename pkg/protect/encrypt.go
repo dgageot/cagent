@@ -142,7 +142,7 @@ func aeadSeal(key, data, aad []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gcm.Seal(nil, nil, data, aad), nil
+	return gcm.Seal(nil, nil, data, aad), nil //nolint:gosec // G407: NewGCMWithRandomNonce generates the nonce internally.
 }
 
 func aeadOpen(key, blob, aad []byte) ([]byte, error) {
