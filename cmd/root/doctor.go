@@ -473,13 +473,13 @@ func allAgentsHarnessBacked(cfg *latest.Config) bool {
 func claudeHarnessIssue(ref string, status codingharness.ClaudeCLIStatus) string {
 	switch status.State {
 	case codingharness.ClaudeStateNotInstalled:
-		return fmt.Sprintf("%s uses a claude-code harness but the `claude` CLI was not found in PATH; install Claude Code (%s) and log in with `%s`",
+		return fmt.Sprintf("%s uses a claude-code harness but the `claude` CLI was not found in PATH; install Claude Code (%s) and log in with %#q",
 			ref, codingharness.ClaudeInstallDocsURL, codingharness.ClaudeLoginCommand)
 	case codingharness.ClaudeStateAuthCheckFailed:
 		return fmt.Sprintf("%s uses a claude-code harness but the Claude Code login could not be verified (%s); run `claude auth status` as the same OS user and environment that run docker-agent",
 			ref, status.Detail)
 	case codingharness.ClaudeStateUnauthenticated:
-		return fmt.Sprintf("%s uses a claude-code harness but the `claude` CLI is not logged in; run `%s` as the same OS user and environment that run docker-agent",
+		return fmt.Sprintf("%s uses a claude-code harness but the `claude` CLI is not logged in; run %#q as the same OS user and environment that run docker-agent",
 			ref, codingharness.ClaudeLoginCommand)
 	default:
 		return ""
