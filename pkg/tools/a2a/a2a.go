@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"net/http"
 	neturl "net/url"
@@ -25,6 +26,10 @@ import (
 	"github.com/docker/docker-agent/pkg/upstream"
 )
 
+type streamingSender interface {
+	SendStreamingMessage(ctx context.Context, params *a2a.MessageSendParams) iter.Seq2[a2a.Event, error]
+}
+
 type headerExpander interface {
 	ExpandMap(ctx context.Context, values map[string]string) map[string]string
 }
@@ -37,7 +42,7 @@ type Toolset struct {
 	timeout         time.Duration
 	allowPrivateIPs bool
 	expander        headerExpander
-	client          *a2aclient.Client
+	client          streamingSender
 	card            *a2a.AgentCard
 	mu              sync.RWMutex
 }
