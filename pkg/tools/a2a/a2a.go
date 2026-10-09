@@ -25,6 +25,10 @@ import (
 	"github.com/docker/docker-agent/pkg/upstream"
 )
 
+type headerExpander interface {
+	ExpandMap(ctx context.Context, values map[string]string) map[string]string
+}
+
 // Toolset implements tools.ToolSet for A2A remote agents.
 type Toolset struct {
 	name            string
@@ -32,7 +36,7 @@ type Toolset struct {
 	headers         map[string]string
 	timeout         time.Duration
 	allowPrivateIPs bool
-	expander        *js.Expander
+	expander        headerExpander
 	client          *a2aclient.Client
 	card            *a2a.AgentCard
 	mu              sync.RWMutex
@@ -55,7 +59,10 @@ func WithAllowPrivateIPs(allow bool) Option {
 	return func(t *Toolset) { t.allowPrivateIPs = allow }
 }
 
-func WithExpander(expander *js.Expander) Option {
+func WithExpander(expander headerExpander) Option {
+	if expander == nil {
+		expander = (*js.Expander)(nil)
+	}
 	return func(t *Toolset) { t.expander = expander }
 }
 
@@ -85,10 +92,11 @@ func CreateToolSet(ctx context.Context, toolset latest.Toolset, runConfig *confi
 // NewToolset creates a new A2A toolset for the given URL.
 func NewToolset(name, url string, headers map[string]string, opts ...Option) *Toolset {
 	t := &Toolset{
-		name:    name,
-		url:     url,
-		headers: headers,
-		timeout: httpclient.DefaultToolHTTPTimeout,
+		name:     name,
+		url:      url,
+		headers:  headers,
+		timeout:  httpclient.DefaultToolHTTPTimeout,
+		expander: (*js.Expander)(nil),
 	}
 	for _, opt := range opts {
 		opt(t)
