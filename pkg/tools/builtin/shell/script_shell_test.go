@@ -564,7 +564,7 @@ func TestScriptToolSetWorkspace(t *testing.T) {
 				want = tc.override
 			}
 			ts, err := CreateScriptToolSet(t.Context(), latest.Toolset{Shell: map[string]latest.ScriptShellToolConfig{
-				"where": {Cmd: "pwd", WorkingDir: tc.override},
+				"where": {Cmd: pwdCmd(), WorkingDir: tc.override},
 			}}, &config.RuntimeConfig{Config: config.Config{WorkingDir: dir}, EnvProviderForTests: environment.NewMapEnvProvider(nil)})
 			require.NoError(t, err)
 			all, err := ts.Tools(t.Context())
