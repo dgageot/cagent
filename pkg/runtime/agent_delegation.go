@@ -118,6 +118,8 @@ func buildTaskSystemMessage(task, expectedOutput string, attachedFiles []string)
 type SubSessionConfig struct {
 	// workspace owns the isolated checkout and execution resources, when requested.
 	workspace *backgroundWorktree
+	// worktreePrompt describes a borrowed workspace without transferring ownership.
+	worktreePrompt worktreePrompt
 	// Task is the user-facing task description.
 	Task string
 	// ExpectedOutput is an optional description of what the sub-agent should produce.
@@ -235,12 +237,15 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 	}
 
 	workingDir := parent.WorkingDir
+	prompt := cfg.worktreePrompt
 	if cfg.workspace != nil {
-		wt := cfg.workspace.tree
-		workingDir = wt.Dir
+		workingDir = cfg.workspace.tree.Dir
+		prompt = cfg.workspace.prompt()
+	}
+	if prompt.isolationInstructions != "" {
 		sysMsg = strings.TrimSuffix(sysMsg, delegationPathInstructions)
-		sysMsg = prependNote(sysMsg, cfg.workspace.instructions)
-		sysMsg += fmt.Sprintf("\n\nYou are working in an isolated git worktree at %s on branch %s, based on commit %s. Resolve repository-relative files inside this checkout. Translate repository paths from the original checkout at %s to this checkout; do not treat source-checkout paths in the task as edit targets. Attached files are read-only inputs at their original paths. Do not edit or merge into the original checkout. Commit your completed changes on this branch, following the project signing policy, and report the branch and commit IDs to the calling agent. The calling agent will review and merge your changes. Uncommitted changes from the original checkout are not present.", wt.Dir, wt.Branch, wt.BaseCommit, wt.SourceDir)
+		sysMsg = prependNote(sysMsg, prompt.setupContext)
+		sysMsg += "\n\n" + prompt.isolationInstructions
 	}
 
 	userMsg := cfg.ImplicitUserMessage
@@ -398,6 +403,7 @@ func (r *LocalRuntime) runForwarding(ctx context.Context, parent *session.Sessio
 		}
 	}
 
+	req.worktreePrompt = r.worktreePrompt
 	s := newSubSession(parent, req.SubSessionConfig, child)
 
 	// subagent_stop fires after the child's stream has fully drained,

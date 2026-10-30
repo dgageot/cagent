@@ -22,11 +22,13 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/skills"
 	"github.com/docker/docker-agent/pkg/teamloader"
 	"github.com/docker/docker-agent/pkg/tools"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
+	skillstool "github.com/docker/docker-agent/pkg/tools/builtin/skills"
 	"github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
 	"github.com/docker/docker-agent/pkg/worktree"
 )
@@ -494,4 +496,120 @@ type worktreeProviderFunc struct {
 
 func (p *worktreeProviderFunc) CreateChatCompletionStream(ctx context.Context, messages []chat.Message, toolList []tools.Tool) (chat.MessageStream, error) {
 	return p.fn(ctx, messages, toolList)
+}
+
+func TestBackgroundWorktreeDescendantsKeepIsolationInstructions(t *testing.T) {
+	t.Parallel()
+	dir := worktreeRepo(t)
+	sourcePath := filepath.Join(dir, "shared.txt")
+	attachment := filepath.Join(t.TempDir(), "attachment.txt")
+	require.NoError(t, os.WriteFile(attachment, []byte("input"), 0o600))
+	var prompts []string
+	recorder := &worktreeProviderFunc{fn: func(_ context.Context, messages []chat.Message, _ []tools.Tool) (chat.MessageStream, error) {
+		var text strings.Builder
+		for _, message := range messages {
+			text.WriteString(message.Content)
+			text.WriteByte('\n')
+		}
+		prompts = append(prompts, text.String())
+		return newStreamBuilder().AddContent("done").AddStopWithUsage(1, 1).Build(), nil
+	}}
+	rt := loadWorktreeRuntime(t, dir, map[string]provider.Provider{
+		"root": &mockProvider{id: "test/mock-model"}, "first": recorder, "second": recorder,
+	}, `    hooks:
+      worktree_create:
+        - type: command
+          command: |
+            echo '{"hook_specific_output":{"hook_event_name":"worktree_create","additional_context":"WORKTREE SETUP CONTEXT"}}'
+`)
+	first, _ := rt.team.Agent("first")
+	second, _ := rt.team.Agent("second")
+	agent.WithSubAgents(second)(first)
+	agent.WithWorkingDirFactory(func(_ context.Context, wd string) (*agent.Agent, error) {
+		return agent.New("first", "", agent.WithModel(recorder), agent.WithToolSets(
+			filesystem.New(wd), transfertask.New(), skillstool.New([]skills.Skill{{
+				Name: "nested", Description: "Test fork", Context: "fork", InlineContent: "Inspect " + sourcePath,
+			}}, wd),
+		)), nil
+	})(first)
+	parent := session.New(session.WithWorkingDir(dir), session.WithAttachedFiles([]string{attachment}))
+	workspace, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: parent})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		closeWorktreeRuntime(context.WithoutCancel(t.Context()), workspace.runtime)
+		require.NoError(t, workspace.tree.Remove(context.WithoutCancel(t.Context())))
+	})
+	other, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: parent})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		closeWorktreeRuntime(context.WithoutCancel(t.Context()), other.runtime)
+		require.NoError(t, other.tree.Remove(context.WithoutCancel(t.Context())))
+	})
+	isolated := workspace.runtime
+	caller := isolated.CurrentAgent()
+	child := newSubSession(parent, SubSessionConfig{AgentName: "first", workspace: workspace, PinAgent: true, NonInteractive: true}, caller)
+	sink := EventSinkFunc(func(Event) {})
+	args, err := json.Marshal(map[string]string{"agent": "second", "task": "Inspect " + sourcePath})
+	require.NoError(t, err)
+	transferred, err := isolated.handleTaskTransfer(t.Context(), child, tools.ToolCall{Function: tools.FunctionCall{Arguments: string(args)}}, sink, caller)
+	require.NoError(t, err)
+	require.False(t, transferred.IsError, transferred.Output)
+	forked, err := isolated.RunSkillFork(t.Context(), child, skillstool.RunSkillArgs{Name: "nested"}, sink)
+	require.NoError(t, err)
+	require.False(t, forked.IsError, forked.Output)
+	// A transfer made by the fork must retain the same policy, not only immediate children.
+	var forkSession *session.Session
+	for _, item := range child.Messages {
+		if item.SubSession != nil {
+			forkSession = item.SubSession
+		}
+	}
+	require.NotNil(t, forkSession)
+	transferred, err = isolated.handleTaskTransfer(t.Context(), forkSession, tools.ToolCall{Function: tools.FunctionCall{Arguments: string(args)}}, sink, caller)
+	require.NoError(t, err)
+	require.False(t, transferred.IsError, transferred.Output)
+	require.Len(t, prompts, 3)
+	var checkDescendants func(*session.Session)
+	checkDescendants = func(sess *session.Session) {
+		for _, item := range sess.Messages {
+			if item.SubSession == nil {
+				continue
+			}
+			assert.Equal(t, workspace.tree.Dir, item.SubSession.WorkingDir)
+			assert.Equal(t, workspace.tree.Branch, item.SubSession.AttributesSnapshot()["worktree.branch"])
+			checkDescendants(item.SubSession)
+		}
+	}
+	checkDescendants(child)
+	for _, prompt := range prompts {
+		assert.Contains(t, prompt, sourcePath, "task/skill content must remain intact")
+		assert.Contains(t, prompt, "WORKTREE SETUP CONTEXT")
+		bodyStart := strings.Index(prompt, "You are a member of a team")
+		if bodyStart < 0 {
+			bodyStart = strings.Index(prompt, "You are running the")
+		}
+		assert.GreaterOrEqual(t, bodyStart, 0)
+		assert.Less(t, strings.Index(prompt, "WORKTREE SETUP CONTEXT"), bodyStart)
+		assert.Contains(t, prompt, workspace.tree.Dir)
+		assert.NotContains(t, prompt, other.tree.Dir)
+		assert.Equal(t, 1, strings.Count(prompt, "Translate repository paths"))
+		assert.Contains(t, prompt, workspace.tree.SourceDir)
+		assert.Contains(t, prompt, "Translate repository paths")
+		assert.Contains(t, prompt, "Attached files are read-only inputs at their original paths.")
+		assert.Contains(t, prompt, attachment)
+		assert.NotContains(t, prompt, "use them as-is")
+	}
+	otherCaller := other.runtime.CurrentAgent()
+	otherChild := newSubSession(parent, SubSessionConfig{AgentName: "first", workspace: other, PinAgent: true, NonInteractive: true}, otherCaller)
+	transferred, err = other.runtime.handleTaskTransfer(t.Context(), otherChild, tools.ToolCall{Function: tools.FunctionCall{Arguments: string(args)}}, sink, otherCaller)
+	require.NoError(t, err)
+	require.False(t, transferred.IsError, transferred.Output)
+	require.Len(t, prompts, 4)
+	assert.Contains(t, prompts[3], other.tree.Dir)
+	assert.NotContains(t, prompts[3], workspace.tree.Dir)
+	// Descendants borrow execution; completing them must not dispose their parent's tools.
+	for _, ts := range caller.ToolSets() {
+		require.NoError(t, ts.(*tools.StartableToolSet).Start(t.Context()))
+	}
+	assert.False(t, isolated.bgAgents.HasActiveTasks())
 }

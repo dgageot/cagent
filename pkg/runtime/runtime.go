@@ -239,6 +239,7 @@ type ModelStore interface {
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
 	isolatedWorktree  bool
+	worktreePrompt    worktreePrompt
 	worktreeRoot      string
 	liveSessionParent *LocalRuntime
 	harnessFactory    *harness.Factory

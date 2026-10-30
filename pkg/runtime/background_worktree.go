@@ -22,6 +22,17 @@ type backgroundWorktree struct {
 	instructions string
 }
 
+// worktreePrompt is inheritable context, not ownership of an execution runtime.
+type worktreePrompt struct {
+	setupContext          string
+	isolationInstructions string
+}
+
+func (w *backgroundWorktree) prompt() worktreePrompt {
+	wt := w.tree
+	return worktreePrompt{setupContext: w.instructions, isolationInstructions: fmt.Sprintf("You are working in an isolated git worktree at %s on branch %s, based on commit %s. Resolve repository-relative files inside this checkout. Translate repository paths from the original checkout at %s to this checkout; do not treat source-checkout paths in the task as edit targets. Attached files are read-only inputs at their original paths. Do not edit or merge into the original checkout. Commit your completed changes on this branch, following the project signing policy, and report the branch and commit IDs to the calling agent. The calling agent will review and merge your changes. Uncommitted changes from the original checkout are not present.", wt.Dir, wt.Branch, wt.BaseCommit, wt.SourceDir)}
+}
+
 func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params agenttool.RunParams) (*backgroundWorktree, error) {
 	ctx = tools.WithoutInteractivePrompts(ctx)
 	target, err := r.team.Agent(params.AgentName)
@@ -121,7 +132,9 @@ func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params age
 	isolated.isolatedWorktree = true
 	isolated.liveSessionParent = r
 	isolated.OnBackgroundEventWithContext(r.emitBackgroundEvent)
-	return &backgroundWorktree{tree: wt, runtime: isolated, instructions: instructions}, nil
+	workspace := &backgroundWorktree{tree: wt, runtime: isolated, instructions: instructions}
+	isolated.worktreePrompt = workspace.prompt()
+	return workspace, nil
 }
 
 func closeWorktreeRuntime(ctx context.Context, rt *LocalRuntime) {
