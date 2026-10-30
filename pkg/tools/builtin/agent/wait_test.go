@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/worktree"
 )
 
 func decodeWaitResult(t *testing.T, result *tools.ToolCallResult, err error) waitResult {
@@ -326,4 +327,54 @@ func TestHandleWait_BoundedOutput(t *testing.T) {
 	result, err = h.HandleView(t.Context(), nil, makeToolCall(t, ViewBackgroundAgentArgs{TaskID: "success"}))
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, long, "waiting must not truncate the stored result")
+}
+
+func TestHandleWorktreeMetadata(t *testing.T) {
+	t.Parallel()
+	for _, status := range []taskStatus{taskRunning, taskCompleted, taskFailed, taskStopped} {
+		t.Run(status.String(), func(t *testing.T) {
+			t.Parallel()
+			h := newTestHandler()
+			task := insertTask(h, "task", "sub", status)
+			task.setWorktree(&worktree.Worktree{Dir: "/repo/task", Branch: "worktree-task", BaseCommit: "base"})
+			entry := task.waitResult()
+			assert.Equal(t, "/repo/task", entry.Worktree)
+			assert.Equal(t, "worktree-task", entry.Branch)
+			assert.Equal(t, "base", entry.BaseCommit)
+			view, err := h.HandleView(t.Context(), nil, makeToolCall(t, ViewBackgroundAgentArgs{TaskID: "task"}))
+			require.NoError(t, err)
+			assert.Contains(t, view.Output, "/repo/task")
+			assert.Contains(t, view.Output, "worktree-task")
+			list, err := h.HandleList(t.Context(), nil, tools.ToolCall{})
+			require.NoError(t, err)
+			assert.Contains(t, list.Output, "worktree-task")
+		})
+	}
+}
+
+func TestHandleRunWorktreeOption(t *testing.T) {
+	t.Parallel()
+	seen := make(chan bool, 1)
+	h := NewHandler(&waitRunner{
+		mockRunner: mockRunner{subAgentNames: []string{"sub"}},
+		run: func(_ context.Context, params RunParams) *RunResult {
+			seen <- params.Worktree
+			params.OnWorktree(&worktree.Worktree{Dir: "/isolated", Branch: "worktree-isolated", BaseCommit: "base"})
+			return &RunResult{Result: "finished"}
+		},
+	})
+	defer h.StopAll()
+	result, err := h.HandleRun(t.Context(), session.New(), makeToolCall(t, RunBackgroundAgentArgs{Agent: "sub", Task: "code", Worktree: true}))
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+	require.True(t, <-seen)
+	line, _, _ := strings.Cut(result.Output, "\n")
+	id := strings.TrimPrefix(line, "Background agent task started with ID: ")
+	result, err = h.HandleWait(t.Context(), nil, makeToolCall(t, WaitBackgroundAgentsArgs{TaskIDs: []string{id}}))
+	out := decodeWaitResult(t, result, err)
+	require.True(t, out.AllDone)
+	require.Len(t, out.Tasks, 1)
+	assert.Equal(t, "/isolated", out.Tasks[0].Worktree)
+	assert.Equal(t, "worktree-isolated", out.Tasks[0].Branch)
+	assert.Equal(t, "base", out.Tasks[0].BaseCommit)
 }

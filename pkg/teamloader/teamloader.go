@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -529,51 +530,25 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			}
 		}
 
-		agentTools, warnings, err := getToolsForAgent(ctx, &agentConfig, parentDir, runConfig, configName, &loadOpts, expander)
+		baseOpts := slices.Clone(opts)
+		toolOpts, warnings, err := agentToolOptions(ctx, cfg, &agentConfig, parentDir, runConfig, configName, &loadOpts, expander, false)
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", agentConfig.Name, err)
 		}
-		if len(warnings) > 0 {
-			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
-		}
-
-		// Add skills toolset if skills are enabled
-		if agentConfig.Skills.Enabled() {
-			loadedSkills, skillWarnings := skills.LoadWithWarnings(ctx, agentConfig.Skills.Sources, env)
-			if len(skillWarnings) > 0 {
-				opts = append(opts, agent.WithLoadTimeWarnings(skillWarnings))
+		instruction := expander.Expand(ctx, agentConfig.Instruction, nil)
+		factory := func(ctx context.Context, dir string) (*agent.Agent, error) {
+			workspaceConfig := runConfig.Clone()
+			workspaceConfig.WorkingDir = dir
+			workspaceExpander := loadOpts.newExpander(workspaceConfig.EnvProvider())
+			toolOpts, warnings, err := agentToolOptions(ctx, cfg, &agentConfig, parentDir, workspaceConfig, configName, &loadOpts, workspaceExpander, true)
+			if err != nil {
+				return nil, err
 			}
-			loadedSkills = filterSkillsByName(loadedSkills, agentConfig.Skills.Include)
-			// Inline skills are defined in the agent config itself; they are
-			// always exposed and never subject to the include filter.
-			loadedSkills = overrideWithInlineSkills(loadedSkills, inlineSkills(agentConfig.Skills.Inline))
-			if len(loadedSkills) > 0 {
-				skillSet := skillstool.New(loadedSkills, workingDir)
-				// Resolve the additional toolsets each fork skill exposes in
-				// its sub-session from the top-level toolsets section.
-				forkToolSets, forkWarnings, err := forkSkillToolSets(ctx, cfg, &agentConfig, loadedSkills, parentDir, runConfig, configName, &loadOpts, expander)
-				if err != nil {
-					return nil, fmt.Errorf("agent %s: %w", agentConfig.Name, err)
-				}
-				if len(forkToolSets) > 0 {
-					skillSet.SetForkToolSets(forkToolSets)
-					for _, name := range slices.Sorted(maps.Keys(forkToolSets)) {
-						for _, ts := range forkToolSets[name] {
-							owned, _ := tools.As[*tools.StartableToolSet](ts)
-							opts = append(opts, agent.WithOwnedToolSets(owned))
-						}
-					}
-				}
-				if len(forkWarnings) > 0 {
-					opts = append(opts, agent.WithLoadTimeWarnings(forkWarnings))
-				}
-				agentTools = append(agentTools, skillSet)
-			}
+			return agent.New(agentConfig.Name, instruction, slices.Concat(baseOpts, toolOpts, []agent.Opt{agent.WithLoadTimeWarnings(warnings)})...), nil
 		}
-
-		opts = append(opts, agent.WithToolSets(agentTools...))
-
-		ag := agent.New(agentConfig.Name, expander.Expand(ctx, agentConfig.Instruction, nil), opts...)
+		opts = append(opts, toolOpts...)
+		opts = append(opts, agent.WithLoadTimeWarnings(warnings), agent.WithWorkingDirFactory(factory))
+		ag := agent.New(agentConfig.Name, instruction, opts...)
 
 		// Tool-mode structured output needs a compilable JSON schema; catch a
 		// broken one at load time instead of on the first model turn. Going
@@ -947,6 +922,58 @@ func compactionThresholdForAgent(cfg *latest.Config, a *latest.AgentConfig) *flo
 		}
 	}
 	return a.CompactionThreshold
+}
+
+// agentToolOptions builds fresh ordinary and fork-skill toolsets for one workspace.
+func agentToolOptions(ctx context.Context, cfg *latest.Config, agentConfig *latest.AgentConfig, parentDir string, runConfig *config.RuntimeConfig, configName string, loadOpts *loadOptions, expander Expander, requireTools bool) ([]agent.Opt, []string, error) {
+	var toolOpts []agent.Opt
+	agentTools, warnings, err := getToolsForAgent(ctx, agentConfig, parentDir, runConfig, configName, loadOpts, expander)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if requireTools && len(warnings) > 0 {
+		return nil, nil, fmt.Errorf("workspace tool creation failed: %s", strings.Join(warnings, "; "))
+	}
+	// Add skills toolset if skills are enabled
+	if agentConfig.Skills.Enabled() {
+		skillDir := runConfig.WorkingDir
+		if skillDir == "" {
+			skillDir, _ = os.Getwd()
+		}
+		loadedSkills, skillWarnings := skills.LoadWithWarningsFromDir(ctx, agentConfig.Skills.Sources, runConfig.EnvProvider(), skillDir)
+		warnings = append(warnings, skillWarnings...)
+		loadedSkills = filterSkillsByName(loadedSkills, agentConfig.Skills.Include)
+		// Inline skills are defined in the agent config itself; they are
+		// always exposed and never subject to the include filter.
+		loadedSkills = overrideWithInlineSkills(loadedSkills, inlineSkills(agentConfig.Skills.Inline))
+		if len(loadedSkills) > 0 {
+			skillSet := skillstool.New(loadedSkills, runConfig.WorkingDir)
+			// Resolve the additional toolsets each fork skill exposes in
+			// its sub-session from the top-level toolsets section.
+			forkToolSets, forkWarnings, err := forkSkillToolSets(ctx, cfg, agentConfig, loadedSkills, parentDir, runConfig, configName, loadOpts, expander)
+			if err != nil {
+				return nil, nil, err
+			}
+			if requireTools && len(forkWarnings) > 0 {
+				return nil, nil, fmt.Errorf("workspace fork tool creation failed: %s", strings.Join(forkWarnings, "; "))
+			}
+			if len(forkToolSets) > 0 {
+				skillSet.SetForkToolSets(forkToolSets)
+				for _, name := range slices.Sorted(maps.Keys(forkToolSets)) {
+					for _, ts := range forkToolSets[name] {
+						owned, _ := tools.As[*tools.StartableToolSet](ts)
+						toolOpts = append(toolOpts, agent.WithOwnedToolSets(owned))
+					}
+				}
+			}
+			warnings = append(warnings, forkWarnings...)
+			agentTools = append(agentTools, skillSet)
+		}
+	}
+
+	toolOpts = append(toolOpts, agent.WithToolSets(agentTools...))
+	return toolOpts, warnings, nil
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its

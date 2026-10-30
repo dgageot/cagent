@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/handoff"
+	"github.com/docker/docker-agent/pkg/worktree"
 )
 
 // agentNames returns the names of the given agents.
@@ -114,6 +116,9 @@ func buildTaskSystemMessage(task, expectedOutput string, attachedFiles []string)
 // such a session (telemetry, current-agent switching, event forwarding)
 // lives in [LocalRuntime.runForwarding] and [LocalRuntime.runCollecting].
 type SubSessionConfig struct {
+	// Worktree overrides the inherited workspace for an isolated background task.
+	Worktree         *worktree.Worktree
+	executionRuntime *LocalRuntime
 	// Task is the user-facing task description.
 	Task string
 	// ExpectedOutput is an optional description of what the sub-agent should produce.
@@ -227,7 +232,18 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 
 	sysMsg := cfg.SystemMessage
 	if sysMsg == "" {
-		sysMsg = buildTaskSystemMessage(cfg.Task, cfg.ExpectedOutput, attachedFiles)
+		task, expected := cfg.Task, cfg.ExpectedOutput
+		if wt := cfg.Worktree; wt != nil {
+			task = rebaseWorktreePrompt(task, parent.WorkingDir, wt)
+			expected = rebaseWorktreePrompt(expected, parent.WorkingDir, wt)
+		}
+		sysMsg = buildTaskSystemMessage(task, expected, attachedFiles)
+	}
+
+	workingDir := parent.WorkingDir
+	if wt := cfg.Worktree; wt != nil {
+		workingDir = wt.Dir
+		sysMsg += fmt.Sprintf("\n\nYou are working in an isolated git worktree at %s on branch %s, based on commit %s. Resolve repository files relative to this checkout, not the original checkout at %s. Do not edit or merge into the original checkout. Commit your completed changes on this branch, following the project signing policy, and report the branch and commit IDs to the calling agent. The calling agent will review and merge your changes. Uncommitted changes from the original checkout are not present.", wt.Dir, wt.Branch, wt.BaseCommit, wt.SourceDir)
 	}
 
 	userMsg := cfg.ImplicitUserMessage
@@ -254,10 +270,8 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 		session.WithSendUserMessage(false),
 		session.WithStructuredOutputDisabled(cfg.DisableStructuredOutput),
 		session.WithParentID(parent.ID),
-		// Delegated children run in the parent's workspace: the persisted
-		// WorkingDir is the workspace-root provenance later used to resolve
-		// files the child produced. Empty stays empty (headless parents).
-		session.WithWorkingDir(parent.WorkingDir),
+		// Preserve workspace provenance, including an isolated checkout override.
+		session.WithWorkingDir(workingDir),
 		session.WithAttachedFiles(attachedFiles),
 		session.WithAttributes(parent.AttributesSnapshot()),
 	}
@@ -284,7 +298,23 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 	if len(cfg.ExtraToolSets) > 0 {
 		opts = append(opts, session.WithExtraToolSets(cfg.ExtraToolSets))
 	}
-	return session.New(opts...)
+	s := session.New(opts...)
+	if wt := cfg.Worktree; wt != nil {
+		s.SetAttribute("worktree.path", wt.Dir)
+		s.SetAttribute("worktree.branch", wt.Branch)
+		s.SetAttribute("worktree.base_commit", wt.BaseCommit)
+	}
+	return s
+}
+
+func rebaseWorktreePrompt(text, parentDir string, wt *worktree.Worktree) string {
+	text = strings.ReplaceAll(text, wt.SourceDir+string(filepath.Separator), wt.Dir+string(filepath.Separator))
+	if resolved, err := filepath.EvalSymlinks(parentDir); err == nil {
+		if rel, err := filepath.Rel(wt.SourceDir, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			text = strings.ReplaceAll(text, parentDir+string(filepath.Separator), filepath.Join(wt.Dir, rel)+string(filepath.Separator))
+		}
+	}
+	return text
 }
 
 // mergeExcludedTools combines two excluded-tool lists, deduplicating entries.
@@ -454,7 +484,11 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	if callerAgent == nil {
 		return &agenttool.RunResult{ErrMsg: "no agent resolved for the parent session"}
 	}
-	child, err := r.team.Agent(cfg.AgentName)
+	executionRuntime := r
+	if cfg.executionRuntime != nil {
+		executionRuntime = cfg.executionRuntime
+	}
+	child, err := executionRuntime.team.Agent(cfg.AgentName)
 	if err != nil {
 		return &agenttool.RunResult{ErrMsg: fmt.Sprintf("agent %q not found: %s", cfg.AgentName, err)}
 	}
@@ -475,7 +509,7 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	}()
 
 	var errMsg string
-	events := r.RunStream(ctx, s)
+	events := executionRuntime.RunStream(ctx, s)
 	for event := range events {
 		r.forwardBackgroundUsage(ctx, event)
 		if ctx.Err() != nil {
@@ -664,6 +698,9 @@ func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams)
 	// Caller identity must come from the parent session, not the shared
 	// current agent: nested background delegation runs on pinned sessions
 	// whose agent can differ from whatever the foreground loop points at.
+	if r.isolatedWorktree {
+		return &agenttool.RunResult{ErrMsg: "nested background agents are not supported inside an isolated worktree; dispatch sibling worktree tasks from the top-level agent or use transfer_task"}
+	}
 	caller := r.resolveSessionAgent(params.ParentSession)
 	if caller == nil {
 		return &agenttool.RunResult{ErrMsg: "no agent resolved for the parent session"}
@@ -672,7 +709,7 @@ func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams)
 	if guardErr != "" {
 		return &agenttool.RunResult{ErrMsg: guardErr}
 	}
-	return r.runCollecting(ctx, params.ParentSession, SubSessionConfig{
+	cfg := SubSessionConfig{
 		Task:              params.Task,
 		ExpectedOutput:    params.ExpectedOutput,
 		AgentName:         params.AgentName,
@@ -683,7 +720,16 @@ func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams)
 		NonInteractive:    true,
 		PinAgent:          true,
 		DelegationLineage: childLineage,
-	}, params.OnContent)
+	}
+	if params.Worktree {
+		wt, executionRuntime, err := r.prepareBackgroundWorktree(ctx, params)
+		if err != nil {
+			return &agenttool.RunResult{ErrMsg: err.Error()}
+		}
+		defer closeWorktreeRuntime(ctx, executionRuntime)
+		cfg.Worktree, cfg.executionRuntime = wt, executionRuntime
+	}
+	return r.runCollecting(ctx, params.ParentSession, cfg, params.OnContent)
 }
 
 func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts EventSink, a *agent.Agent) (*tools.ToolCallResult, error) {

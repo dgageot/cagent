@@ -99,6 +99,22 @@ func NewRegistry() *Registry {
 	return r
 }
 
+// Clone copies registrations so runtime-owned callbacks can be rebound independently.
+func (r *Registry) Clone() *Registry {
+	cloned := NewRegistry()
+	r.factories.Range(func(kind HookType, factory HandlerFactory) bool {
+		if kind != HookTypeBuiltin {
+			cloned.Register(kind, factory)
+		}
+		return true
+	})
+	r.builtins.Range(func(name string, fn BuiltinFunc) bool {
+		cloned.builtins.Store(name, fn)
+		return true
+	})
+	return cloned
+}
+
 // Register associates a factory with a hook type, replacing any prior one.
 func (r *Registry) Register(t HookType, f HandlerFactory) {
 	r.factories.Store(t, f)

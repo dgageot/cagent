@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"sync"
@@ -16,6 +17,14 @@ import (
 )
 
 type Opt func(a *Agent)
+
+// WithWorkingDirFactory installs a constructor for fresh workspace-local toolsets.
+// The factory must return a new agent without links to the original team.
+func WithWorkingDirFactory(factory func(context.Context, string) (*Agent, error)) Opt {
+	return func(a *Agent) {
+		a.workingDirFactory = factory
+	}
+}
 
 func WithInstruction(instruction string) Opt {
 	return func(a *Agent) {
