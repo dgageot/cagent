@@ -378,3 +378,35 @@ func TestHandleRunWorktreeOption(t *testing.T) {
 	assert.Equal(t, "worktree-isolated", out.Tasks[0].Branch)
 	assert.Equal(t, "base", out.Tasks[0].BaseCommit)
 }
+
+func TestStoppedTaskKeepsStatusWhenSetupReturnsError(t *testing.T) {
+	t.Parallel()
+	entered := make(chan struct{})
+	h := NewHandler(&waitRunner{mockRunner: mockRunner{subAgentNames: []string{"sub"}}, run: func(ctx context.Context, _ RunParams) *RunResult {
+		close(entered)
+		<-ctx.Done()
+		return &RunResult{ErrMsg: ctx.Err().Error()}
+	}})
+	defer h.StopAll()
+	id := startWaitTask(t, h, "setup")
+	<-entered
+	result, err := h.HandleStop(t.Context(), nil, makeToolCall(t, StopBackgroundAgentArgs{TaskID: id}))
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+	result, err = h.HandleWait(t.Context(), nil, makeToolCall(t, WaitBackgroundAgentsArgs{TaskIDs: []string{id}}))
+	joined := decodeWaitResult(t, result, err)
+	require.True(t, joined.AllDone)
+	assert.Equal(t, "stopped", joined.Tasks[0].Status)
+}
+
+func TestWorktreeMetadataOwnsItsSnapshot(t *testing.T) {
+	t.Parallel()
+	task := &task{}
+	source := &worktree.Worktree{Dir: "initial"}
+	task.setWorktree(source)
+	source.Dir = "mutated"
+	assert.Equal(t, "initial", task.worktreeSnapshot().Dir)
+	snapshot := task.worktreeSnapshot()
+	snapshot.Dir = "also mutated"
+	assert.Equal(t, "initial", task.worktreeSnapshot().Dir)
+}

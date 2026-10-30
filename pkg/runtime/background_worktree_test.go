@@ -27,6 +27,7 @@ import (
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/filesystem"
 	"github.com/docker/docker-agent/pkg/tools/builtin/shell"
+	"github.com/docker/docker-agent/pkg/tools/builtin/transfertask"
 	"github.com/docker/docker-agent/pkg/worktree"
 )
 
@@ -87,7 +88,11 @@ agents:
 	require.NoError(t, err)
 	rt, err := NewLocalRuntime(t.Context(), tm, WithWorkingDir(dir), WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, rt.Close()); require.NoError(t, tm.StopToolSets(t.Context())) })
+	rt.worktreeRoot = t.TempDir()
+	t.Cleanup(func() {
+		require.NoError(t, rt.Close())
+		require.NoError(t, tm.Dispose(context.WithoutCancel(t.Context())))
+	})
 	return rt
 }
 
@@ -122,6 +127,7 @@ func TestBackgroundWorktreeIsolationAndMerge(t *testing.T) {
 				"second": writingWorktreeModel("second"),
 			}, "")
 			parent := session.New(session.WithWorkingDir(dir), session.WithToolsApproved(true))
+			require.NoError(t, rt.sessionStore.UpdateSession(t.Context(), parent))
 			ids := make([]string, 0, 2)
 			for _, name := range []string{"first", "second"} {
 				result, err := rt.bgAgents.HandleRun(t.Context(), parent, tools.ToolCall{Function: tools.FunctionCall{Arguments: fmt.Sprintf(`{"agent":%q,"task":"implement your file","worktree":true}`, name)}})
@@ -178,6 +184,16 @@ func TestBackgroundWorktreeIsolationAndMerge(t *testing.T) {
 				assert.NotEqual(t, dir, child.WorkingDir)
 				assert.Equal(t, parent.ID, child.ParentID)
 				assert.NotEmpty(t, child.AttributesSnapshot()["worktree.branch"])
+				stored, err := rt.sessionStore.GetSession(t.Context(), parent.ID)
+				require.NoError(t, err)
+				var persisted *session.Session
+				for _, item := range stored.Messages {
+					if item.SubSession != nil && item.SubSession.ID == child.ID {
+						persisted = item.SubSession
+					}
+				}
+				require.NotNil(t, persisted)
+				assert.Equal(t, child.WorkingDir, persisted.WorkingDir)
 			}
 		})
 	}
@@ -296,8 +312,9 @@ func TestBackgroundWorktreeRuntimeState(t *testing.T) {
 	responseCache.Store("Please proceed.", "cached")
 	agent.WithCache(responseCache)(originalAgent)
 	parent := session.New(session.WithWorkingDir(dir), session.WithSafetyPolicy(session.SafetyPolicyStrict))
-	wt, child, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: parent})
+	workspace, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: parent})
 	require.NoError(t, err)
+	wt, child := workspace.tree, workspace.runtime
 	t.Cleanup(func() {
 		closeWorktreeRuntime(context.WithoutCancel(t.Context()), child)
 		require.NoError(t, wt.Remove(context.WithoutCancel(t.Context())))
@@ -317,7 +334,7 @@ func TestBackgroundWorktreeRuntimeState(t *testing.T) {
 	assert.IsType(t, &ErrorEvent{}, <-events)
 	assert.Equal(t, "root", rt.currentAgentName())
 	assert.Equal(t, "first", child.currentAgentName())
-	sess := newSubSession(parent, SubSessionConfig{AgentName: "first", Task: "edit " + filepath.Join(dir, "shared.txt"), Worktree: wt, SafetyPolicy: parent.GetSafetyPolicy()}, child.CurrentAgent())
+	sess := newSubSession(parent, SubSessionConfig{AgentName: "first", Task: "edit " + filepath.Join(dir, "shared.txt"), workspace: workspace, SafetyPolicy: parent.GetSafetyPolicy()}, child.CurrentAgent())
 	assert.Equal(t, session.SafetyPolicyStrict, sess.GetSafetyPolicy())
 	var transcript strings.Builder
 	for _, item := range sess.Messages {
@@ -325,5 +342,156 @@ func TestBackgroundWorktreeRuntimeState(t *testing.T) {
 			transcript.WriteString(item.Message.Message.Content)
 		}
 	}
-	assert.Contains(t, transcript.String(), filepath.Join(wt.Dir, "shared.txt"))
+	assert.Contains(t, transcript.String(), "edit "+filepath.Join(dir, "shared.txt"))
+	assert.Contains(t, transcript.String(), "Translate repository paths")
+	assert.NotContains(t, transcript.String(), "use them as-is")
+}
+
+func TestBackgroundWorktreeSetupPrecedesToolConstruction(t *testing.T) {
+	t.Parallel()
+	dir := worktreeRepo(t)
+	rt := loadWorktreeRuntime(t, dir, map[string]provider.Provider{
+		"root": &mockProvider{id: "test/mock-model"}, "first": &mockProvider{id: "test/mock-model"}, "second": &mockProvider{id: "test/mock-model"},
+	}, `    hooks:
+      worktree_create:
+        - type: command
+          command: |
+            printf 'secret.txt\n' > .agentsignore
+            printf 'secret' > secret.txt
+            printf '{"hook_specific_output":{"hook_event_name":"worktree_create","additional_context":"setup context"}}'
+`)
+	workspace, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: session.New(session.WithWorkingDir(dir))})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		closeWorktreeRuntime(context.WithoutCancel(t.Context()), workspace.runtime)
+		require.NoError(t, workspace.tree.Remove(context.WithoutCancel(t.Context())))
+	})
+	assert.Equal(t, "setup context", workspace.instructions)
+	a := workspace.runtime.CurrentAgent()
+	toolsList, err := a.Tools(t.Context())
+	require.NoError(t, err)
+	for _, tool := range toolsList {
+		if tool.Name != "read_file" {
+			continue
+		}
+		result, err := tool.Handler(t.Context(), tools.ToolCall{Function: tools.FunctionCall{Arguments: `{"path":"secret.txt"}`}}, tools.NopRuntime{})
+		require.NoError(t, err)
+		assert.True(t, result.IsError, result.Output)
+		assert.NotEqual(t, "secret", result.Output)
+		return
+	}
+	t.Fatal("read_file missing")
+}
+
+func TestBackgroundWorktreeDoesNotReportBudgetStopAsSuccess(t *testing.T) {
+	t.Parallel()
+	dir := worktreeRepo(t)
+	rt := loadWorktreeRuntime(t, dir, map[string]provider.Provider{
+		"root": &mockProvider{id: "test/mock-model"}, "first": writingWorktreeModel("first"), "second": &mockProvider{id: "test/mock-model"},
+	}, "")
+	rt.budgetCfg = &latest.BudgetConfig{MaxTokens: 1}
+	var wt *worktree.Worktree
+	result := rt.RunAgent(t.Context(), agenttool.RunParams{AgentName: "first", Task: "make a change", Worktree: true, ParentSession: session.New(session.WithWorkingDir(dir), session.WithToolsApproved(true)), OnWorktree: func(tree *worktree.Worktree) { wt = tree }})
+	require.NotNil(t, wt)
+	t.Cleanup(func() { require.NoError(t, wt.Remove(context.WithoutCancel(t.Context()))) })
+	assert.Contains(t, result.ErrMsg, "budget")
+}
+
+func TestBackgroundWorktreeReturnsElicitationDecline(t *testing.T) {
+	t.Parallel()
+	dir := worktreeRepo(t)
+	rt := loadWorktreeRuntime(t, dir, map[string]provider.Provider{
+		"root": &mockProvider{id: "test/mock-model"}, "first": &mockProvider{id: "test/mock-model"}, "second": &mockProvider{id: "test/mock-model"},
+	}, "")
+	workspace, err := rt.prepareBackgroundWorktree(t.Context(), agenttool.RunParams{AgentName: "first", ParentSession: session.New(session.WithWorkingDir(dir))})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		closeWorktreeRuntime(context.WithoutCancel(t.Context()), workspace.runtime)
+		require.NoError(t, workspace.tree.Remove(context.WithoutCancel(t.Context())))
+	})
+	result, err := workspace.runtime.requestElicitation(t.Context(), elicitationSpec{sessionID: "child", message: "choose an option"})
+	require.NoError(t, err)
+	assert.Equal(t, tools.ElicitationActionDecline, result.Action)
+	notes := workspace.runtime.elicitationDeclines.drain("child")
+	require.Len(t, notes, 1)
+	assert.Contains(t, notes[0], "choose an option")
+}
+
+func TestBackgroundWorktreeRepeatedAgentAndBlockingDelegation(t *testing.T) {
+	t.Parallel()
+	dir := worktreeRepo(t)
+	worker := &worktreeProviderFunc{fn: func(ctx context.Context, messages []chat.Message, toolList []tools.Tool) (chat.MessageStream, error) {
+		for _, tool := range toolList {
+			if tool.Name != "write_file" {
+				continue
+			}
+			result, err := tool.Handler(ctx, tools.ToolCall{Function: tools.FunctionCall{Arguments: `{"path":"worker.txt","content":"isolated"}`}}, tools.NopRuntime{})
+			if err != nil {
+				return nil, err
+			}
+			if result.IsError {
+				return nil, fmt.Errorf("%s", result.Output)
+			}
+		}
+		return newStreamBuilder().AddContent("worker finished").AddStopWithUsage(2, 1).Build(), nil
+	}}
+	coordinator := &worktreeProviderFunc{fn: func(_ context.Context, messages []chat.Message, _ []tools.Tool) (chat.MessageStream, error) {
+		for _, msg := range messages {
+			if msg.Role == chat.MessageRoleTool {
+				return newStreamBuilder().AddContent("delegated").AddStopWithUsage(2, 1).Build(), nil
+			}
+		}
+		return newStreamBuilder().AddToolCallName("delegate", "transfer_task").AddToolCallArguments("delegate", `{"agent":"second","task":"write worker.txt"}`).AddToolCallStopWithUsage(2, 1).Build(), nil
+	}}
+	rt := loadWorktreeRuntime(t, dir, map[string]provider.Provider{"root": &mockProvider{id: "test/mock-model"}, "first": coordinator, "second": worker}, "")
+	first, _ := rt.team.Agent("first")
+	second, _ := rt.team.Agent("second")
+	agent.WithSubAgents(second)(first)
+	// The configured first agent has no transfer tool; add it through its workspace factory.
+	var factory func(context.Context, string) (*agent.Agent, error)
+	factory = func(ctx context.Context, dir string) (*agent.Agent, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		fs := filesystem.New(dir)
+		return agent.New("first", "", agent.WithModel(coordinator), agent.WithToolSets(fs, transfertask.New()), agent.WithWorkingDirFactory(factory)), nil
+	}
+	agent.WithWorkingDirFactory(factory)(first)
+	parent := session.New(session.WithWorkingDir(dir), session.WithToolsApproved(true))
+	require.NoError(t, rt.sessionStore.UpdateSession(t.Context(), parent))
+	ids := make([]string, 2)
+	for i := range ids {
+		result, err := rt.bgAgents.HandleRun(t.Context(), parent, tools.ToolCall{Function: tools.FunctionCall{Arguments: `{"agent":"first","task":"delegate work","worktree":true}`}})
+		require.NoError(t, err)
+		ids[i] = parseBackgroundTaskID(t, result.Output)
+	}
+	args, _ := json.Marshal(agenttool.WaitBackgroundAgentsArgs{TaskIDs: ids, Timeout: 30})
+	result, err := rt.bgAgents.HandleWait(t.Context(), parent, tools.ToolCall{Function: tools.FunctionCall{Arguments: string(args)}})
+	require.NoError(t, err)
+	var joined struct {
+		AllDone bool                                        `json:"all_done"`
+		Tasks   []struct{ Status, Worktree, Branch string } `json:"tasks"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &joined))
+	require.True(t, joined.AllDone, result.Output)
+	require.Len(t, joined.Tasks, 2)
+	assert.NotEqual(t, joined.Tasks[0].Worktree, joined.Tasks[1].Worktree)
+	for _, task := range joined.Tasks {
+		wt := &worktree.Worktree{Dir: task.Worktree, Branch: task.Branch, SourceDir: dir}
+		t.Cleanup(func() { require.NoError(t, wt.Remove(context.WithoutCancel(t.Context()))) })
+		assert.Equal(t, "completed", task.Status, result.Output)
+		assert.Equal(t, "isolated", stringReadFile(t, filepath.Join(task.Worktree, "worker.txt")))
+	}
+	assert.NoFileExists(t, filepath.Join(dir, "worker.txt"))
+	assert.Len(t, rt.LiveSessions(t.Context(), parent), 1)
+}
+
+type worktreeProviderFunc struct {
+	mockProvider
+
+	fn func(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error)
+}
+
+func (p *worktreeProviderFunc) CreateChatCompletionStream(ctx context.Context, messages []chat.Message, toolList []tools.Tool) (chat.MessageStream, error) {
+	return p.fn(ctx, messages, toolList)
 }

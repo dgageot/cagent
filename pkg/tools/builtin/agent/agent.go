@@ -162,8 +162,8 @@ func (t *task) storeStatus(s taskStatus) {
 	t.status.Store(int32(s))
 }
 
-func (t *task) casStatus(old, next taskStatus) bool {
-	return t.status.CompareAndSwap(int32(old), int32(next))
+func (t *task) finish(next taskStatus) bool {
+	return t.status.CompareAndSwap(int32(taskRunning), int32(next))
 }
 
 // writeOutput appends content to the task's live output buffer, respecting the
@@ -243,13 +243,18 @@ func (t *task) formatView(status taskStatus, elapsed time.Duration) string {
 func (t *task) setWorktree(wt *worktree.Worktree) {
 	t.outputMu.Lock()
 	defer t.outputMu.Unlock()
-	t.worktree = wt
+	if wt != nil {
+		t.worktree = new(*wt)
+	}
 }
 
 func (t *task) worktreeSnapshot() *worktree.Worktree {
 	t.outputMu.RLock()
 	defer t.outputMu.RUnlock()
-	return t.worktree
+	if t.worktree == nil {
+		return nil
+	}
+	return new(*t.worktree)
 }
 
 func (t *task) worktreeSummary() string {
@@ -459,7 +464,9 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 
 		if result.ErrMsg != "" {
 			t.errMsg = result.ErrMsg
-			t.storeStatus(taskFailed)
+			if !t.finish(taskFailed) {
+				return
+			}
 			span.SetStatus(codes.Error, result.ErrMsg)
 			span.SetAttributes(
 				attribute.String("error.type", "agent_error"),
@@ -479,7 +486,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 		// Write result before CAS so readers who observe taskCompleted
 		// always see the populated result field.
 		t.result = result.Result
-		if t.casStatus(taskRunning, taskCompleted) {
+		if t.finish(taskCompleted) {
 			span.SetAttributes(attribute.String("cagent.background_agent.outcome", "completed"))
 			slog.DebugContext(tracedCtx, "Background agent task completed", "task_id", taskID, "agent", params.Agent)
 		}
@@ -558,7 +565,7 @@ func (h *Handler) HandleStop(ctx context.Context, _ *session.Session, toolCall t
 		return tools.ResultError("task not found: " + params.TaskID), nil
 	}
 
-	if !t.casStatus(taskRunning, taskStopped) {
+	if !t.finish(taskStopped) {
 		return tools.ResultError(fmt.Sprintf("task %s is not running (status: %s)", params.TaskID, t.loadStatus())), nil
 	}
 
@@ -574,7 +581,7 @@ func (h *Handler) StopAll() {
 	h.admissionMu.Lock()
 	h.stopping = true
 	h.tasks.Range(func(_ string, t *task) bool {
-		if t.casStatus(taskRunning, taskStopped) {
+		if t.finish(taskStopped) {
 			cancels = append(cancels, t.cancel)
 		}
 		return true

@@ -330,3 +330,19 @@ func TestRegistryClone(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "changed", result.Output.SystemMessage)
 }
+
+func TestRegistryClonePreservesBuiltinFactoryOverride(t *testing.T) {
+	t.Parallel()
+	original := NewRegistry()
+	invoked := false
+	original.Register(HookTypeBuiltin, func(HandlerEnv, Hook) (Handler, error) {
+		invoked = true
+		return nil, errors.New("custom policy rejected hook")
+	})
+	clone := original.Clone()
+	factory, ok := clone.Lookup(HookTypeBuiltin)
+	require.True(t, ok)
+	_, err := factory(HandlerEnv{}, Hook{})
+	require.ErrorContains(t, err, "custom policy")
+	assert.True(t, invoked)
+}

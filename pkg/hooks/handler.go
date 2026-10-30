@@ -95,7 +95,6 @@ type Registry struct {
 func NewRegistry() *Registry {
 	r := &Registry{}
 	r.Register(HookTypeCommand, newCommandFactory())
-	r.Register(HookTypeBuiltin, r.builtinFactory)
 	return r
 }
 
@@ -103,9 +102,7 @@ func NewRegistry() *Registry {
 func (r *Registry) Clone() *Registry {
 	cloned := NewRegistry()
 	r.factories.Range(func(kind HookType, factory HandlerFactory) bool {
-		if kind != HookTypeBuiltin {
-			cloned.Register(kind, factory)
-		}
+		cloned.Register(kind, factory)
 		return true
 	})
 	r.builtins.Range(func(name string, fn BuiltinFunc) bool {
@@ -122,7 +119,11 @@ func (r *Registry) Register(t HookType, f HandlerFactory) {
 
 // Lookup returns the factory registered for t, or (nil, false).
 func (r *Registry) Lookup(t HookType) (HandlerFactory, bool) {
-	return r.factories.Load(t)
+	factory, ok := r.factories.Load(t)
+	if !ok && t == HookTypeBuiltin {
+		return r.builtinFactory, true
+	}
+	return factory, ok
 }
 
 // RegisterBuiltin makes fn callable as `{type: builtin, command: name}`.

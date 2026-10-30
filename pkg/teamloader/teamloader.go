@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -247,6 +247,15 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		span.End()
 	}()
 
+	var agents []*agent.Agent
+	defer func() {
+		if err != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			err = errors.Join(err, team.New(team.WithAgents(agents...)).Dispose(cleanupCtx))
+		}
+	}()
+
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 	loadOpts.providerRegistry = provider.EmptyRegistry()
@@ -411,7 +420,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	workingDir := runConfig.WorkingDir
 	parentDir := cmp.Or(agentSource.ParentDir(), workingDir)
 	configName := configNameFromSource(agentSource.Name())
-	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
 
 	expander := loadOpts.newExpander(env)
@@ -550,6 +558,8 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		opts = append(opts, agent.WithLoadTimeWarnings(warnings), agent.WithWorkingDirFactory(factory))
 		ag := agent.New(agentConfig.Name, instruction, opts...)
 
+		agents = append(agents, ag)
+
 		// Tool-mode structured output needs a compilable JSON schema; catch a
 		// broken one at load time instead of on the first model turn. Going
 		// through the agent's lazy cache also pre-compiles the tool the
@@ -558,7 +568,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			return nil, fmt.Errorf("agent %s: structured_output: %w", agentConfig.Name, err)
 		}
 
-		agents = append(agents, ag)
 		agentsByName[agentConfig.Name] = ag
 	}
 
@@ -925,8 +934,16 @@ func compactionThresholdForAgent(cfg *latest.Config, a *latest.AgentConfig) *flo
 }
 
 // agentToolOptions builds fresh ordinary and fork-skill toolsets for one workspace.
-func agentToolOptions(ctx context.Context, cfg *latest.Config, agentConfig *latest.AgentConfig, parentDir string, runConfig *config.RuntimeConfig, configName string, loadOpts *loadOptions, expander Expander, requireTools bool) ([]agent.Opt, []string, error) {
-	var toolOpts []agent.Opt
+func agentToolOptions(ctx context.Context, cfg *latest.Config, agentConfig *latest.AgentConfig, parentDir string, runConfig *config.RuntimeConfig, configName string, loadOpts *loadOptions, expander Expander, requireTools bool) (toolOpts []agent.Opt, warnings []string, err error) {
+	registry := &disposalRegistry{ToolsetRegistry: loadOpts.toolsetRegistry}
+	localOpts := *loadOpts
+	localOpts.toolsetRegistry = registry
+	loadOpts = &localOpts
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, disposeCreatedTools(ctx, registry.created))
+		}
+	}()
 	agentTools, warnings, err := getToolsForAgent(ctx, agentConfig, parentDir, runConfig, configName, loadOpts, expander)
 	if err != nil {
 		return nil, nil, err
@@ -942,6 +959,9 @@ func agentToolOptions(ctx context.Context, cfg *latest.Config, agentConfig *late
 			skillDir, _ = os.Getwd()
 		}
 		loadedSkills, skillWarnings := skills.LoadWithWarningsFromDir(ctx, agentConfig.Skills.Sources, runConfig.EnvProvider(), skillDir)
+		if requireTools && len(skillWarnings) > 0 {
+			return nil, nil, fmt.Errorf("workspace skill loading failed: %s", strings.Join(skillWarnings, "; "))
+		}
 		warnings = append(warnings, skillWarnings...)
 		loadedSkills = filterSkillsByName(loadedSkills, agentConfig.Skills.Include)
 		// Inline skills are defined in the agent config itself; they are
@@ -960,19 +980,13 @@ func agentToolOptions(ctx context.Context, cfg *latest.Config, agentConfig *late
 			}
 			if len(forkToolSets) > 0 {
 				skillSet.SetForkToolSets(forkToolSets)
-				for _, name := range slices.Sorted(maps.Keys(forkToolSets)) {
-					for _, ts := range forkToolSets[name] {
-						owned, _ := tools.As[*tools.StartableToolSet](ts)
-						toolOpts = append(toolOpts, agent.WithOwnedToolSets(owned))
-					}
-				}
 			}
 			warnings = append(warnings, forkWarnings...)
 			agentTools = append(agentTools, skillSet)
 		}
 	}
 
-	toolOpts = append(toolOpts, agent.WithToolSets(agentTools...))
+	toolOpts = append(toolOpts, agent.WithToolSets(agentTools...), agent.WithOwnedToolSets(registry.created...))
 	return toolOpts, warnings, nil
 }
 
@@ -1366,7 +1380,7 @@ func loadExternalAgent(ctx context.Context, ref string, runConfig *config.Runtim
 	// Route targets live in the imported configuration and are not part of the
 	// importing team, so they could resolve to an unrelated agent of the same name.
 	if len(imported.Routing().AllowedAgents) > 0 {
-		return nil, fmt.Errorf("agent %q declares routing.allowed_agents; routed agents cannot be imported because their route targets are not part of the importing team", imported.Name())
+		return nil, errors.Join(fmt.Errorf("agent %q declares routing.allowed_agents; routed agents cannot be imported because their route targets are not part of the importing team", imported.Name()), result.Dispose(context.WithoutCancel(ctx)))
 	}
 	return imported, nil
 }
@@ -1407,4 +1421,32 @@ func externalDepthFromContext(ctx context.Context) int {
 
 func contextWithExternalDepth(ctx context.Context, depth int) context.Context {
 	return context.WithValue(ctx, externalDepthKey, depth)
+}
+
+// disposalRegistry retains canonical owners before any filtering or composite
+// wrapping can hide a resource from rollback or final workspace cleanup.
+type disposalRegistry struct {
+	ToolsetRegistry
+
+	created []*tools.StartableToolSet
+}
+
+func (r *disposalRegistry) CreateTool(ctx context.Context, cfg latest.Toolset, parentDir string, rc *config.RuntimeConfig, name string) (tools.ToolSet, error) {
+	ts, err := r.ToolsetRegistry.CreateTool(ctx, cfg, parentDir, rc, name)
+	if ts == nil {
+		return nil, err
+	}
+	owner := tools.NewStartable(ts)
+	r.created = append(r.created, owner)
+	return owner, err
+}
+
+func disposeCreatedTools(ctx context.Context, created []*tools.StartableToolSet) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	var toolsets []tools.ToolSet
+	for _, owner := range created {
+		toolsets = append(toolsets, owner)
+	}
+	return tools.Dispose(cleanupCtx, toolsets...)
 }

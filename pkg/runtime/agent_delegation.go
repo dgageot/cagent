@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/builtin/handoff"
-	"github.com/docker/docker-agent/pkg/worktree"
 )
 
 // agentNames returns the names of the given agents.
@@ -87,6 +85,8 @@ func validateDelegation(parent *session.Session, caller, target string) ([]strin
 	return childLineage, ""
 }
 
+const delegationPathInstructions = "\n\nIf the task references files, treat any absolute paths in <task> as authoritative and use them as-is. If a referenced file is given by name only (e.g. \"foo.go\"), do not guess: search the workspace or ask the calling agent for the absolute path before reading or modifying the file."
+
 // buildTaskSystemMessage constructs the system message for a delegated task.
 // attachedFiles, when non-empty, lists absolute paths of files the user
 // attached to the parent conversation; they are surfaced to the sub-agent so
@@ -106,7 +106,7 @@ func buildTaskSystemMessage(task, expectedOutput string, attachedFiles []string)
 		}
 		b.WriteString("\n</attached_files>")
 	}
-	b.WriteString("\n\nIf the task references files, treat any absolute paths in <task> as authoritative and use them as-is. If a referenced file is given by name only (e.g. \"foo.go\"), do not guess: search the workspace or ask the calling agent for the absolute path before reading or modifying the file.")
+	b.WriteString(delegationPathInstructions)
 	return b.String()
 }
 
@@ -116,9 +116,8 @@ func buildTaskSystemMessage(task, expectedOutput string, attachedFiles []string)
 // such a session (telemetry, current-agent switching, event forwarding)
 // lives in [LocalRuntime.runForwarding] and [LocalRuntime.runCollecting].
 type SubSessionConfig struct {
-	// Worktree overrides the inherited workspace for an isolated background task.
-	Worktree         *worktree.Worktree
-	executionRuntime *LocalRuntime
+	// workspace owns the isolated checkout and execution resources, when requested.
+	workspace *backgroundWorktree
 	// Task is the user-facing task description.
 	Task string
 	// ExpectedOutput is an optional description of what the sub-agent should produce.
@@ -232,18 +231,16 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 
 	sysMsg := cfg.SystemMessage
 	if sysMsg == "" {
-		task, expected := cfg.Task, cfg.ExpectedOutput
-		if wt := cfg.Worktree; wt != nil {
-			task = rebaseWorktreePrompt(task, parent.WorkingDir, wt)
-			expected = rebaseWorktreePrompt(expected, parent.WorkingDir, wt)
-		}
-		sysMsg = buildTaskSystemMessage(task, expected, attachedFiles)
+		sysMsg = buildTaskSystemMessage(cfg.Task, cfg.ExpectedOutput, attachedFiles)
 	}
 
 	workingDir := parent.WorkingDir
-	if wt := cfg.Worktree; wt != nil {
+	if cfg.workspace != nil {
+		wt := cfg.workspace.tree
 		workingDir = wt.Dir
-		sysMsg += fmt.Sprintf("\n\nYou are working in an isolated git worktree at %s on branch %s, based on commit %s. Resolve repository files relative to this checkout, not the original checkout at %s. Do not edit or merge into the original checkout. Commit your completed changes on this branch, following the project signing policy, and report the branch and commit IDs to the calling agent. The calling agent will review and merge your changes. Uncommitted changes from the original checkout are not present.", wt.Dir, wt.Branch, wt.BaseCommit, wt.SourceDir)
+		sysMsg = strings.TrimSuffix(sysMsg, delegationPathInstructions)
+		sysMsg = prependNote(sysMsg, cfg.workspace.instructions)
+		sysMsg += fmt.Sprintf("\n\nYou are working in an isolated git worktree at %s on branch %s, based on commit %s. Resolve repository-relative files inside this checkout. Translate repository paths from the original checkout at %s to this checkout; do not treat source-checkout paths in the task as edit targets. Attached files are read-only inputs at their original paths. Do not edit or merge into the original checkout. Commit your completed changes on this branch, following the project signing policy, and report the branch and commit IDs to the calling agent. The calling agent will review and merge your changes. Uncommitted changes from the original checkout are not present.", wt.Dir, wt.Branch, wt.BaseCommit, wt.SourceDir)
 	}
 
 	userMsg := cfg.ImplicitUserMessage
@@ -299,22 +296,13 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 		opts = append(opts, session.WithExtraToolSets(cfg.ExtraToolSets))
 	}
 	s := session.New(opts...)
-	if wt := cfg.Worktree; wt != nil {
+	if cfg.workspace != nil {
+		wt := cfg.workspace.tree
 		s.SetAttribute("worktree.path", wt.Dir)
 		s.SetAttribute("worktree.branch", wt.Branch)
 		s.SetAttribute("worktree.base_commit", wt.BaseCommit)
 	}
 	return s
-}
-
-func rebaseWorktreePrompt(text, parentDir string, wt *worktree.Worktree) string {
-	text = strings.ReplaceAll(text, wt.SourceDir+string(filepath.Separator), wt.Dir+string(filepath.Separator))
-	if resolved, err := filepath.EvalSymlinks(parentDir); err == nil {
-		if rel, err := filepath.Rel(wt.SourceDir, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			text = strings.ReplaceAll(text, parentDir+string(filepath.Separator), filepath.Join(wt.Dir, rel)+string(filepath.Separator))
-		}
-	}
-	return text
 }
 
 // mergeExcludedTools combines two excluded-tool lists, deduplicating entries.
@@ -482,20 +470,29 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	// different agent if the shared current changes mid-run.
 	callerAgent := r.resolveSessionAgent(parent)
 	if callerAgent == nil {
+		if cfg.workspace != nil {
+			closeWorktreeRuntime(ctx, cfg.workspace.runtime)
+		}
 		return &agenttool.RunResult{ErrMsg: "no agent resolved for the parent session"}
 	}
 	executionRuntime := r
-	if cfg.executionRuntime != nil {
-		executionRuntime = cfg.executionRuntime
+	if cfg.workspace != nil {
+		executionRuntime = cfg.workspace.runtime
 	}
 	child, err := executionRuntime.team.Agent(cfg.AgentName)
 	if err != nil {
+		if cfg.workspace != nil {
+			closeWorktreeRuntime(ctx, executionRuntime)
+		}
 		return &agenttool.RunResult{ErrMsg: fmt.Sprintf("agent %q not found: %s", cfg.AgentName, err)}
 	}
 
 	s := newSubSession(parent, cfg, child)
 	r.emitBackgroundEvent(ctx, BackgroundAgentStatus(s.ID, cfg.AgentName, true))
 	defer func() {
+		if cfg.workspace != nil {
+			closeWorktreeRuntime(ctx, executionRuntime)
+		}
 		r.emitBackgroundEvent(context.WithoutCancel(ctx), BackgroundAgentStatus(s.ID, cfg.AgentName, false))
 	}()
 
@@ -532,6 +529,18 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 		if errEvt, ok := event.(*ErrorEvent); ok {
 			errMsg = errEvt.Error
 			break
+		}
+		if cfg.workspace != nil {
+			switch e := event.(type) {
+			case *BudgetExceededEvent:
+				if e.SessionID == s.ID {
+					errMsg = e.Message
+				}
+			case *StreamStoppedEvent:
+				if e.SessionID == s.ID && e.Reason != "" && e.Reason != turnEndReasonNormal && e.Reason != turnEndReasonCanceled {
+					errMsg = "background task stopped: " + e.Reason
+				}
+			}
 		}
 	}
 	// Drain remaining events so the RunStream goroutine can complete and
@@ -593,7 +602,7 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	// Mid-call elicitations that were auto-declined because this background
 	// session had no UI to answer them (see elicitationHandler) are recorded
 	// against this sub-session's ID; surface them the same way (#3584).
-	for _, note := range r.elicitationDeclines.drain(s.ID) {
+	for _, note := range executionRuntime.elicitationDeclines.drain(s.ID) {
 		result = prependNote(result, note)
 	}
 	return &agenttool.RunResult{Result: result}
@@ -722,12 +731,11 @@ func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams)
 		DelegationLineage: childLineage,
 	}
 	if params.Worktree {
-		wt, executionRuntime, err := r.prepareBackgroundWorktree(ctx, params)
+		workspace, err := r.prepareBackgroundWorktree(ctx, params)
 		if err != nil {
 			return &agenttool.RunResult{ErrMsg: err.Error()}
 		}
-		defer closeWorktreeRuntime(ctx, executionRuntime)
-		cfg.Worktree, cfg.executionRuntime = wt, executionRuntime
+		cfg.workspace = workspace
 	}
 	return r.runCollecting(ctx, params.ParentSession, cfg, params.OnContent)
 }

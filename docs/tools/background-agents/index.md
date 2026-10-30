@@ -77,13 +77,13 @@ Set `worktree: true` to run concurrent coding tasks without sharing a checkout:
 
 This works when the calling session is in a Git repository **or an existing Git worktree**. Each task gets a fresh branch from that checkout's current `HEAD`, not the repository's default branch. Uncommitted and untracked files are **not copied**; commit shared starting changes before dispatching tasks. A missing repository or a failed setup is reported as a failed task.
 
-The child gets fresh toolsets and hooks rooted in its checkout; the parent's tools and process working directory are unchanged. Blocking delegations (`transfer_task` and forked skills) inherit the isolated workspace. Nested background dispatch is rejected: start parallel worktree tasks from the top-level orchestrator. Model clients are reused, and tasks share the parent's run budget and inherit its safety policy and permissions. Configured `worktree_create` hooks run in the new checkout before the child starts.
+The child gets fresh toolsets and hooks rooted in its checkout; the parent's tools and process working directory are unchanged. Blocking delegations (`transfer_task` and forked skills) inherit the isolated workspace. Nested background dispatch is rejected: start parallel worktree tasks from the top-level orchestrator. Model clients are reused, and tasks share the parent's run budget and inherit its safety policy and permissions. Configured `worktree_create` hooks run before tools and skills are loaded, so setup-created ignore files and directories take effect.
 
 `list_background_agents` and `view_background_agent` report the checkout path, branch, and base commit once creation finishes. `wait_background_agents` includes them as `worktree`, `branch`, and `base_commit`, independently of truncated output and whether the task succeeded.
 
 ### Review and merge at the top level
 
-1. Start all independent tasks with `worktree: true`. Describe files relative to the repository. Absolute repository paths in the delegated task are rebased to the child checkout; attached files remain available at their original paths.
+1. Start all independent tasks with `worktree: true`. Describe files relative to the repository. The child is instructed to translate source-checkout paths to its own checkout; the child is instructed to treat attached files as read-only inputs at their original paths.
 2. Have each child commit its changes on its own branch, following the project's signing policy. No commits are made automatically.
 3. Wait for all tasks, check each status, and review each branch's diff.
 4. Merge branches **one at a time** from the parent checkout, resolve conflicts, and run the combined tests. For example:
@@ -103,7 +103,7 @@ The child gets fresh toolsets and hooks rooted in its checkout; the parent's too
 Worktrees and branches are **retained**, including after failure, cancellation, and runtime shutdown. Uncommitted changes cannot be merged with `git merge`; inspect and commit them first. Never remove a task's checkout while it or its descendants are still running. Save the reported paths before task history is pruned.
 
 > [!NOTE]
-> Worktrees isolate checkouts, not permissions or arbitrary external side effects. Explicit absolute tool/hook directories, external services, and shared Git configuration remain shared. External harness agents do not yet support `worktree: true`; their drivers currently inherit the process directory. Programmatic agents need a working-directory factory; configuration-loaded native agents supply one automatically.
+> Worktrees isolate checkouts, not permissions or arbitrary external side effects. Explicit absolute tool/hook directories, external services, and shared Git configuration remain shared. External harness agents do not yet support `worktree: true`; their drivers currently inherit the process directory. Programmatic agents need a working-directory factory; configuration-loaded native agents supply one automatically. Adding tools after loading invalidates that factory unless the host supplies a replacement. Shared plans, shared todos, and default persistent memory remain shared intentionally. RAG indexes are scoped to the workspace unless an explicit database path selects shared storage.
 
 ## Configuration
 

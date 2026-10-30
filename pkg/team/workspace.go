@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // ForWorkingDir rebuilds the whole agent graph before reconnecting its links.
@@ -20,7 +21,7 @@ func (t *Team) ForWorkingDir(ctx context.Context, dir string) (_ *Team, err erro
 		if err != nil {
 			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
-			err = errors.Join(err, New(WithAgents(built...)).StopToolSets(cleanupCtx))
+			err = errors.Join(err, New(WithAgents(built...)).Dispose(cleanupCtx))
 		}
 	}()
 
@@ -80,4 +81,24 @@ func (t *Team) ForWorkingDir(ctx context.Context, dir string) (_ *Team, err erro
 		}
 	}
 	return workspace, nil
+}
+
+// Dispose permanently releases all workspace resources after execution ends,
+// including tools that were never started. StopToolSets remains restartable.
+func (t *Team) Dispose(ctx context.Context) error {
+	var toolsets []tools.ToolSet
+	seen := make(map[*agent.Agent]bool)
+	agents := slices.Concat(t.agents, t.linkedAgents)
+	for i := 0; i < len(agents); i++ {
+		a := agents[i]
+		if a == nil || seen[a] {
+			continue
+		}
+		seen[a] = true
+		toolsets = append(toolsets, a.DisposableToolSets()...)
+		agents = append(agents, a.SubAgents()...)
+		agents = append(agents, a.Handoffs()...)
+		agents = append(agents, a.ForceHandoff())
+	}
+	return tools.Dispose(ctx, toolsets...)
 }

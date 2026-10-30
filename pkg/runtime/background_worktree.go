@@ -11,17 +11,25 @@ import (
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/hooks"
 	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/worktree"
 )
 
-func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params agenttool.RunParams) (*worktree.Worktree, *LocalRuntime, error) {
+type backgroundWorktree struct {
+	tree         *worktree.Worktree
+	runtime      *LocalRuntime
+	instructions string
+}
+
+func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params agenttool.RunParams) (*backgroundWorktree, error) {
+	ctx = tools.WithoutInteractivePrompts(ctx)
 	target, err := r.team.Agent(params.AgentName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if target.HasHarness() {
-		return nil, nil, fmt.Errorf("external harness agent %q does not support isolated background worktrees", params.AgentName)
+		return nil, fmt.Errorf("external harness agent %q does not support isolated background worktrees", params.AgentName)
 	}
 	var lookup session.Lookup
 	if r.sessionStore != nil {
@@ -29,18 +37,38 @@ func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params age
 	}
 	dir, err := session.ResolveWorkingDir(ctx, params.ParentSession, lookup)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating background worktree: %w", err)
+		return nil, fmt.Errorf("creating background worktree: %w", err)
 	}
-	wt, err := worktree.Create(ctx, dir, "agent-"+uuid.NewV4().String())
+	wt, err := worktree.Create(ctx, dir, "agent-"+uuid.NewV4().String(), worktree.WithRoot(r.worktreeRoot))
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating background worktree: %w", err)
+		return nil, fmt.Errorf("creating background worktree: %w", err)
 	}
 	if params.OnWorktree != nil {
 		params.OnWorktree(wt)
 	}
 	// Keep the checkout even on setup failure: hooks may already have written files.
-	fail := func(err error) (*worktree.Worktree, *LocalRuntime, error) {
-		return nil, nil, fmt.Errorf("background worktree retained at %s (branch %s): %w", wt.Dir, wt.Branch, err)
+	fail := func(err error) (*backgroundWorktree, error) {
+		return nil, fmt.Errorf("background worktree retained at %s (branch %s): %w", wt.Dir, wt.Branch, err)
+	}
+	var instructions string
+	if executor := r.hooksExec(target); executor != nil && executor.Has(hooks.EventWorktreeCreate) {
+		result, err := executor.ForWorkingDir(wt.Dir).Dispatch(ctx, hooks.EventWorktreeCreate, &hooks.Input{
+			AgentName: params.AgentName, Cwd: wt.Dir, ParentSessionID: params.ParentSession.ID,
+			WorktreePath: wt.Dir, WorktreeBranch: wt.Branch, WorktreeSourceDir: wt.SourceDir,
+		})
+		if err != nil {
+			return fail(err)
+		}
+		if !result.Allowed {
+			return fail(fmt.Errorf("worktree_create hook blocked the task: %s", result.Message))
+		}
+		instructions = result.AdditionalContext
+		if params.OnContent != nil && result.SystemMessage != "" {
+			params.OnContent(result.SystemMessage)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return fail(err)
 	}
 	isolatedTeam, err := r.team.ForWorkingDir(ctx, wt.Dir)
 	if err != nil {
@@ -85,7 +113,7 @@ func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params age
 	if err != nil {
 		stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
-		if stopErr := isolatedTeam.StopToolSets(stopCtx); stopErr != nil {
+		if stopErr := isolatedTeam.Dispose(stopCtx); stopErr != nil {
 			slog.WarnContext(ctx, "Failed to stop isolated toolsets", "error", stopErr)
 		}
 		return fail(err)
@@ -94,25 +122,7 @@ func (r *LocalRuntime) prepareBackgroundWorktree(ctx context.Context, params age
 	isolated.isolatedWorktree = true
 	isolated.liveSessionParent = r
 	isolated.OnBackgroundEventWithContext(r.emitBackgroundEvent)
-	child, _ := isolatedTeam.Agent(params.AgentName)
-	exec := isolated.hooksExec(child)
-	if exec != nil && exec.Has(hooks.EventWorktreeCreate) {
-		result, err := exec.Dispatch(ctx, hooks.EventWorktreeCreate, &hooks.Input{
-			AgentName: params.AgentName, Cwd: wt.Dir, WorktreePath: wt.Dir,
-			WorktreeBranch: wt.Branch, WorktreeSourceDir: wt.SourceDir,
-		})
-		if err == nil && !result.Allowed {
-			err = fmt.Errorf("worktree_create hook blocked the task: %s", result.Message)
-		}
-		if err != nil {
-			closeWorktreeRuntime(ctx, isolated)
-			return fail(err)
-		}
-		if params.OnContent != nil {
-			params.OnContent(result.SystemMessage + result.AdditionalContext)
-		}
-	}
-	return wt, isolated, nil
+	return &backgroundWorktree{tree: wt, runtime: isolated, instructions: instructions}, nil
 }
 
 func closeWorktreeRuntime(ctx context.Context, rt *LocalRuntime) {
@@ -121,7 +131,7 @@ func closeWorktreeRuntime(ctx context.Context, rt *LocalRuntime) {
 	}
 	stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
-	if err := rt.team.StopToolSets(stopCtx); err != nil {
+	if err := rt.team.Dispose(stopCtx); err != nil {
 		slog.WarnContext(ctx, "Failed to stop worktree toolsets", "error", err)
 	}
 }
