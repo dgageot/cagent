@@ -462,6 +462,15 @@ func (r *LocalRuntime) runForwarding(ctx context.Context, parent *session.Sessio
 // callers like background agents PinAgent the child session so the
 // runtime never mutates the shared currentAgent state.
 func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Session, cfg SubSessionConfig, onContent func(string)) *agenttool.RunResult {
+	var s *session.Session
+	defer func() {
+		if cfg.workspace != nil {
+			closeWorktreeRuntime(ctx, cfg.workspace.runtime)
+		}
+		if s != nil {
+			r.emitBackgroundEvent(context.WithoutCancel(ctx), BackgroundAgentStatus(s.ID, cfg.AgentName, false))
+		}
+	}()
 	// The caller resolves from the parent session, not the shared current
 	// agent: a nested background dispatch from a pinned session must
 	// attribute the child's completion to the pinned agent, no matter
@@ -470,9 +479,6 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	// different agent if the shared current changes mid-run.
 	callerAgent := r.resolveSessionAgent(parent)
 	if callerAgent == nil {
-		if cfg.workspace != nil {
-			closeWorktreeRuntime(ctx, cfg.workspace.runtime)
-		}
 		return &agenttool.RunResult{ErrMsg: "no agent resolved for the parent session"}
 	}
 	executionRuntime := r
@@ -481,20 +487,11 @@ func (r *LocalRuntime) runCollecting(ctx context.Context, parent *session.Sessio
 	}
 	child, err := executionRuntime.team.Agent(cfg.AgentName)
 	if err != nil {
-		if cfg.workspace != nil {
-			closeWorktreeRuntime(ctx, executionRuntime)
-		}
 		return &agenttool.RunResult{ErrMsg: fmt.Sprintf("agent %q not found: %s", cfg.AgentName, err)}
 	}
 
-	s := newSubSession(parent, cfg, child)
+	s = newSubSession(parent, cfg, child)
 	r.emitBackgroundEvent(ctx, BackgroundAgentStatus(s.ID, cfg.AgentName, true))
-	defer func() {
-		if cfg.workspace != nil {
-			closeWorktreeRuntime(ctx, executionRuntime)
-		}
-		r.emitBackgroundEvent(context.WithoutCancel(ctx), BackgroundAgentStatus(s.ID, cfg.AgentName, false))
-	}()
 
 	// subagent_stop fires after the background sub-session has fully
 	// drained — success or failure. The caller agent (whoever dispatched
