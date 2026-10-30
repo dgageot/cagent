@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"reflect"
 	"slices"
 )
 
@@ -98,7 +99,10 @@ func disposeGroup(ctx context.Context, group disposalGroup) error {
 		}
 	}()
 
-	d := disposal{seen: make(map[ToolSet]struct{})}
+	d := disposal{seen: make(map[ToolSet]struct{}), running: make(map[ToolSet]struct{}), stopped: make(map[ToolSet]struct{})}
+	for _, ts := range group.roots {
+		d.collectStops(ts, false)
+	}
 	var errs []error
 	for _, ts := range group.roots {
 		errs = append(errs, d.dispose(ctx, ts, false))
@@ -154,7 +158,37 @@ func lockDisposalOwners(ctx context.Context, owners []*StartableToolSet) error {
 }
 
 type disposal struct {
-	seen map[ToolSet]struct{}
+	seen    map[ToolSet]struct{}
+	running map[ToolSet]struct{}
+	stopped map[ToolSet]struct{}
+}
+
+// Aggregate every owner's requirement before cleanup deduplicates shared leaves.
+func (d *disposal) collectStops(ts ToolSet, stopped bool) {
+	if ts == nil {
+		return
+	}
+	if owner, ok := ts.(*StartableToolSet); ok && owner != nil {
+		if owner.disposed {
+			return
+		}
+		stopped = owner.stopped
+	}
+	seen := d.running
+	if stopped {
+		seen = d.stopped
+	}
+	if seenToolSet(ts, seen) {
+		return
+	}
+	if wrapper, ok := ts.(Unwrapper); ok {
+		d.collectStops(wrapper.Unwrap(), stopped)
+	}
+	if composite, ok := ts.(Composite); ok {
+		for _, child := range composite.Children() {
+			d.collectStops(child, stopped)
+		}
+	}
 }
 
 func (d *disposal) dispose(ctx context.Context, ts ToolSet, stopped bool) error {
@@ -176,15 +210,22 @@ func (d *disposal) dispose(ctx context.Context, ts ToolSet, stopped bool) error 
 	}
 
 	var errs []error
-	switch ts := ts.(type) {
-	case Unwrapper:
-		errs = append(errs, d.dispose(ctx, ts.Unwrap(), stopped))
-	case Composite:
-		for _, child := range ts.Children() {
+	wrapper, wraps := ts.(Unwrapper)
+	if wraps {
+		errs = append(errs, d.dispose(ctx, wrapper.Unwrap(), stopped))
+	}
+	composite, combines := ts.(Composite)
+	if combines {
+		for _, child := range composite.Children() {
 			errs = append(errs, d.dispose(ctx, child, stopped))
 		}
-	default:
-		if startable, ok := ts.(Startable); ok && !stopped {
+	}
+	if !wraps && !combines {
+		mustStop := !stopped
+		if reflect.ValueOf(ts).Comparable() {
+			_, mustStop = d.running[ts]
+		}
+		if startable, ok := ts.(Startable); ok && mustStop {
 			errs = append(errs, startable.Stop(ctx))
 		}
 	}

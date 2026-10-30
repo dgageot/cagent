@@ -3,6 +3,8 @@ package tools_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -264,4 +266,51 @@ func TestDisposeDrainsEveryOutstandingListing(t *testing.T) {
 	require.NoError(t, <-disposed)
 	assert.EqualValues(t, 1, raw.stops.Load())
 	assert.EqualValues(t, 1, raw.closes.Load())
+}
+
+func TestDisposeStopsSharedLeafRegardlessOfOwnerOrder(t *testing.T) {
+	t.Parallel()
+	for _, reverse := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reverse=%t", reverse), func(t *testing.T) {
+			t.Parallel()
+			raw := &disposalToolSet{}
+			stopped, running := tools.NewStartable(raw), tools.NewStartable(raw)
+			require.NoError(t, stopped.Start(t.Context()))
+			require.NoError(t, stopped.Stop(t.Context()))
+			require.NoError(t, running.Start(t.Context()))
+			raw.live.Store(true)
+			owners := []tools.ToolSet{stopped, running}
+			if reverse {
+				slices.Reverse(owners)
+			}
+			require.NoError(t, tools.Dispose(t.Context(), owners...))
+			assert.EqualValues(t, 2, raw.stops.Load())
+			assert.False(t, raw.live.Load())
+			assert.EqualValues(t, 1, raw.closes.Load())
+			require.NoError(t, tools.Dispose(t.Context(), owners...))
+			assert.EqualValues(t, 2, raw.stops.Load())
+			assert.EqualValues(t, 1, raw.closes.Load())
+		})
+	}
+}
+
+type disposalBothEdges struct {
+	inner    tools.ToolSet
+	children []tools.ToolSet
+}
+
+func (*disposalBothEdges) Tools(context.Context) ([]tools.Tool, error) { return nil, nil }
+func (s *disposalBothEdges) Unwrap() tools.ToolSet                     { return s.inner }
+func (s *disposalBothEdges) Children() []tools.ToolSet                 { return s.children }
+
+func TestDisposeTraversesBothEdgeTypes(t *testing.T) {
+	t.Parallel()
+	decorated, child := &disposalToolSet{}, &disposalToolSet{}
+	shared := tools.NewStartable(decorated)
+	root := &disposalBothEdges{inner: shared, children: []tools.ToolSet{shared, tools.NewStartable(child)}}
+	require.NoError(t, tools.Dispose(t.Context(), root))
+	for _, raw := range []*disposalToolSet{decorated, child} {
+		assert.EqualValues(t, 1, raw.stops.Load())
+		assert.EqualValues(t, 1, raw.closes.Load())
+	}
 }
