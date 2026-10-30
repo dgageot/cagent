@@ -589,7 +589,7 @@ func (s *StartableToolSet) startLocked(ctx context.Context) (err error) {
 	}
 	recovering := s.recovering
 	if recovering {
-		if reporter, ok := As[StartReporter](s.ToolSet); ok && reporter.IsStarted() {
+		if reporter, ok := As[StartReporter](s.ToolSet); ok && blockingReporterStarted(reporter) {
 			s.started = true
 			s.stopErr = nil
 			s.recovering = false
@@ -600,7 +600,7 @@ func (s *StartableToolSet) startLocked(ctx context.Context) (err error) {
 		}
 	}
 	if s.started {
-		if reporter, ok := As[StartReporter](s.ToolSet); !ok || reporter.IsStarted() {
+		if reporter, ok := As[StartReporter](s.ToolSet); !ok || blockingReporterStarted(reporter) {
 			return nil
 		}
 		s.started = false
